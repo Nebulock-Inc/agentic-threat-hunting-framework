@@ -76,15 +76,15 @@ Every threat hunting methodology follows the same core pattern—ATHR calls it *
 
 ```mermaid
 graph LR
-    L["🔒 Learn<br/><small>Gather context<br/>(CTI, alert, anomaly)</small>"]
-    O["👁️ Observe<br/><small>Form hypothesis<br/>(adversary behavior)</small>"]
-    C["✓ Check<br/><small>Test with query<br/>(bounded validation)</small>"]
-    K["📝 Keep<br/><small>Record lessons<br/>(decisions + outcomes)</small>"]
+    L["🔒 LEARN<br/>Gather context<br/>CTI, alert, anomaly"]
+    O["👁️ OBSERVE<br/>Form hypothesis<br/>Adversary behavior"]
+    C["✓ CHECK<br/>Test with query<br/>Bounded validation"]
+    K["📝 KEEP<br/>Record lessons<br/>Decisions + outcomes"]
 
     L --> O
     O --> C
     C --> K
-    K -.Memory feeds<br/>next hunt.-> L
+    K -.Memory loop.-> L
 
     style L fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
     style O fill:#fff3e0,stroke:#f57c00,stroke-width:2px
@@ -111,12 +111,12 @@ By standardizing hunt notes around LOCK, AI can understand your hunts regardless
 
 ```mermaid
 graph LR
-    L0["<b>Level 0</b><br/>Manual<br/><small>Pen & paper</small>"]
-    L1["<b>Level 1</b><br/>Assisted<br/><small>AI drafts</small>"]
-    L2["<b>Level 2</b><br/>Informed<br/><small>+ Memory</small>"]
-    L3["<b>Level 3</b><br/>Automated<br/><small>Single agent</small>"]
-    L4["<b>Level 4</b><br/>Coordinated<br/><small>Multi-agent</small>"]
-    L5["<b>Level 5</b><br/>Adaptive<br/><small>Learning system</small>"]
+    L0["Level 0<br/>Manual"]
+    L1["Level 1<br/>Assisted"]
+    L2["Level 2<br/>Informed"]
+    L3["Level 3<br/>Automated"]
+    L4["Level 4<br/>Coordinated"]
+    L5["Level 5<br/>Adaptive"]
 
     L0 --> L1
     L1 --> L2
@@ -131,7 +131,7 @@ graph LR
     style L4 fill:#e1f5fe,stroke:#0288d1
     style L5 fill:#f3e5f5,stroke:#9c27b0
 
-    Sweet["⭐ Most teams<br/>operate here"]
+    Sweet["⭐ Most teams operate here"]
     Sweet -.-> L2
     Sweet -.-> L3
 
