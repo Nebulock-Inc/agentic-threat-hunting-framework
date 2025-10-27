@@ -74,6 +74,24 @@ Every threat hunting methodology follows the same core pattern—ATHR calls it *
 **C — Check**: Test with bounded query
 **K — Keep**: Record decision and lessons learned
 
+```mermaid
+graph LR
+    L["🔒 Learn<br/><small>Gather context<br/>(CTI, alert, anomaly)</small>"]
+    O["👁️ Observe<br/><small>Form hypothesis<br/>(adversary behavior)</small>"]
+    C["✓ Check<br/><small>Test with query<br/>(bounded validation)</small>"]
+    K["📝 Keep<br/><small>Record lessons<br/>(decisions + outcomes)</small>"]
+
+    L --> O
+    O --> C
+    C --> K
+    K -.Memory feeds<br/>next hunt.-> L
+
+    style L fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    style O fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    style C fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    style K fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+```
+
 LOCK isn't a new methodology—it's the **abstraction that makes threat hunting teachable to AI**.
 
 By standardizing hunt notes around LOCK, AI can understand your hunts regardless of which framework you use. See "Why LOCK Matters for AI" below for how LOCK maps to PEAK, SQRRL, and other methodologies.
@@ -90,6 +108,35 @@ By standardizing hunt notes around LOCK, AI can understand your hunts regardless
 | **5. Adaptive** | Learning System | System learns what works, adapts priorities | Weighted outcomes | ML + agents |
 
 **Start at Level 0. Most teams operate at Level 2-3. Progress only when complexity demands it.**
+
+```mermaid
+graph LR
+    L0["<b>Level 0</b><br/>Manual<br/><small>Pen & paper</small>"]
+    L1["<b>Level 1</b><br/>Assisted<br/><small>AI drafts</small>"]
+    L2["<b>Level 2</b><br/>Informed<br/><small>+ Memory</small>"]
+    L3["<b>Level 3</b><br/>Automated<br/><small>Single agent</small>"]
+    L4["<b>Level 4</b><br/>Coordinated<br/><small>Multi-agent</small>"]
+    L5["<b>Level 5</b><br/>Adaptive<br/><small>Learning system</small>"]
+
+    L0 --> L1
+    L1 --> L2
+    L2 --> L3
+    L3 --> L4
+    L4 --> L5
+
+    style L0 fill:#f5f5f5,stroke:#9e9e9e
+    style L1 fill:#e3f2fd,stroke:#2196f3
+    style L2 fill:#fff9c4,stroke:#fbc02d,stroke-width:3px
+    style L3 fill:#fff9c4,stroke:#fbc02d,stroke-width:3px
+    style L4 fill:#e1f5fe,stroke:#0288d1
+    style L5 fill:#f3e5f5,stroke:#9c27b0
+
+    Sweet["⭐ Most teams<br/>operate here"]
+    Sweet -.-> L2
+    Sweet -.-> L3
+
+    style Sweet fill:#ffffcc,stroke:#ff9800,stroke-width:2px,stroke-dasharray: 5 5
+```
 
 ## Philosophy
 

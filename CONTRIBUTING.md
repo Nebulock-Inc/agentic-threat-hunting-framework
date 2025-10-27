@@ -4,13 +4,13 @@ ATHR is a **framework for building agentic capability** in threat hunting. This 
 
 ## Philosophy
 
-ATHR teaches systems how to hunt with memory, learning, and autonomy. It's:
+ATHR teaches systems how to hunt with memory, learning, and augmentation. It's:
 
 - **Framework, not platform** - Structure over software, adapt to your environment
 - **Capability-focused** - Adds memory and agents to any hunting methodology (PEAK, SQRRL, custom)
 - **Progression-minded** - Start simple (grep + ChatGPT), scale when complexity demands it
 
-**ATHR is a mental model you can Git clone—then make agentic.**
+**Give your threat hunting program memory and agency.**
 
 ## How to Adopt ATHR
 
@@ -33,6 +33,9 @@ Use ATHR's LOCK pattern as your hunting methodology. Simple, lightweight, agenti
 **Option B: Layered (ATHR + PEAK/SQRRL)**
 Keep your existing hunting framework (PEAK, SQRRL, TaHiTI) and use ATHR to add memory and AI agents.
 
+**Why ATHR helps:**
+Without structured memory, hunters have foggy memory of past hunts—they remember something similar happened, but not the details. ATHR gives your program persistent memory and AI augmentation.
+
 ### 3. Adapt Templates to Your Environment
 
 Edit `templates/` to match your:
@@ -50,8 +53,15 @@ Edit `templates/` to match your:
 - Focus: Learn AI-assisted hypothesis generation
 
 **Level 2 (Month 1-2):**
-- Save hunt notes in `hunts/` folder (or Jira, Confluence, etc.)
-- Before each hunt: `grep -l "TTP" hunts/*.md` to check memory
+- Save hunt notes in `hunts/` folder (or SharePoint, Confluence, Jira, local folders)
+- Before each hunt, grep for similar hunts:
+  ```bash
+  grep -l "T1110.001" hunts/*.md        # Find by TTP
+  grep -i "brute force" hunts/*.md      # Find by behavior
+  grep -i "powershell" hunts/*.md       # Find by technology
+  grep -i "active directory" hunts/*.md # Find by application
+  grep -i "privilege escalation" hunts/*.md  # Find by keyword
+  ```
 - Share past hunts with AI for context
 
 **Level 3+ (Month 3-6+):**
@@ -68,13 +78,10 @@ The `hunts/` and `queries/` folders are **yours to fill**:
 
 ### 6. Integrate with Your Tools
 
-ATHR is designed to work with your existing stack:
-- **SIEM**: Splunk, Sentinel, Elastic, Chronicle
-- **Ticketing**: Jira, ServiceNow (hunt notes as tickets)
-- **Detection-as-Code**: Sigma, YARA-L
-- **Notebooks**: Jupyter, Observable
-- **AI/Agents**: ChatGPT, Claude, LangChain, AutoGen
-- **Orchestration**: SOAR, automation platforms
+ATHR is designed to work with your existing stack. See the README sections for detailed integration guidance:
+- **"Integration Patterns"** - Storage options, AI tools by level, SIEM compatibility
+- **"What You'll Need From Your Tech Stack"** - Requirements for each maturity level
+- **"How ATHR Works With Your Framework"** - Mapping to PEAK, SQRRL, custom methodologies
 
 ## Scaling ATHR in Your Organization
 
@@ -84,8 +91,8 @@ ATHR is designed to work with your existing stack:
 - Build memory with 10-20 hunt reports before adding agents
 
 ### Small Team (2-5 people)
-- **Level 2-3**: Shared storage (git, SharePoint, Confluence, Jira)
-- Grep works across any shared folder
+- **Level 2-3**: Shared storage (git, SharePoint, Confluence, Jira, Notion)
+- Grep works across any shared folder (or export from cloud tools)
 - Collaborative memory via shared hunt notes
 - One person can build simple agents for the team
 
@@ -103,37 +110,14 @@ ATHR is designed to work with your existing stack:
 
 ## Mapping ATHR to Your Existing Framework
 
-### If You Use PEAK
+ATHR complements existing hunting frameworks (PEAK, SQRRL, TaHiTI) by adding memory and AI augmentation. You can use ATHR standalone or layer it over your current methodology.
 
-Map ATHR's LOCK pattern to PEAK phases:
+**See the README section "How ATHR Works With Your Framework"** for detailed mapping tables showing:
+- How PEAK phases map to LOCK steps
+- How SQRRL phases map to LOCK steps
+- How to map custom methodologies to LOCK
 
-| PEAK Phase | LOCK Step | AI Integration |
-|------------|-----------|----------------|
-| **Prepare** | Learn + Observe | AI drafts hypothesis, recalls past hunts |
-| **Execute** | Check | AI generates queries, automates execution |
-| **Act with Knowledge** | Keep | AI documents lessons, updates detections |
-
-Document your PEAK hunts in LOCK format for AI parsing.
-
-### If You Use SQRRL
-
-Map SQRRL to LOCK:
-
-| SQRRL Phase | LOCK Step | AI Integration |
-|-------------|-----------|----------------|
-| **Hypothesis** | Learn + Observe | AI generates from context |
-| **Investigation** | Check | AI builds queries, recalls similar hunts |
-| **Pattern / Detection** | Keep | AI identifies trends, converts to rules |
-
-### If You Use Custom Methodology
-
-Map your process to LOCK's four steps:
-1. **Context gathering** → Learn
-2. **Hypothesis formation** → Observe
-3. **Testing/validation** → Check
-4. **Decision + lessons** → Keep
-
-This makes your hunts AI-readable without changing your process.
+The key insight: LOCK provides a universal structure that makes your hunts AI-readable regardless of which framework you use.
 
 ## Adapting the LOCK Loop
 
@@ -237,7 +221,8 @@ Build helpers that work for your environment:
 ATHR is designed to be self-contained and adaptable. If you have questions about how to adapt it:
 1. Review the templates and example hunt (H-0001) for patterns
 2. Check the prompts/ folder for AI-assisted workflows
-3. Adapt freely - this framework is yours to modify
+3. See the README for workflow diagrams, progression guidance, and detailed integration patterns
+4. Adapt freely - this framework is yours to modify
 
 ## Sharing Back (Optional)
 

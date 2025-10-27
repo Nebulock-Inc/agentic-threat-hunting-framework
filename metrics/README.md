@@ -8,14 +8,22 @@ At early maturity levels, your `hunts/` folder IS your memory. Before starting a
 
 ```bash
 # Find hunts by TTP
-grep -l "T1059.001" ../hunts/*.md
+grep -l "T1110.001" ../hunts/*.md
+
+# Find by behavior
+grep -i "brute force" ../hunts/*.md
+
+# Find by technology
+grep -i "powershell" ../hunts/*.md
+
+# Find by application
+grep -i "active directory" ../hunts/*.md
+
+# Find by keyword
+grep -i "privilege escalation" ../hunts/*.md
 
 # Find what worked
 grep "Decision: Accept" ../hunts/*.md
-
-# Search by behavior or platform
-grep -i "powershell" ../hunts/*.md
-grep -i "linux" ../hunts/*.md
 ```
 
 **No additional files needed.** The discipline of reviewing old hunts before starting new ones is what creates memory.

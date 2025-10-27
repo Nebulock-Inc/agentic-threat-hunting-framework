@@ -15,7 +15,7 @@ Use to draft safe, bounded queries for Splunk, KQL, or Elastic from your hypothe
 **When to use**: You have a hypothesis but need help writing the query
 
 ### summarizer.md
-Use to help document hunt results and capture lessons learned in LOCK Loop format.
+Use to help document hunt results and capture lessons learned in LOCK pattern format.
 
 **When to use**: You ran a query and need help writing a concise run note
 
@@ -39,7 +39,7 @@ Use to help document hunt results and capture lessons learned in LOCK Loop forma
 ### Keep It Simple
 
 These prompts are designed to:
-- Help you think through the LOCK Loop systematically
+- Help you think through the LOCK pattern systematically
 - Reduce writer's block when starting hunts
 - Capture lessons more consistently
 - NOT to fully automate hunting (that's Level 3-4)
@@ -48,7 +48,7 @@ These prompts are designed to:
 
 Think of these prompts as training wheels:
 - They help you get started faster
-- They teach you the LOCK Loop structure
+- They teach you the LOCK pattern structure
 - Over time, you'll need them less
 - But they remain useful for complex hunts
 
@@ -96,7 +96,11 @@ Once you have 10-20 completed hunts in `hunts/`, you can enhance these prompts w
 Example workflow:
 ```bash
 # Before starting a hunt, search your memory
-grep -l "T1059.001" hunts/*.md
+grep -l "T1110.001" hunts/*.md        # Find by TTP
+grep -i "brute force" hunts/*.md      # Find by behavior
+grep -i "powershell" hunts/*.md       # Find by technology
+grep -i "active directory" hunts/*.md # Find by application
+grep -i "privilege escalation" hunts/*.md  # Find by keyword
 
 # Share relevant past hunts with your AI assistant
 # Then use the prompts above

@@ -95,6 +95,15 @@ grep -l "T1110.001" hunts/H-*_*.md
 # Find hunts by behavior
 grep -i "brute force" hunts/H-*_*.md
 
+# Find by technology
+grep -i "powershell" hunts/H-*_*.md
+
+# Find by application
+grep -i "active directory" hunts/H-*_*.md
+
+# Find by keyword
+grep -i "privilege escalation" hunts/H-*_*.md
+
 # See what worked
 grep "Decision.*Accept" hunts/H-*_*.md
 
