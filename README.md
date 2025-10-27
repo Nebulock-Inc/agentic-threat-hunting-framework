@@ -57,19 +57,9 @@ ATHR is both a **conceptual framework** and a **practical toolkit** for agentic 
 3. **5 Levels of Agentic Hunting** - Maturity model from manual to AI-augmented operations
 4. **Templates & Patterns** - Practical implementations you can copy
 
-**Scope:**
-- **PEAK/SQRRL/TaHiTI**: Frameworks for *how humans hunt* (process, phases, methodology)
-- **ATHR**: Framework for *how systems become agentic* (memory, learning, augmentation)
-
 **Relationship:**
 - **Standalone**: Use ATHR's LOCK pattern and maturity model to build agentic capability from scratch
 - **Layered**: Apply ATHR's memory and agent patterns to your existing PEAK/SQRRL workflow
-
-**Technical Foundation:**
-- **Storage**: Markdown files in git repos (or SharePoint, Confluence, Jira, folders)
-- **Infrastructure**: Git workflows, CI/CD pipelines for agent deployment
-- **AI Integration**: ChatGPT, Claude, Copilot, custom agents, LangChain, AutoGen
-- **SIEM Integration**: Works with any query language (SPL, KQL, EQL, YARA-L)
 
 ## The LOCK Pattern
 
@@ -86,11 +76,7 @@ Every threat hunting methodology follows the same core pattern—ATHR calls it *
 
 LOCK isn't a new methodology—it's the **abstraction that makes threat hunting teachable to AI**.
 
-- **PEAK** (Prepare → Execute → Act) follows LOCK
-- **SQRRL** (Hypothesis → Investigation → Patterns) follows LOCK
-- **Your custom process** probably follows LOCK
-
-By standardizing hunt notes around LOCK, AI can understand your hunts regardless of which framework you use.
+By standardizing hunt notes around LOCK, AI can understand your hunts regardless of which framework you use. See "Why LOCK Matters for AI" below for how LOCK maps to PEAK, SQRRL, and other methodologies.
 
 ## The 5 Levels of Agentic Hunting
 
@@ -353,12 +339,6 @@ ATHR works with any SIEM that supports query languages:
 
 Templates are query-language agnostic. Agents can be trained on your SIEM's specific syntax.
 
-## Three Rules for Agentic Hunting
-
-1. **Validate AI output** - Never run AI-generated queries without review
-2. **Build memory first** - Agents without memory repeat mistakes
-3. **Progress gradually** - Level 2 is better than Level 0, even if you never reach Level 5
-
 ## Examples
 
 ### Level 1: AI-Assisted Hypothesis
@@ -487,23 +467,12 @@ Check `hunts/` for a complete hunt showing AI-assisted workflow:
 
 ### 3. Start at Your Level
 
-**Level 0-1: Use AI prompts**
-- Copy prompts from `prompts/` folder
-- Use with ChatGPT/Claude to draft hypotheses and queries
-- Still validate and run everything manually
+Choose your starting point based on your current capabilities:
+- **New to AI-assisted hunting?** Start with Level 0-1 (AI prompts)
+- **Ready to add memory?** Jump to Level 2 (grep-based recall)
+- **Want automation?** See Level 3+ guidance
 
-**Level 2: Add memory**
-- Save hunt notes in `hunts/` folder
-- Before each hunt: `grep -l "T1110" hunts/*.md` to check past hunts
-- Share past hunt context with your AI assistant
-
-**Level 3: Automate one task**
-- Build a script that checks memory before generating hypothesis
-- Or auto-fills execution reports from query results
-- Or suggests similar past hunts
-
-**Level 4-5: Agent orchestration**
-- See `docs/` for architecture patterns (coming soon)
+See the "Progression Guide" section above for detailed step-by-step instructions for each level.
 
 ## Questions?
 
