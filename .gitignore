@@ -1,0 +1,18 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Sensitive data
+*.env
+credentials/
+secrets/
+
+# Evidence artifacts (optional - uncomment if you want to exclude large files)
+# evidence/

@@ -1,0 +1,10 @@
+/* H-#### | ATT&CK: T#### | Purpose: [minimal test description]
+   Earliest: -24h | Latest: now | Cap: 1000 | Owner: [your name]
+   Created: YYYY-MM-DD */
+
+| tstats count from datamodel=YourDataModel where
+  [condition that reflects the behavior]
+  by _time, host, [relevant_fields] span=5m
+| head 1000
+| fields _time, host, [relevant_fields]
+| eval hunt_id="H-####", attack_technique="T####"

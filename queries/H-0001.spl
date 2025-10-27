@@ -1,0 +1,28 @@
+index=linux_secure sourcetype=linux_secure action=failure
+| stats count as failed_attempts,
+        dc(user) as unique_users,
+        values(user) as attempted_users,
+        earliest(_time) as first_attempt,
+        latest(_time) as last_attempt
+        by src_ip, dest_host
+| where failed_attempts > 5
+| eval duration=last_attempt-first_attempt
+| eval attempts_per_minute=round(failed_attempts/(duration/60),2)
+| sort - failed_attempts
+| head 1000
+
+## Query Logic
+
+- Look for failed SSH authentication attempts
+- Group by source IP and destination host
+- Count unique users attempted per source
+- Calculate attempt rate (attempts per minute)
+- Flag sources with >5 failed attempts
+- Sort by highest failure count
+
+## Safety Constraints
+
+# Time range: Last 24 hours only
+# Result cap: 1000 rows max
+# No destructive operations
+# Read-only query
