@@ -1,6 +1,6 @@
 # AI Prompt Library
 
-This folder contains prompts to help you move from **Level 0 (Manual)** to **Level 1 (Assisted)** hunting.
+This folder contains prompts to help you at **Level 0-1: Ephemeral/Persistent** (before AI integration).
 
 ## What's Here
 
@@ -42,7 +42,7 @@ These prompts are designed to:
 - Help you think through the LOCK pattern systematically
 - Reduce writer's block when starting hunts
 - Capture lessons more consistently
-- NOT to fully automate hunting (that's Level 3-4)
+- NOT to fully automate hunting (that's Level 3+: Autonomous)
 
 ### Learning Tool
 
@@ -83,11 +83,18 @@ Feel free to modify these prompts for your environment:
 Have a better prompt? Found a useful variation?
 - Submit a PR with your improved prompts
 - Share what works in your environment
-- Help others move to Level 1 faster
+- Help others get started faster
 
-## Next Level: Level 2 (Informed)
+## Next: Add AI Integration (Level 1 → 2)
 
-Once you have 10-20 completed hunts in `hunts/`, you can enhance these prompts with memory:
+Once you reach **Level 2: Augmented**, you'll use AI tools (GitHub Copilot, Claude Code, Cursor) that automatically read your hunt repository via AGENTS.md.
+
+These prompts remain useful for:
+- Teams without AI tool access
+- Manual workflows
+- Understanding what AI should generate
+
+**Before Level 2, you can still enhance these prompts with manual memory:**
 
 - "Check if we've hunted this before: [paste grep results from hunts/]"
 - "What lessons from past hunts apply here?"
@@ -106,4 +113,4 @@ grep -i "privilege escalation" hunts/*.md  # Find by keyword
 # Then use the prompts above
 ```
 
-This simple recall loop makes your AI assistant "remember" past hunts - the first step toward true agentic hunting.
+This manual recall loop works at Level 1: Persistent. At Level 2: Augmented, AI tools do this automatically.

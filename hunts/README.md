@@ -84,7 +84,7 @@ grep "Status.*Completed" hunts/H-*_*.md
 grep "Needs Changes" hunts/H-*_*.md
 ```
 
-## Memory Building (Level 2)
+## Memory Building (Level 1: Persistent)
 
 Before starting a new hunt, search past executions to avoid duplicates and apply lessons:
 

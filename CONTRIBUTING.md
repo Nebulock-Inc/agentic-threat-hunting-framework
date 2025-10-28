@@ -34,7 +34,7 @@ Use ATHR's LOCK pattern as your hunting methodology. Simple, lightweight, agenti
 Keep your existing hunting framework ([PEAK](https://www.splunk.com/en_us/blog/security/peak-threat-hunting-framework.html), [SQRRL](https://www.threathunting.net/files/The%20Threat%20Hunting%20Reference%20Model%20Part%202_%20The%20Hunting%20Loop%20_%20Sqrrl.pdf), [TaHiTI](https://www.betaalvereniging.nl/en/safety/tahiti/)) and use ATHR to add memory and AI agents.
 
 **Why ATHR helps:**
-Without structured memory, hunters have foggy memory of past hunts—they remember something similar happened, but not the details. ATHR gives your program persistent memory and AI augmentation.
+Without structured memory, hunt notes scatter across Slack, tickets, or live in hunters' heads. ATHR gives your program persistent memory and AI integration.
 
 ### 3. Adapt Templates to Your Environment
 
@@ -47,25 +47,20 @@ Edit `templates/` to match your:
 
 ### 4. Start at Your Maturity Level
 
-**Level 0-1 (Week 1):**
-- Use AI prompts from `prompts/` with ChatGPT/Claude
+**Level 0 → 1: Ephemeral → Persistent (Week 1)**
+- Create repository (git, SharePoint, Confluence, Jira, local folder)
+- Start documenting hunts in LOCK-structured markdown
+- Build searchable memory
 - No infrastructure changes needed
-- Focus: Learn AI-assisted hypothesis generation
 
-**Level 2 (Month 1-2):**
-- Save hunt notes in `hunts/` folder (or SharePoint, Confluence, Jira, local folders)
-- Before each hunt, grep for similar hunts:
-  ```bash
-  grep -l "T1110.001" hunts/*.md        # Find by TTP
-  grep -i "brute force" hunts/*.md      # Find by behavior
-  grep -i "powershell" hunts/*.md       # Find by technology
-  grep -i "active directory" hunts/*.md # Find by application
-  grep -i "privilege escalation" hunts/*.md  # Find by keyword
-  ```
-- Share past hunts with AI for context
+**Level 1 → 2: Persistent → Augmented (Week 2-4)**
+- Add AGENTS.md file to repo
+- Choose AI tool (GitHub Copilot, Claude Code, Cursor, or org-approved)
+- AI can now read your hunt history automatically
+- No coding required
 
-**Level 3+ (Month 3-6+):**
-- Build simple agent scripts for repetitive tasks
+**Level 2+: Augmented → Autonomous/Coordinated (Month 3-6+)**
+- Build scripts for repetitive tasks (if needed)
 - When grep is too slow (50+ hunts), add structured memory (JSON, SQLite)
 - See `metrics/README.md` for memory scaling options
 
@@ -86,38 +81,35 @@ ATHR is designed to work with your existing stack. See the README sections for d
 ## Scaling ATHR in Your Organization
 
 ### Solo Hunter
-- **Level 1-2**: Use AI prompts + grep-based memory
+- **Level 1-2: Persistent → Augmented**: Repo + AI tool (GitHub Copilot, Claude Code)
 - Keep hunts in personal repo or folder
-- Build memory with 10-20 hunt reports before adding agents
+- Build memory with 10-20 reports before considering automation
 
 ### Small Team (2-5 people)
-- **Level 2-3**: Shared storage (git, SharePoint, Confluence, Jira, Notion)
-- Grep works across any shared folder (or export from cloud tools)
+- **Level 1-2: Persistent → Augmented**: Shared repo + AI tools
+- Git, SharePoint, Confluence, Jira, or Notion
 - Collaborative memory via shared hunt notes
-- One person can build simple agents for the team
+- Optional: One person builds simple scripts for repetitive tasks
 
 ### Security Team (5-20 people)
-- **Level 3-4**: Structured memory (JSON, SQLite)
-- Agent scripts for common tasks (hypothesis generation, documentation)
-- Hunt scheduling and rotation
-- Metrics dashboards from decision logs
+- **Level 2-3: Augmented → Autonomous**: AI tools + optional automation
+- Scripts for repetitive workflows (if needed)
+- Metrics dashboards
+- Structured memory when grep becomes slow
 
 ### Enterprise SOC (20+ people)
-- **Level 4-5**: Multi-agent orchestration
-- Hunt library organized by threat actor/TTP
+- **Level 3-4: Autonomous → Coordinated**: Automation + multi-agent systems
+- Hunt library organized by TTP
 - Detection engineering pipeline integration
-- Learning systems that adapt based on hunt outcomes
+- Learning systems (rare)
 
 ## Mapping ATHR to Your Existing Framework
 
 ATHR complements existing hunting frameworks ([PEAK](https://www.splunk.com/en_us/blog/security/peak-threat-hunting-framework.html), [SQRRL](https://www.threathunting.net/files/The%20Threat%20Hunting%20Reference%20Model%20Part%202_%20The%20Hunting%20Loop%20_%20Sqrrl.pdf), [TaHiTI](https://www.betaalvereniging.nl/en/safety/tahiti/)) by adding memory and AI augmentation. You can use ATHR standalone or layer it over your current methodology.
 
-**See the README section "How ATHR Works With Your Framework"** for detailed mapping tables showing:
-- How PEAK phases map to LOCK steps
-- How SQRRL phases map to LOCK steps
-- How to map custom methodologies to LOCK
+**See the README section "How ATHR Works With PEAK"** for detailed mapping showing how PEAK phases map to LOCK steps.
 
-The key insight: LOCK provides a universal structure that makes your hunts AI-readable regardless of which framework you use.
+The key insight: Use PEAK for your hunting process, LOCK for your documentation structure, ATHR to integrate AI at each phase.
 
 ## Adapting the LOCK Loop
 
@@ -230,7 +222,7 @@ While ATHR isn't a contribution repo, we'd love to hear how you're using it:
 - Blog about your experience
 - Share anonymized metrics
 - Present at conferences
-- Tag @your-handle or open a discussion
+- Tag @sydney-nebulock or open a discussion
 
 But your hunts, your data, and your lessons stay **yours**.
 

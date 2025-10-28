@@ -13,38 +13,37 @@ ATHR is a framework for building threat hunting systems that remember past inves
 ## Why ATHR?
 
 **The Problem:**
-Existing threat hunting frameworks ([PEAK](https://www.splunk.com/en_us/blog/security/peak-threat-hunting-framework.html), [SQRRL](https://www.threathunting.net/files/The%20Threat%20Hunting%20Reference%20Model%20Part%202_%20The%20Hunting%20Loop%20_%20Sqrrl.pdf), [TaHiTI](https://www.betaalvereniging.nl/en/safety/tahiti/)) teach you *how to hunt*, but not *how to give your hunting program persistent memory and AI augmentation*.
+Attackers are using AI to get faster and better. Defenders need AI too. But how do we actually do that?
 
-Without structure for memory and agents:
-- Hunters have foggy memory of past hunts (remember something similar, but not the details)
+Existing threat hunting frameworks ([PEAK](https://www.splunk.com/en_us/blog/security/peak-threat-hunting-framework.html), [SQRRL](https://www.threathunting.net/files/The%20Threat%20Hunting%20Reference%20Model%20Part%202_%20The%20Hunting%20Loop%20_%20Sqrrl.pdf), [TaHiTI](https://www.betaalvereniging.nl/en/safety/tahiti/)) teach you *how to hunt*, but not *how to integrate AI into your hunting program*.
+
+Without structure for memory and AI integration:
+- Hunt notes scattered across Slack, tickets, or living in hunters' heads
+- "Foggy memory" - you remember hunting something similar, but not the details
 - AI assistance is ad-hoc (copy/paste to ChatGPT with no context)
-- Lessons learned stay in people's heads (knowledge loss when hunters leave)
-- Scaling requires more hunters (limited path to augmentation)
+- Knowledge evaporates when hunters leave
+- No foundation for AI to build on
 
 **ATHR's Solution:**
 A framework specifically for building **agentic capability** in threat hunting:
 
-1. **Memory by Design** - Architecture for recall (grep → structured → weighted)
-2. **AI Integration Patterns** - From prompts to agents to learning systems
-3. **Maturity Progression** - Pragmatic path from manual to autonomous
-4. **Universal Structure** - LOCK pattern works across methodologies
+1. **LOCK Pattern** - AI-ready structure for hunt documentation
+2. **Memory by Design** - Architecture for recall (grep → AI-integrated → structured)
+3. **Maturity Progression** - Pragmatic path from manual to AI-augmented
+4. **Integration Patterns** - Works with PEAK, SQRRL, or your existing methodology
 
 **What Makes ATHR Different:**
 
-ATHR is a parallel framework with a different concern than existing hunting frameworks:
-
-| Framework | Focus | Answers | Complements ATHR? |
-|-----------|-------|---------|-------------------|
-| **PEAK** | Hunting process (Prepare → Execute → Act) | "How should teams hunt systematically?" | ✅ Yes - ATHR adds memory + agents |
-| **SQRRL** | Hypothesis-driven operations | "How do we validate threat hypotheses?" | ✅ Yes - ATHR structures for AI parsing |
-| **TaHiTI** | Team coordination & collaboration | "How do hunt teams work together?" | ✅ Yes - ATHR adds agent automation |
-| **ATHR** | Agentic capability (Manual → AI-augmented) | "How do we make hunting remember and learn?" | Standalone or layered |
+| Framework | Focus | What It Teaches | Complements ATHR? |
+|-----------|-------|-----------------|-------------------|
+| **PEAK** | Hunting process | "How should teams hunt systematically?" | ✅ Yes - ATHR adds AI integration |
+| **SQRRL** | Hypothesis-driven operations | "How do we validate threat hypotheses?" | ✅ Yes - ATHR structures for AI |
+| **TaHiTI** | Team coordination | "How do hunt teams work together?" | ✅ Yes - ATHR adds memory + AI |
+| **ATHR** | AI integration | "How do we integrate AI into hunting?" | Standalone or layered |
 
 **In short:**
 - **PEAK/SQRRL/TaHiTI**: *Process frameworks* (how humans hunt)
-- **ATHR**: *Capability framework* (how systems become agentic)
-
-**ATHR is the only framework focused on making threat hunting agentic.**
+- **ATHR**: *AI integration framework* (how to structure hunts for AI)
 
 ## What ATHR Is
 
@@ -52,14 +51,40 @@ ATHR is both a **conceptual framework** and a **practical toolkit** for agentic 
 
 **Core Components:**
 
-1. **LOCK Pattern** - Universal structure for documenting hunts in AI-readable format
-2. **Memory Architecture** - From simple grep to weighted learning systems
+1. **LOCK Pattern** - AI-ready structure for documenting hunts
+2. **Memory Architecture** - From simple grep to AI-integrated to structured systems
 3. **5 Levels of Agentic Hunting** - Maturity model from manual to AI-augmented operations
 4. **Templates & Patterns** - Practical implementations you can copy
 
 **Relationship:**
 - **Standalone**: Use ATHR's LOCK pattern and maturity model to build agentic capability from scratch
-- **Layered**: Apply ATHR's memory and agent patterns to your existing PEAK/SQRRL workflow
+- **Layered**: Apply ATHR's memory and AI patterns to your existing PEAK/SQRRL workflow
+
+## Why LOCK?
+
+Existing threat hunting frameworks like PEAK teach you *how to hunt*. But they don't tell you how to structure your hunting knowledge for AI consumption.
+
+Attackers are using AI to get faster. Defenders need AI too. How do we do that?
+
+**Answer: Structure your hunt documentation so AI can read it.**
+
+LOCK (Learn → Observe → Check → Keep) is the AI-ready structure for threat hunting:
+
+- **Learn**: Gather context (CTI, alert, anomaly)
+- **Observe**: Form hypothesis about adversary behavior
+- **Check**: Test with bounded query
+- **Keep**: Record decision and lessons learned
+
+**How LOCK relates to PEAK:**
+
+PEAK's Prepare → Execute → Act maps naturally to LOCK. But LOCK adds the structure needed for AI integration:
+- Consistent markdown format AI can parse
+- Standardized sections AI can extract from
+- Memory architecture AI can query
+
+**Use PEAK for your hunting process. Use LOCK for your hunt documentation structure.**
+
+Together, they let you hunt systematically (PEAK) while building AI-readable knowledge (LOCK).
 
 ## The LOCK Pattern
 
@@ -92,48 +117,48 @@ graph LR
     style K fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
 ```
 
-LOCK isn't a new methodology—it's the **abstraction that makes threat hunting teachable to AI**.
+LOCK isn't a new methodology—it's the **structure that makes your hunts AI-readable**.
 
-By standardizing hunt notes around LOCK, AI can understand your hunts regardless of which framework you use. See "Why LOCK Matters for AI" below for how LOCK maps to PEAK, SQRRL, and other methodologies.
+- **At Level 1: Persistent**: LOCK provides team consistency
+- **At Level 2: Augmented**: LOCK enables AI to parse your hunt history
+- **At Level 3+**: LOCK enables automation and multi-agent workflows
+
+By standardizing hunt notes around LOCK, AI can understand your hunts regardless of which framework (PEAK, SQRRL, TaHiTI) you use.
 
 ## The 5 Levels of Agentic Hunting
 
-| Level | Name | What Changes | Memory | Tools |
-|-------|------|--------------|--------|-------|
-| **0. Manual** | Human-Only | You write everything yourself | None | Pen & paper, docs |
-| **1. Assisted** | AI Drafts | AI helps write hypotheses/queries | None | ChatGPT prompts |
-| **2. Informed** | AI + Memory | AI recalls past hunts before drafting | Hunt reports (grep) | ChatGPT + grep |
-| **3. Automated** | Single Agent | One agent automates a repetitive task | Hunt reports | Python agent scripts |
-| **4. Coordinated** | Multi-Agent | Multiple agents handle different tasks | Structured (JSON/DB) | Agent orchestration |
-| **5. Adaptive** | Learning System | System learns what works, adapts priorities | Weighted outcomes | ML + agents |
+| Level | Name | What Changes | Memory | AI Integration | Tools |
+|-------|------|--------------|--------|----------------|-------|
+| **0. Ephemeral** | Knowledge Disappears | Hunts in Slack, tickets, heads | None | Optional (copy/paste) | Slack, tickets, docs |
+| **1. Persistent** | Knowledge Captured | LOCK-structured markdown in repo | Searchable files (grep) | Optional (copy/paste) | Git, markdown, grep |
+| **2. Augmented** | AI Partner with Memory | AI reads repo context via AGENTS.md | Files + AGENTS.md | AI agent integrated | GitHub Copilot, Claude Code |
+| **3. Autonomous** | Automated Tasks | Scripts for repetitive workflows | Files + optional structure | Scripted agents | Python + AI APIs |
+| **4. Coordinated** | Multi-Agent Systems | Multiple specialized agents | Structured (JSON/DB) | Multi-agent orchestration | LangChain, AutoGen |
 
-**Start at Level 0. Most teams operate at Level 2-3. Progress only when complexity demands it.**
+**Start at Level 0. Most teams operate at Level 1-2. Progress only when complexity demands it.**
 
 ```mermaid
 graph LR
-    L0["Level 0<br/>Manual"]
-    L1["Level 1<br/>Assisted"]
-    L2["Level 2<br/>Informed"]
-    L3["Level 3<br/>Automated"]
+    L0["Level 0<br/>Ephemeral"]
+    L1["Level 1<br/>Persistent"]
+    L2["Level 2<br/>Augmented"]
+    L3["Level 3<br/>Autonomous"]
     L4["Level 4<br/>Coordinated"]
-    L5["Level 5<br/>Adaptive"]
 
     L0 --> L1
     L1 --> L2
     L2 --> L3
     L3 --> L4
-    L4 --> L5
 
     style L0 fill:#f5f5f5,stroke:#9e9e9e
-    style L1 fill:#e3f2fd,stroke:#2196f3
+    style L1 fill:#fff9c4,stroke:#fbc02d,stroke-width:3px
     style L2 fill:#fff9c4,stroke:#fbc02d,stroke-width:3px
-    style L3 fill:#fff9c4,stroke:#fbc02d,stroke-width:3px
-    style L4 fill:#e1f5fe,stroke:#0288d1
-    style L5 fill:#f3e5f5,stroke:#9c27b0
+    style L3 fill:#e1f5fe,stroke:#0288d1
+    style L4 fill:#f3e5f5,stroke:#9c27b0
 
     Sweet["⭐ Most teams operate here"]
+    Sweet -.-> L1
     Sweet -.-> L2
-    Sweet -.-> L3
 
     style Sweet fill:#ffffcc,stroke:#ff9800,stroke-width:2px,stroke-dasharray: 5 5
 ```
@@ -164,7 +189,7 @@ Threat hunting becomes more effective when systems can:
 
 1. **Validate AI output** - Never run AI-generated queries without review
 2. **Build memory first** - Agents without memory repeat mistakes
-3. **Progress gradually** - Level 2 is better than Level 0, even if you never reach Level 5
+3. **Progress gradually** - Level 1: Persistent is better than Level 0: Ephemeral, even if you never reach Level 4: Coordinated
 
 ## What You Get
 
@@ -188,168 +213,174 @@ Real-world example showing:
 - How lessons learned improve future hunts
 
 ### Memory System Guide (`metrics/`)
-- Level 1-2: Grep-based memory (no additional tools)
-- Level 3+: When to add structured memory (JSON, SQLite)
+- Level 1-2: Persistent/Augmented - Grep-based memory (no additional tools)
+- Level 3+: Autonomous/Coordinated - When to add structured memory (JSON, SQLite)
 - Scaling guidance for 10, 50, 500+ hunts
 
-## How ATHR Works With Your Framework
-
-### Using PEAK + ATHR
+## How ATHR Works With PEAK
 
 PEAK's **Prepare → Execute → Act with Knowledge** maps naturally to LOCK:
 
 | PEAK Phase | LOCK Step | AI Integration |
 |------------|-----------|----------------|
-| **Prepare** | Learn + Observe | AI drafts hypotheses (L1), recalls past hunts (L2) |
-| **Execute** | Check | AI generates queries (L1), automates execution (L3) |
-| **Act with Knowledge** | Keep | AI documents lessons, updates detections (L3-4) |
+| **Prepare** | Learn + Observe | AI drafts hypotheses, recalls past hunts |
+| **Execute** | Check | AI generates queries, validates approach |
+| **Act with Knowledge** | Keep | AI documents lessons, surfaces patterns |
 
-**LOCK is how AI understands your PEAK workflow.**
+**Use PEAK for your hunting process. Use LOCK for your documentation structure. Use ATHR to integrate AI at each phase.**
 
-ATHR templates structure your Prepare/Execute/Act phases in LOCK format so agents can parse them.
-
-### Using SQRRL + ATHR
-
-SQRRL's **Hypothesis → Investigation → Pattern → Detection** also follows LOCK:
-
-| SQRRL Phase | LOCK Step | AI Integration |
-|-------------|-----------|----------------|
-| **Hypothesis** | Learn + Observe | AI generates from context |
-| **Investigation** | Check | AI builds queries, recalls similar hunts |
-| **Pattern** | Keep (analysis) | AI identifies trends across hunts |
-| **Detection** | Keep (action) | AI converts findings to rules |
-
-**LOCK is the universal pattern.** SQRRL and PEAK both follow it—they just emphasize different aspects.
-
-### Using Custom Methodology + ATHR
-
-If you have your own process, map it to LOCK:
-
-1. **What's your context input?** → Learn
-2. **What's your testable statement?** → Observe
-3. **How do you validate it?** → Check
-4. **What do you capture?** → Keep
-
-Structure your hunt notes in LOCK format, and AI can understand your methodology without custom training.
+ATHR templates structure your Prepare/Execute/Act phases in LOCK format so AI agents can parse them.
 
 ## Progression Guide
 
-### Level 0 → 1: Add AI Assistance (Week 1)
+### Level 0 → 1: Build the Repo (Week 1)
 
 **What to do:**
-1. Copy `prompts/hypothesis-generator.md`
-2. Fill in your context (CTI, alert, anomaly)
-3. Paste into ChatGPT or Claude
-4. Review and validate the output
-5. Run your hunt as normal
+1. Create a repository (GitHub, SharePoint, Confluence, Jira, or local folder)
+2. Copy ATHR templates for LOCK-structured hunts
+3. Start documenting new hunts in markdown
+4. Commit/save each completed hunt
 
-**Signal you're ready for Level 2:** You have 10-20 completed hunt reports.
+**Win:** Memory persists. Knowledge doesn't disappear when people leave.
 
-### Level 1 → 2: Add Memory (Week 4-8)
+**Cost:** Free
+
+**Skills:** None (just markdown)
+
+**Signal you're ready for Level 2: Augmented:** You have 5-10 hunt files and find yourself manually searching before each new hunt.
+
+---
+
+### Level 1 → 2: Add AI Integration (Week 2-4)
 
 **What to do:**
-1. Store hunt notes in `hunts/` folder (or Jira, Confluence, etc.)
-2. Before each hunt, grep for similar hunts:
-   ```bash
-   grep -l "T1110.001" hunts/*.md        # Find by TTP
-   grep -i "brute force" hunts/*.md      # Find by behavior
-   grep -i "powershell" hunts/*.md       # Find by technology
-   grep -i "active directory" hunts/*.md # Find by application
-   grep -i "privilege escalation" hunts/*.md  # Find by keyword
+1. Create minimal AGENTS.md file in your repo root:
+   ```markdown
+   # AGENTS.md - Context for AI Assistants
+
+   ## Purpose
+   This repo contains threat hunting hypotheses and outcomes using LOCK pattern.
+   AI assistants use this to suggest new hunts and recall lessons learned.
+
+   ## Data Sources
+   - winlogs (Windows Event Logs)
+   - edr (CrowdStrike Falcon telemetry)
+   - proxy (Zscaler web proxy logs)
+
+   ## Guardrails
+   - AI drafts, humans review
+   - Never execute queries without validation
    ```
-3. Include relevant past hunts in your AI prompt
-4. AI now has memory context when drafting
 
-**Signal you're ready for Level 3:** One task feels tedious (documentation, memory search, etc.)
+2. Choose your AI tool (use what your organization approves):
+   - **GitHub Copilot** - [Setup docs](https://docs.github.com/en/copilot)
+   - **Claude Code** - [Setup docs](https://docs.anthropic.com/claude/docs/claude-code)
+   - **Cursor** - [Setup docs](https://cursor.sh/docs)
+   - **Others**: Any AI tool that can read files
+
+3. Start asking questions about your hunt history:
+   ```
+   You: "What have we learned about brute force attacks?"
+   AI: *searches repo* "Based on H-0005 and H-0012..."
+
+   You: "Generate hypothesis for VPN brute force"
+   AI: *reads past hunts* "Adversaries may attempt..."
+   ```
+
+**Win:** Stop manually grepping. AI becomes your memory interface.
+
+**Cost:** ~$10-20/month
+
+**Skills:** None (no coding)
+
+**Signal you're ready for Level 3: Autonomous:** A specific task feels tedious after doing it 10+ times.
+
+---
 
 ### Level 2 → 3: Automate One Task (Month 3-6)
 
 **What to do:**
-1. Identify one repetitive task (e.g., "check memory before generating hypothesis")
-2. Build a simple agent script:
-   ```python
-   # Example: Memory-aware hypothesis generator
-   past_hunts = grep_hunts(ttp="T1110.001")
-   context = f"Past hunts: {past_hunts}\nNew context: {user_input}"
-   hypothesis = ai.generate(prompt=context)
-   ```
-3. Run the agent instead of manual AI prompting
+1. Identify the most repetitive task in your workflow
+2. Write a simple Python script that:
+   - Searches past hunts
+   - Calls AI API (OpenAI, Anthropic, or Azure OpenAI)
+   - Produces output (hypothesis, documentation, or file creation)
+3. Test thoroughly before trusting it
 
-**Signal you're ready for Level 4:** Grep is too slow (50+ hunts) or you need multiple hunts in parallel.
+**Examples:**
+- Auto-generate hunt ideas from CTI feeds
+- Script that formats investigation notes into LOCK structure
+- Automated "similar hunt finder"
 
-### Level 3 → 4: Multi-Agent Coordination (Month 6-12)
+**Use your Level 2: Augmented AI tool to help write the script.**
+
+**Win:** Repetitive tasks happen automatically.
+
+**Cost:** ~$10-60/month
+
+**Skills:** Basic Python
+
+**Signal you're ready for Level 4: Coordinated:** You have 50+ hunts, grep is slow, or you need parallel agents.
+
+---
+
+### Level 3 → 4: Multi-Agent Coordination (Year 1+)
 
 **What to do:**
-1. Create structured memory (JSON index, SQLite, or markdown index)
+1. Add structured memory (SQLite database or JSON index)
 2. Build specialized agents:
-   - **Research agent**: Pulls threat intel and past hunts
-   - **Query agent**: Generates queries from hypotheses
+   - **Research agent**: Pulls threat intel + past hunts
+   - **Query agent**: Generates SIEM queries
    - **Documentation agent**: Writes execution reports
-3. Agents share access to central memory
+3. Use orchestration framework (LangChain, AutoGen, or custom)
+4. Agents share access to central memory
 
-**Signal you're ready for Level 5:** You want the system to learn what works.
+**Win:** Complex workflows become partially autonomous.
 
-### Level 4 → 5: Adaptive Learning (Year 1+)
+**Cost:** ~$50-200+/month
 
-**What to do:**
-1. Implement weighted memory (successful hunts get higher priority)
-2. Track metrics: hypothesis acceptance rate, time-to-detect, coverage
-3. System suggests hypotheses based on past success patterns
-4. Agents learn from outcomes to improve recommendations
+**Skills:** Python + orchestration frameworks
 
-**You might not need this level.** Level 2-3 is sufficient for most teams.
+**Reality check:** Most teams stop at Level 1-2. Only pursue this if you have 100+ hunts and dedicated engineering resources.
 
 ## What You'll Need From Your Tech Stack
 
 ATHR is designed to work with what you already have. Here's what's required at each maturity level:
 
-### Level 0-1: Manual + AI-Assisted
-**Minimum requirements:**
-- **Storage**: Any folder (local, SharePoint, Confluence, Jira, git)
-- **SIEM Access**: Read-only query access to your SIEM (Splunk, Sentinel, Elastic, Chronicle)
-- **AI Tool**: ChatGPT, Claude, or any LLM with copy/paste access
-- **Skills**: Ability to write/edit markdown files
+### Level 0-1: Ephemeral → Persistent
+**Requirements:**
+- **Storage**: Any folder (git, SharePoint, Confluence, Jira, local)
+- **SIEM Access**: Read-only query access to your SIEM
+- **Skills**: Write/edit markdown files
+- **Cost**: Free
 
 **That's it.** No APIs, no infrastructure, no code.
 
-### Level 2: Informed (Memory)
-**Additional requirements:**
-- **Grep/Search**: Command line or file search tool (built into every OS)
-- **Storage Pattern**: Consistent file naming (e.g., `H-0001_2025-01-15.md`)
+### Level 2: Augmented (AI Partner)
+**Additional:**
+- **AI Tool**: GitHub Copilot, Claude Code, Cursor, or org-approved tool that can read files
+- **Setup**: See tool docs (links in progression guide above)
+- **Skills**: None (no coding)
+- **Cost**: ~$10-20/month
 
-**Still no coding required.** Just disciplined file organization.
+**Still no coding required.** Just install an AI tool and point it at your repo.
 
-### Level 3: Automated (Single Agent)
-**Additional requirements:**
-- **Programming**: Basic Python or scripting skills
-- **AI API**: OpenAI API, Anthropic API, or Azure OpenAI endpoint
-- **Environment**: Python 3.8+ with pip/conda
-- **Budget**: ~$5-50/month for API calls (depending on usage)
-
-**Infrastructure:**
-- Everything runs on your laptop or a single VM
-- No databases, no orchestration platforms needed yet
+### Level 3: Autonomous (Automation)
+**Additional:**
+- **Programming**: Basic Python
+- **AI API**: OpenAI, Anthropic, or Azure OpenAI
+- **Environment**: Python 3.8+
+- **Infrastructure**: Runs on your laptop or single VM
+- **Cost**: ~$10-60/month
 
 ### Level 4: Coordinated (Multi-Agent)
-**Additional requirements:**
-- **Structured Memory**: SQLite (file-based) or PostgreSQL (if team needs shared access)
-- **Agent Framework**: LangChain, AutoGen, or custom orchestration
-- **Infrastructure**: Dedicated VM or container (2-4 CPU, 8GB RAM)
-- **Budget**: ~$50-200/month for API calls
+**Additional:**
+- **Structured Memory**: SQLite or PostgreSQL
+- **Agent Framework**: LangChain, AutoGen, or custom
+- **Infrastructure**: Dedicated VM (2-4 CPU, 8GB RAM)
+- **Cost**: ~$50-200+/month
 
-**Optional but helpful:**
-- CI/CD pipeline (GitHub Actions, GitLab CI) for agent deployments
-- Monitoring (logs, metrics) for agent performance
-- Queue system (Redis, RabbitMQ) if running many parallel hunts
-
-### Level 5: Adaptive (Learning)
-**Additional requirements:**
-- **Data Pipeline**: ETL for hunt metrics and outcomes
-- **ML Infrastructure**: Vector database (Chroma, Pinecone) or embeddings store
-- **Analytics**: Ability to track success rates, time-to-detect, coverage metrics
-- **Budget**: ~$200-1000/month depending on scale
-
-**This is rare.** Most teams stop at Level 3-4.
+**This is rare.** Most teams stop at Level 1-2.
 
 ## Integration Patterns
 
@@ -367,82 +398,65 @@ ATHR is designed to work with what you already have. Here's what's required at e
 ### AI Tools by Level
 | Level | Tool | Cost | Skills Required |
 |-------|------|------|-----------------|
-| **1-2** | ChatGPT/Claude | $0-20/mo | Copy/paste |
-| **1-2** | GitHub Copilot | $10/mo | Code editor |
-| **3** | OpenAI/Anthropic API | $5-50/mo | Basic Python |
-| **4** | LangChain/AutoGen | $50-200/mo | Python + orchestration |
-| **5** | Custom ML pipeline | $200+/mo | ML engineering |
-
-### SIEM Integration
-ATHR works with any SIEM that supports query languages:
-
-| SIEM | Query Language | Agent Integration |
-|------|----------------|-------------------|
-| **Splunk** | SPL | ✅ SDK available |
-| **Microsoft Sentinel** | KQL | ✅ Azure SDK |
-| **Elastic** | EQL/Lucene | ✅ Python client |
-| **Chronicle** | YARA-L | ✅ API available |
-| **Custom** | SQL/custom | ⚠️ Build adapter |
-
-Templates are query-language agnostic. Agents can be trained on your SIEM's specific syntax.
+| **0-1** | Optional (ChatGPT copy/paste) | $0-20/mo | None |
+| **2** | GitHub Copilot, Claude Code, Cursor | $10-20/mo | None |
+| **3** | OpenAI/Anthropic API | $10-60/mo | Basic Python |
+| **4** | LangChain, AutoGen | $50-200+/mo | Python + orchestration |
 
 ## Examples
 
-### Level 1: AI-Assisted Hypothesis
+### Level 1: Persistent - Manual Grep
 
-```
-User → AI Prompt:
-"I received a CTI report about APT29 using base64-encoded PowerShell.
-Generate a threat hunting hypothesis following the template."
-
-AI → Response:
-"Adversaries use base64-encoded PowerShell commands to establish
-persistence on Windows servers via scheduled tasks or WMI."
-
-User → Validates and runs hunt
-```
-
-### Level 2: AI with Memory
-
-```
-User → Grep:
+```bash
+# Before starting a hunt, search past work
 grep -l "T1059.001" hunts/*.md
+# Results: H-0015.md, H-0023.md
 
-Results: H-0015_2024-12-03.md, H-0023_2025-01-10.md
-
-User → AI Prompt:
-"Past hunts found this TTP mostly in scheduled tasks. Generate a
-hypothesis for PowerShell persistence, excluding scheduled tasks."
-
-AI → Response (informed by past hunts):
-"Adversaries use base64-encoded PowerShell via WMI event consumers..."
+# Read files manually, apply lessons to new hunt
 ```
 
-### Level 3: Single Agent Automation
+### Level 2: Augmented - AI with Memory
+
+```
+You → AI: "What have we learned about T1059.001 PowerShell?"
+
+AI: *searches repo* "Based on H-0015 and H-0023:
+- Most persistence via scheduled tasks
+- WMI event consumers less common
+- Base64 encoding standard for evasion"
+
+You → AI: "Generate hypothesis for PowerShell persistence,
+           excluding scheduled tasks"
+
+AI: *uses LOCK structure* "Adversaries use base64-encoded
+    PowerShell via WMI event consumers to establish persistence.
+    Check WMI event subscriptions for PowerShell.exe processes..."
+```
+
+### Level 3: Autonomous - Script Automation
 
 ```python
-# Memory-aware hypothesis generator agent
-def generate_hypothesis(ttp, new_context):
-    # Agent automatically checks memory
+# Memory-aware hypothesis generator
+def generate_hypothesis(ttp, context):
+    # Script automatically searches past hunts
     past_hunts = search_hunts(ttp=ttp)
 
-    # Agent drafts hypothesis with memory context
+    # Calls AI API with memory context
     prompt = f"""
     Past hunts for {ttp}:
     {past_hunts}
 
-    New context: {new_context}
+    New context: {context}
 
-    Generate a hypothesis that doesn't duplicate past hunts.
+    Generate LOCK-structured hypothesis avoiding duplicates.
     """
-
     return ai.generate(prompt)
 ```
 
-### Level 4: Multi-Agent Workflow
+### Level 4: Coordinated - Multi-Agent Workflow
 
 ```python
-# Orchestrated agent workflow
+# Orchestrated agents
 research_agent.gather_intel(ttp="T1110.001")
 memory_agent.find_similar_hunts(ttp="T1110.001")
 hypothesis_agent.generate(context=research + memory)
@@ -451,48 +465,26 @@ query_agent.build_query(hypothesis)
 docs_agent.document_results(findings)
 ```
 
-## Why LOCK Matters for AI
-
-Every hunting framework follows the same core logic:
-1. Gather context
-2. Form hypothesis
-3. Test it
-4. Learn from results
-
-But each framework uses different terminology:
-- PEAK: Prepare → Execute → Act
-- SQRRL: Hypothesis → Investigation → Pattern
-- TaHiTI: Plan → Hunt → Report
-
-**This inconsistency makes it hard to train AI.**
-
-LOCK solves this by providing a universal structure. When you document hunts in LOCK format:
-- AI can parse hunt notes from any framework
-- Memory recall works across methodologies
-- Agents don't need framework-specific training
-
-**LOCK is the API between human hunting frameworks and AI agents.**
-
 ## FAQ
 
 **Q: Do I need to use your templates?**
 No. Use your own templates with ATHR prompts and memory patterns.
 
 **Q: Does ATHR require agents/automation?**
-No. Level 1-2 (AI-assisted + memory) work with just ChatGPT and grep. No coding required.
+No. Level 1-2: Persistent/Augmented work with just markdown files and AI chat tools (GitHub Copilot, Claude Code). No coding required.
 
-**Q: Can I use ATHR without PEAK/SQRRL?**
-Yes. ATHR works with any hunting process. The maturity model is methodology-agnostic.
+**Q: Can I use ATHR without PEAK?**
+Yes. ATHR works with any hunting process. Use LOCK structure for documentation and build AI integration at your own pace.
 
 **Q: Is this just "use ChatGPT for threat hunting"?**
 No. ATHR provides:
-- Structured templates AI can parse consistently
-- Memory system so AI doesn't repeat hunts
-- Progression from assistance to autonomy
-- Patterns for multi-agent coordination
+- LOCK structure so AI can parse hunts consistently
+- Memory architecture (repo → AI-integrated → structured)
+- Progression from manual to AI-augmented
+- Patterns for automation and multi-agent systems
 
-**Q: Where's the agent code?**
-Level 1-2 need no code (just prompts + grep). Level 3+ examples coming in `docs/` and `examples/`.
+**Q: Where's the code?**
+Level 1-2: Persistent/Augmented need no code. Level 3+: Autonomous/Coordinated examples in [docs/scripting-examples.md](docs/scripting-examples.md).
 
 ## Quick Start
 
@@ -514,12 +506,12 @@ Check `hunts/` for a complete hunt showing AI-assisted workflow:
 
 ### 3. Start at Your Level
 
-Choose your starting point based on your current capabilities:
-- **New to AI-assisted hunting?** Start with Level 0-1 (AI prompts)
-- **Ready to add memory?** Jump to Level 2 (grep-based recall)
-- **Want automation?** See Level 3+ guidance
+Choose your starting point:
+- **No structured hunt docs?** Start with Level 0 → 1: Build the Repo
+- **Have hunt docs, want AI?** Jump to Level 1 → 2: Add AI Integration
+- **Want automation?** See Level 2 → 3: Automate One Task
 
-See the "Progression Guide" section above for detailed step-by-step instructions for each level.
+See the "Progression Guide" section above for detailed step-by-step instructions.
 
 ## Questions?
 
