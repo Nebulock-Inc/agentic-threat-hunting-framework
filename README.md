@@ -375,6 +375,105 @@ graph LR
 
 ---
 
+### AI-Assisted Hunting Quick Start (Level 2)
+
+Once you have AGENTS.md configured and an AI tool installed, here's your typical workflow:
+
+#### Generating Hypotheses from Threat Intel
+
+**Scenario:** You receive a CVE alert or read threat intelligence
+
+**Workflow:**
+
+1. **Open your AI tool** (Claude Code, GitHub Copilot, Cursor) in your hunt repository
+
+2. **Ask the AI to check memory first:**
+   ```
+   You: "Check if we've hunted CVE-2024-21412 (Windows SmartScreen bypass) before"
+
+   AI: *searches hunts/ and vulnerabilities.md*
+        "No past hunts found for this CVE. I see you have Windows systems with
+        Sysmon logging (from environment.md). Should I generate a hypothesis?"
+   ```
+
+3. **Request hypothesis generation:**
+   ```
+   You: "Yes, generate a LOCK-structured hypothesis"
+
+   AI: *reads AGENTS.md, environment.md, past SmartScreen hunts*
+        *generates complete hypothesis with:*
+        - Testable hypothesis statement
+        - Context (why now, ATT&CK mapping)
+        - Data sources from YOUR environment
+        - Time range recommendations
+        - Query approach
+   ```
+
+4. **Review and create hunt file:**
+   ```
+   You: "Create this as H-0025.md in the hunts/ folder"
+
+   AI: *creates file with generated hypothesis*
+   ```
+
+5. **Generate query:**
+   ```
+   You: "Draft a Splunk query for this hypothesis with safety bounds"
+
+   AI: *references past queries, adds time limits, result caps*
+        *creates query in queries/H-0025.spl*
+   ```
+
+**Total time: 3-5 minutes instead of 15-20 minutes manual work**
+
+#### Key AI Commands to Use
+
+**Memory Recall:**
+- "What have we learned about [TTP/CVE/behavior]?"
+- "Find past hunts for T1110 brute force"
+- "Have we hunted this before?"
+
+**Hypothesis Generation:**
+- "Generate hypothesis for [CVE/TTP/anomaly]"
+- "Based on past [similar hunt], create a new hypothesis for [new context]"
+- "We're seeing [anomaly]. Create an incident-driven hunt hypothesis"
+
+**Query Building:**
+- "Draft a query for this hypothesis with safety bounds"
+- "What false positives did we find in similar past hunts?"
+- "Generate query using data sources from environment.md"
+
+**Documentation:**
+- "Summarize these hunt results in LOCK format"
+- "Document lessons learned from this hunt"
+- "Update vulnerabilities.md with this CVE and hunt status"
+
+#### What Makes This Work
+
+The AI can assist effectively because:
+
+1. **AGENTS.md** tells it how to use your repository
+2. **LOCK structure** provides consistent format for parsing
+3. **Past hunts** serve as memory for lessons learned
+4. **environment.md** ensures suggestions match your tech stack
+5. **vulnerabilities.md** tracks CVE hunt status
+
+#### Common Pitfalls to Avoid
+
+**Don't:** Just copy/paste AI output without review
+**Do:** Validate queries before running, check false positive rate
+
+**Don't:** Let AI generate queries for data sources you don't have
+**Do:** Keep environment.md updated so AI knows your capabilities
+
+**Don't:** Skip checking past hunts (duplicates waste time)
+**Do:** Always ask AI to search memory first
+
+**Don't:** Trust AI to remember across sessions without context
+**Do:** Use AGENTS.md to provide persistent context
+
+---
+
 ### Level 2 → 3: Automate One Task (Month 3-6)
 
 **What to do:**

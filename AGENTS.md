@@ -196,6 +196,370 @@ When building automation scripts, AI should:
 
 ---
 
+## Hypothesis Generation Workflow
+
+This section provides detailed guidance for AI assistants on generating threat hunting hypotheses from threat intelligence. This is the most common Level 2 (Augmented) workflow.
+
+### When to Generate Hypotheses
+
+AI should offer to generate hypotheses when users provide:
+- CVE identifiers (e.g., "CVE-2024-1234")
+- Threat intelligence reports (APT activity, campaign analysis)
+- Detection anomalies ("seeing spike in failed logins")
+- TTP references (e.g., "T1003 credential dumping")
+- Security news/advisories (CISA alerts, vendor bulletins)
+
+### Step-by-Step Workflow
+
+**Step 1: Check Memory (Avoid Duplicates)**
+```
+AI Action: Search past hunts before generating anything new
+Commands:
+- Search hunts/ for similar TTPs, CVEs, or behaviors
+- Check vulnerabilities.md for CVE status
+- Look for related hypotheses that might be adapted
+
+AI Response: "I found 2 past hunts related to this:
+- H-0015 (2024-09-12): Similar TTP, found X
+- H-0023 (2024-10-01): Related behavior, learned Y
+Should I generate a new hypothesis building on these lessons?"
+```
+
+**Step 2: Validate Environment (Ensure Relevance)**
+```
+AI Action: Confirm we have visibility for this hunt
+Commands:
+- Read environment.md to check if affected tech exists
+- Verify data sources are available for proposed hunt
+- Identify telemetry gaps that might limit hunt effectiveness
+
+AI Response: "I see you run [affected technology] with logging to [SIEM].
+We have [data source] available for this hunt. Note: [any gaps]"
+```
+
+**Step 3: Generate LOCK-Structured Hypothesis**
+```
+AI Action: Create hypothesis following LOCK pattern
+Structure:
+- Hypothesis: "Adversaries use [behavior] to [goal] on [target system]"
+- Context: Why now? What triggered this hunt?
+- ATT&CK: Technique ID and tactic
+- Data Needed: Specific indexes/tables from environment.md
+- Time Range: Recommended lookback period
+- Query: High-level approach (not full query yet)
+
+AI Response: Present complete hypothesis in markdown format
+ready to copy into new hunt file (H-XXXX.md)
+```
+
+**Step 4: Suggest Next Steps**
+```
+AI Action: Guide user on what to do next
+Options:
+- "Would you like me to create the hunt file (H-XXXX.md)?"
+- "Should I draft a query for this hypothesis?"
+- "Need me to check similar past hunts for lessons learned?"
+
+AI Response: Be proactive but wait for confirmation before creating files
+```
+
+### Example Conversations
+
+#### Example 1: CVE-Driven Hypothesis
+
+**User:** "Generate hypothesis for CVE-2024-21412 (Windows SmartScreen bypass)"
+
+**AI Should:**
+1. Check vulnerabilities.md for existing entry
+2. Read environment.md for Windows deployment details
+3. Search hunts/ for past SmartScreen or bypass hunts
+4. Generate hypothesis:
+
+```markdown
+# H-XXXX | CVE-2024-21412 SmartScreen Bypass Hunt
+
+**Status:** Candidate
+
+## Hypothesis
+Adversaries exploit CVE-2024-21412 to bypass Windows SmartScreen by crafting
+internet shortcut files that execute malicious payloads without security warnings.
+
+## Context
+
+**Why Now:**
+- CVE published 2024-02-13, exploited in-the-wild (CISA KEV)
+- PoC available on GitHub
+- Affects all Windows systems [check environment.md for versions]
+
+**ATT&CK:** T1204.001 (User Execution: Malicious Link)
+**Tactic:** Initial Access
+
+## Data Needed
+- **Windows Event Logs:** Sysmon Event ID 1 (Process Creation)
+- **EDR Telemetry:** File creation events (*.url, *.lnk files)
+- **Network Logs:** HTTP downloads preceding file execution
+
+[Reference environment.md for actual index names]
+
+## Time Range
+- Start: 2024-02-13 (CVE public disclosure)
+- Recommended: Last 30 days initially
+
+## Query Approach
+1. Find execution of processes from user temp directories
+2. Preceded by creation of .url or .lnk files
+3. Originating from browser downloads
+4. Without SmartScreen warnings (absence of expected events)
+
+## Next Steps
+- Create query in queries/H-XXXX.spl
+- Execute and document in H-XXXX_YYYY-MM-DD.md
+```
+
+**AI Should Then Ask:** "Would you like me to:
+1. Create this as H-XXXX.md in hunts/ folder?
+2. Draft the actual SIEM query?
+3. Update vulnerabilities.md with this hunt plan?"
+
+#### Example 2: TTP-Driven Hypothesis
+
+**User:** "We need to hunt for Living off the Land (LOLBins) abuse"
+
+**AI Should:**
+1. Search hunts/ for past LOLBins hunts (T1218, T1059, etc.)
+2. Check environment.md for EDR/process monitoring availability
+3. Ask clarifying questions:
+
+```
+AI: "I see we have [EDR platform] with process telemetry.
+Before generating the hypothesis, which LOLBins should we focus on?
+
+Options:
+1. PowerShell (T1059.001) - Already hunted (H-0012, H-0019)
+2. WMIC (T1047) - Not recently hunted
+3. Rundll32 (T1218.011) - Never hunted
+4. All suspicious built-in tools (broad hunt)
+
+Also, are you investigating a specific incident, or is this proactive?"
+```
+
+**User:** "Focus on rundll32 abuse, proactive hunt"
+
+**AI Generates:**
+```markdown
+# H-XXXX | Rundll32 Living off the Land Hunt
+
+**Status:** Candidate
+
+## Hypothesis
+Adversaries abuse rundll32.exe to execute malicious DLLs or bypass
+application control by using Windows built-in functionality for payload execution.
+
+## Context
+
+**Why Now:**
+- Proactive hunt for common LOLBin abuse
+- No recent coverage (last hunt: H-0008, 6 months ago)
+- Commonly used post-exploitation (ref: MITRE ATT&CK)
+
+**ATT&CK:** T1218.011 (Signed Binary Proxy Execution: Rundll32)
+**Tactic:** Defense Evasion
+
+## Data Needed
+- **EDR:** Process execution logs (CommandLine arguments)
+- **Sysmon:** Event ID 1 (Process Creation) with parent process context
+
+[Based on environment.md: CrowdStrike Falcon data in Splunk index=edr]
+
+## Time Range
+- Last 14 days initially (balance: recent activity vs. noise)
+
+## Query Approach
+1. Find rundll32.exe executions
+2. Filter for suspicious patterns:
+   - Unusual DLL paths (user directories, temp folders)
+   - Non-standard export functions
+   - Parent processes (Office, browsers, scripting engines)
+3. Exclude known-good patterns (Windows updates, legitimate apps)
+
+## Known False Positives (from past hunts)
+- H-0008 found: Windows Updates spawn rundll32 frequently
+- Common legitimate DLLs: shell32.dll, advpack.dll (standard functions)
+
+## Next Steps
+- Draft query with FP filters based on H-0008 lessons
+- Execute on 7-day window first
+- If results look clean, expand to 14 days
+```
+
+**AI Should Then:** "This hypothesis builds on lessons from H-0008 (past rundll32 hunt).
+Should I pull those specific false positive filters to include in the query?"
+
+#### Example 3: Anomaly-Driven Hypothesis
+
+**User:** "We're seeing a spike in failed VPN authentications from IP 203.0.113.45"
+
+**AI Should:**
+1. Recognize this as incident-driven, not proactive
+2. Search for past brute force hunts (T1110)
+3. Check environment.md for VPN platform and auth logs
+4. Generate time-sensitive hypothesis:
+
+```markdown
+# H-XXXX | VPN Brute Force from 203.0.113.45
+
+**Status:** Candidate
+**Priority:** HIGH (active incident)
+
+## Hypothesis
+Adversary is conducting brute force authentication attempts against VPN
+infrastructure from IP 203.0.113.45 to gain initial access.
+
+## Context
+
+**Why Now:**
+- Detected anomaly: Spike in failed VPN auth from single IP
+- Requires immediate investigation (potential active attack)
+
+**ATT&CK:** T1110.001 (Brute Force: Password Guessing)
+**Tactic:** Initial Access
+
+## Data Needed
+- **VPN Logs:** Authentication attempts (success/failure)
+- **Firewall:** Connection attempts to VPN gateway
+- **Identity Provider:** Account lockout events
+
+[Based on environment.md: VPN logs in SIEM, reference actual index]
+
+## Time Range
+- **Critical Window:** Last 24 hours (when spike detected)
+- **Historical Context:** Past 7 days (establish baseline)
+
+## Query Approach
+1. Failed VPN auth from 203.0.113.45
+2. Identify targeted usernames
+3. Check if any successful auths from same IP
+4. Cross-reference with threat intel (IP reputation)
+5. Look for distributed attempts (same usernames, different IPs)
+
+## Immediate Actions (before full hunt)
+- Block 203.0.113.45 at firewall (if not already done)
+- Check for any successful logins from this IP
+- Alert affected users if credentials may be compromised
+
+## Next Steps
+- Execute query immediately (incident response)
+- Document findings in H-XXXX_YYYY-MM-DD.md
+- Escalate any successful compromises to IR team
+```
+
+**AI Should Emphasize:** "This is incident response, not routine hunting.
+Execute query immediately and document as you go. Should I draft the query now?"
+
+### Memory Search Patterns
+
+When users ask to generate hypotheses, AI should automatically search:
+
+**Pattern 1: CVE-Based**
+```
+Search: grep -l "CVE-YYYY-NNNNN" hunts/*.md vulnerabilities.md
+Purpose: Check if we've already hunted or tracked this CVE
+```
+
+**Pattern 2: TTP-Based**
+```
+Search: grep -l "T####" hunts/*.md
+Purpose: Find past hunts for same ATT&CK technique
+```
+
+**Pattern 3: Behavior-Based**
+```
+Search: grep -li "keyword" hunts/*.md
+Keywords: "brute force", "lateral movement", "credential dump", etc.
+Purpose: Find hunts with similar behaviors
+```
+
+**Pattern 4: Technology-Based**
+```
+Search: grep -li "technology" hunts/*.md environment.md
+Examples: "VPN", "Active Directory", "AWS S3"
+Purpose: Find hunts targeting same systems/platforms
+```
+
+### Safety Checks Before Generating
+
+AI should validate before generating hypothesis:
+
+**Check 1: Data Availability**
+- Question: "Do we have logs for this hunt?"
+- Action: Read environment.md data sources section
+- Response: Warn if critical telemetry is missing
+
+**Check 2: Scope Appropriateness**
+- Question: "Is this hunt realistic in scope?"
+- Action: Consider query complexity vs. environment size
+- Response: Suggest narrowing if too broad
+
+**Check 3: Duplication**
+- Question: "Have we hunted this before?"
+- Action: Search hunts/ and vulnerabilities.md
+- Response: Reference past hunts, suggest building on lessons
+
+**Check 4: Testability**
+- Question: "Can this hypothesis be tested with a query?"
+- Action: Verify hypothesis is concrete, not abstract
+- Response: Request clarification if hypothesis is too vague
+
+### Output Format Expectations
+
+All AI-generated hypotheses must follow:
+
+**File Naming:** `H-XXXX.md` (user specifies number, or AI suggests next)
+
+**Required Sections:**
+- Hypothesis statement (one sentence, testable)
+- Context (Why now, ATT&CK, Tactic)
+- Data Needed (specific indexes from environment.md)
+- Time Range (bounded, justified)
+- Query Approach (high-level steps)
+
+**Optional Sections (include when relevant):**
+- Known False Positives (from past similar hunts)
+- Priority Level (if incident-driven)
+- Immediate Actions (if time-sensitive)
+- References (CTI reports, CVE links, past hunt IDs)
+
+**Quality Standards:**
+- Hypothesis is specific and testable
+- References actual data sources from environment.md
+- Includes lessons from past hunts if available
+- Has realistic time bounds
+- Considers false positive rate
+
+### Common Mistakes to Avoid
+
+**Mistake 1: Generating Without Checking Memory**
+❌ Bad: Immediately generate hypothesis without searching
+✅ Good: Search hunts/ first, reference if duplicates exist
+
+**Mistake 2: Ignoring Environment Context**
+❌ Bad: Suggest hunting Windows events when user only has Linux
+✅ Good: Read environment.md, ensure hunt matches tech stack
+
+**Mistake 3: Vague Hypotheses**
+❌ Bad: "Adversaries may use PowerShell maliciously"
+✅ Good: "Adversaries use base64-encoded PowerShell to download second-stage payloads from external IPs"
+
+**Mistake 4: No Time Bounds**
+❌ Bad: "Search all time for suspicious activity"
+✅ Good: "Search last 30 days (CVE published date) to present"
+
+**Mistake 5: Forgetting Lessons Learned**
+❌ Bad: Generate query that past hunts found generates noise
+✅ Good: Reference H-XXXX false positives and pre-filter
+
+---
+
 ## ATT&CK Coverage
 
 **Optional - Document your priority TTPs:**
