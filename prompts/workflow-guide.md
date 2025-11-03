@@ -24,7 +24,7 @@ This guide provides step-by-step workflows for using AI tools to accelerate thre
 | **GitHub Copilot** | GitHub integration, inline suggestions | ~$10/mo | [docs.github.com/copilot](https://docs.github.com/en/copilot) |
 | **Cursor** | Full IDE experience, chat + completions | ~$20/mo | [cursor.sh](https://cursor.sh/docs) |
 
-**Recommendation:** Start with whatever your organization already licenses. All work well with ATHR.
+**Recommendation:** Start with whatever your organization already licenses. All work well with ATHF.
 
 ### Step 2: Open Your Hunt Repository
 
@@ -520,7 +520,7 @@ Track these metrics to assess AI tool effectiveness:
 1. Use bulk generation for hunt planning
 2. Build custom prompts for your specific environment
 3. Consider Level 3 automation for repetitive tasks
-4. Share successful patterns with the ATHR community
+4. Share successful patterns with the ATHF community
 
 ---
 
@@ -569,7 +569,7 @@ Track these metrics to assess AI tool effectiveness:
 
 Found a workflow that works great? Have suggestions for improvement?
 
-- Open an issue in the ATHR repository
+- Open an issue in the ATHF repository
 - Share your success stories
 - Contribute workflow improvements
 

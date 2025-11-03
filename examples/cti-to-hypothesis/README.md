@@ -1,6 +1,6 @@
 # CTI to Hypothesis - Real-World Examples
 
-This folder contains complete, real-world examples showing how to use AI tools (Claude Code, GitHub Copilot, Cursor) with the ATHR framework to rapidly convert threat intelligence into actionable hunt hypotheses.
+This folder contains complete, real-world examples showing how to use AI tools (Claude Code, GitHub Copilot, Cursor) with the ATHF framework to rapidly convert threat intelligence into actionable hunt hypotheses.
 
 ---
 
@@ -282,7 +282,7 @@ These examples show generic environments. For your organization:
 
 **Framework:**
 - [AGENTS.md](../../AGENTS.md) - Context file for AI assistants
-- [README.md](../../README.md) - ATHR framework overview
+- [README.md](../../README.md) - ATHF framework overview
 - [templates/](../../templates/) - LOCK-structured templates
 
 **Community:**

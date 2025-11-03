@@ -1,10 +1,10 @@
-# Using ATHR in Your Organization
+# Using ATHF in Your Organization
 
-ATHR is a **framework for building agentic capability** in threat hunting. This guide helps you adopt it in your organization.
+ATHF is a **framework for building agentic capability** in threat hunting. This guide helps you adopt it in your organization.
 
 ## Philosophy
 
-ATHR teaches systems how to hunt with memory, learning, and augmentation. It's:
+ATHF teaches systems how to hunt with memory, learning, and augmentation. It's:
 
 - **Framework, not platform** - Structure over software, adapt to your environment
 - **Capability-focused** - Adds memory and agents to any hunting methodology ([PEAK](https://www.splunk.com/en_us/blog/security/peak-threat-hunting-framework.html), [SQRRL](https://www.threathunting.net/files/The%20Threat%20Hunting%20Reference%20Model%20Part%202_%20The%20Hunting%20Loop%20_%20Sqrrl.pdf), custom)
@@ -12,7 +12,7 @@ ATHR teaches systems how to hunt with memory, learning, and augmentation. It's:
 
 **Give your threat hunting program memory and agency.**
 
-## How to Adopt ATHR
+## How to Adopt ATHF
 
 ### 1. Clone and Customize
 
@@ -27,14 +27,14 @@ git init
 
 ### 2. Choose Your Integration Approach
 
-**Option A: Standalone (ATHR only)**
-Use ATHR's LOCK pattern as your hunting methodology. Simple, lightweight, agentic-first.
+**Option A: Standalone (ATHF only)**
+Use ATHF's LOCK pattern as your hunting methodology. Simple, lightweight, agentic-first.
 
-**Option B: Layered (ATHR + PEAK/SQRRL)**
-Keep your existing hunting framework ([PEAK](https://www.splunk.com/en_us/blog/security/peak-threat-hunting-framework.html), [SQRRL](https://www.threathunting.net/files/The%20Threat%20Hunting%20Reference%20Model%20Part%202_%20The%20Hunting%20Loop%20_%20Sqrrl.pdf), [TaHiTI](https://www.betaalvereniging.nl/en/safety/tahiti/)) and use ATHR to add memory and AI agents.
+**Option B: Layered (ATHF + PEAK/SQRRL)**
+Keep your existing hunting framework ([PEAK](https://www.splunk.com/en_us/blog/security/peak-threat-hunting-framework.html), [SQRRL](https://www.threathunting.net/files/The%20Threat%20Hunting%20Reference%20Model%20Part%202_%20The%20Hunting%20Loop%20_%20Sqrrl.pdf), [TaHiTI](https://www.betaalvereniging.nl/en/safety/tahiti/)) and use ATHF to add memory and AI agents.
 
-**Why ATHR helps:**
-Without structured memory, hunt notes scatter across Slack, tickets, or live in hunters' heads. ATHR gives your program persistent memory and AI integration.
+**Why ATHF helps:**
+Without structured memory, hunt notes scatter across Slack, tickets, or live in hunters' heads. ATHF gives your program persistent memory and AI integration.
 
 ### 3. Adapt Templates to Your Environment
 
@@ -90,10 +90,10 @@ The `hunts/` and `queries/` folders are **yours to fill**:
 
 ### 6. Integrate with Your Tools
 
-ATHR is designed to work with your existing stack. See the README sections for detailed integration guidance:
+ATHF is designed to work with your existing stack. See the README sections for detailed integration guidance:
 - **"Integration Patterns"** - Storage options, AI tools by level, SIEM compatibility
 - **"What You'll Need From Your Tech Stack"** - Requirements for each maturity level
-- **"How ATHR Works With Your Framework"** - Mapping to PEAK, SQRRL, custom methodologies
+- **"How ATHF Works With Your Framework"** - Mapping to PEAK, SQRRL, custom methodologies
 
 ## Maintaining Environmental Context
 
@@ -187,7 +187,7 @@ def update_tech_stack():
 
 **Benefit:** Ensures environment.md stays accurate as infrastructure changes, enabling AI to suggest feasible hunts based on actual data sources.
 
-## Scaling ATHR in Your Organization
+## Scaling ATHF in Your Organization
 
 ### Solo Hunter
 - **Level 1-2: Persistent → Augmented**: Repo + AI tool (GitHub Copilot, Claude Code)
@@ -216,13 +216,13 @@ def update_tech_stack():
 - Learning systems (rare)
 - Automated environment.md updates from CMDB/asset management
 
-## Mapping ATHR to Your Existing Framework
+## Mapping ATHF to Your Existing Framework
 
-ATHR complements existing hunting frameworks ([PEAK](https://www.splunk.com/en_us/blog/security/peak-threat-hunting-framework.html), [SQRRL](https://www.threathunting.net/files/The%20Threat%20Hunting%20Reference%20Model%20Part%202_%20The%20Hunting%20Loop%20_%20Sqrrl.pdf), [TaHiTI](https://www.betaalvereniging.nl/en/safety/tahiti/)) by adding memory and AI augmentation. You can use ATHR standalone or layer it over your current methodology.
+ATHF complements existing hunting frameworks ([PEAK](https://www.splunk.com/en_us/blog/security/peak-threat-hunting-framework.html), [SQRRL](https://www.threathunting.net/files/The%20Threat%20Hunting%20Reference%20Model%20Part%202_%20The%20Hunting%20Loop%20_%20Sqrrl.pdf), [TaHiTI](https://www.betaalvereniging.nl/en/safety/tahiti/)) by adding memory and AI augmentation. You can use ATHF standalone or layer it over your current methodology.
 
-**See the README section "How ATHR Works With PEAK"** for detailed mapping showing how PEAK phases map to LOCK steps.
+**See the README section "How ATHF Works With PEAK"** for detailed mapping showing how PEAK phases map to LOCK steps.
 
-The key insight: Use PEAK for your hunting process, LOCK for your documentation structure, ATHR to integrate AI at each phase.
+The key insight: Use PEAK for your hunting process, LOCK for your documentation structure, ATHF to integrate AI at each phase.
 
 ## Adapting the LOCK Loop
 
@@ -303,7 +303,7 @@ Trigger automated hunts from SOAR:
 soar_playbook.trigger("run_athr_hunt", hypothesis=generated_hypothesis)
 ```
 
-## Making ATHR "Yours"
+## Making ATHF "Yours"
 
 ### Rebrand for Your Organization
 - Change logo in README
@@ -323,7 +323,7 @@ Build helpers that work for your environment:
 
 ## Questions?
 
-ATHR is designed to be self-contained and adaptable. If you have questions about how to adapt it:
+ATHF is designed to be self-contained and adaptable. If you have questions about how to adapt it:
 1. Review the templates and example hunt (H-0001) for patterns
 2. Check the prompts/ folder for AI-assisted workflows
 3. See the README for workflow diagrams, progression guidance, and detailed integration patterns
@@ -331,7 +331,7 @@ ATHR is designed to be self-contained and adaptable. If you have questions about
 
 ## Sharing Back (Optional)
 
-While ATHR isn't a contribution repo, we'd love to hear how you're using it:
+While ATHF isn't a contribution repo, we'd love to hear how you're using it:
 - Blog about your experience
 - Share anonymized metrics
 - Present at conferences
@@ -341,4 +341,4 @@ But your hunts, your data, and your lessons stay **yours**.
 
 ---
 
-**Remember**: ATHR is a framework to internalize, not a platform to extend. Make it yours.
+**Remember**: ATHF is a framework to internalize, not a platform to extend. Make it yours.

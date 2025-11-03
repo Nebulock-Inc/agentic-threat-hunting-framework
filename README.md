@@ -2,15 +2,15 @@
   <img src="athr_logo.png" alt="Agentic Threat Hunting Framework Logo" width="400"/>
 </div>
 
-# Agentic Threat Hunting Framework (ATHR)
+# Agentic Threat Hunting Framework (ATHF)
 
 **Give your threat hunting program memory and agency.**
 
-ATHR is a framework for building threat hunting systems that remember past investigations, learn from outcomes, and augment human decision-making. It provides structure for progressing from manual hunting to AI-coordinated operations.
+ATHF is a framework for building threat hunting systems that remember past investigations, learn from outcomes, and augment human decision-making. It provides structure for progressing from manual hunting to AI-coordinated operations.
 
 **Use it standalone, or layer it over [PEAK](https://www.splunk.com/en_us/blog/security/peak-threat-hunting-framework.html), [SQRRL](https://www.threathunting.net/files/The%20Threat%20Hunting%20Reference%20Model%20Part%202_%20The%20Hunting%20Loop%20_%20Sqrrl.pdf), or your existing methodology.**
 
-## Why ATHR?
+## Why ATHF?
 
 **The Problem:**
 Attackers are using AI to get faster and better. Defenders need AI too. But how do we actually do that?
@@ -24,7 +24,7 @@ Without structure for memory and AI integration:
 - Knowledge evaporates when hunters leave
 - No foundation for AI to build on
 
-**ATHR's Solution:**
+**ATHF's Solution:**
 A framework specifically for building **agentic capability** in threat hunting:
 
 1. **LOCK Pattern** - AI-ready structure for hunt documentation
@@ -32,24 +32,24 @@ A framework specifically for building **agentic capability** in threat hunting:
 3. **Maturity Progression** - Pragmatic path from manual to AI-augmented
 4. **Integration Patterns** - Works with PEAK, SQRRL, or your existing methodology
 
-**What Makes ATHR Different:**
+**What Makes ATHF Different:**
 
-| Framework | Focus | What It Teaches | Complements ATHR? |
+| Framework | Focus | What It Teaches | Complements ATHF? |
 |-----------|-------|-----------------|-------------------|
-| **PEAK** | Hunting process | "How should teams hunt systematically?" | ✅ Yes - ATHR adds AI integration |
-| **SQRRL** | Hypothesis-driven operations | "How do we validate threat hypotheses?" | ✅ Yes - ATHR structures for AI |
-| **TaHiTI** | Team coordination | "How do hunt teams work together?" | ✅ Yes - ATHR adds memory + AI |
-| **ATHR** | AI integration | "How do we integrate AI into hunting?" | Standalone or layered |
+| **PEAK** | Hunting process | "How should teams hunt systematically?" | ✅ Yes - ATHF adds AI integration |
+| **SQRRL** | Hypothesis-driven operations | "How do we validate threat hypotheses?" | ✅ Yes - ATHF structures for AI |
+| **TaHiTI** | Team coordination | "How do hunt teams work together?" | ✅ Yes - ATHF adds memory + AI |
+| **ATHF** | AI integration | "How do we integrate AI into hunting?" | Standalone or layered |
 
 **In short:**
 - **PEAK/SQRRL/TaHiTI**: *Process frameworks* (how humans hunt)
-- **ATHR**: *AI integration framework* (how to structure hunts for AI)
+- **ATHF**: *AI integration framework* (how to structure hunts for AI)
 
 ## Prerequisites: Get the Basics Down First
 
-**ATHR is not a threat hunting 101 course.** You need to be actively hunting before this framework provides value.
+**ATHF is not a threat hunting 101 course.** You need to be actively hunting before this framework provides value.
 
-Before implementing ATHR, you should have:
+Before implementing ATHF, you should have:
 - **Access to security data** - SIEM, EDR, logs, or other telemetry sources
 - **Basic hunting skills** - Ability to form hypotheses and recognize adversary behavior
 - **Query capabilities** - Can write SPL, KQL, SQL, or use your platform's query language
@@ -60,11 +60,11 @@ Before implementing ATHR, you should have:
 - [MITRE ATT&CK](https://attack.mitre.org/) for adversary TTPs
 - [Threat Hunting Project](https://www.threathunting.net/) for hunting fundamentals
 
-**ATHR assumes you're already hunting.** It helps you structure your existing hunting work for AI integration - it doesn't teach you *how* to hunt.
+**ATHF assumes you're already hunting.** It helps you structure your existing hunting work for AI integration - it doesn't teach you *how* to hunt.
 
-## What ATHR Is
+## What ATHF Is
 
-ATHR is both a **conceptual framework** and a **practical toolkit** for agentic threat hunting - building systems that can remember, learn, and augment human decision-making.
+ATHF is both a **conceptual framework** and a **practical toolkit** for agentic threat hunting - building systems that can remember, learn, and augment human decision-making.
 
 **Core Components:**
 
@@ -74,8 +74,8 @@ ATHR is both a **conceptual framework** and a **practical toolkit** for agentic 
 4. **Templates & Patterns** - Practical implementations you can copy
 
 **Relationship:**
-- **Standalone**: Use ATHR's LOCK pattern and maturity model to build agentic capability from scratch
-- **Layered**: Apply ATHR's memory and AI patterns to your existing PEAK/SQRRL workflow
+- **Standalone**: Use ATHF's LOCK pattern and maturity model to build agentic capability from scratch
+- **Layered**: Apply ATHF's memory and AI patterns to your existing PEAK/SQRRL workflow
 
 ## Why LOCK?
 
@@ -88,7 +88,7 @@ LOCK (Learn → Observe → Check → Keep) is the AI-ready structure for threat
 
 ## The LOCK Pattern
 
-Every threat hunting methodology follows the same core pattern—ATHR calls it **LOCK**:
+Every threat hunting methodology follows the same core pattern—ATHF calls it **LOCK**:
 
 ```
 🔒 Learn → Observe → Check → Keep
@@ -165,21 +165,21 @@ graph LR
 
 ## Philosophy
 
-ATHR is a **framework for building agentic capability**, not a replacement for hunting methodologies.
+ATHF is a **framework for building agentic capability**, not a replacement for hunting methodologies.
 
-**ATHR's thesis:**
+**ATHF's thesis:**
 Threat hunting becomes more effective when systems can:
 1. **Remember** - Recall past hunts to avoid duplication and apply lessons
 2. **Learn** - Identify patterns in what works and what doesn't
 3. **Decide** - Augment human decision-making with AI assistance on validated patterns
 
-**How ATHR achieves this:**
+**How ATHF achieves this:**
 - **LOCK Pattern** - Standardizes hunt documentation for AI parsing
 - **Memory Design** - Scalable architecture from grep to weighted systems
 - **Maturity Levels** - Pragmatic progression path (don't over-engineer early)
 - **Agent Patterns** - Practical examples for single-agent → multi-agent → learning systems
 
-**Use ATHR when:**
+**Use ATHF when:**
 - You want AI to assist or augment hunting tasks
 - You need memory across hunts (avoid duplicates, apply lessons)
 - You're building toward agent-driven hunting operations
@@ -248,7 +248,7 @@ See environment.md template for detailed inventory structure.
 
 **What to do:**
 1. Create a repository (GitHub, SharePoint, Confluence, Jira, or local folder)
-2. Copy ATHR templates for LOCK-structured hunts
+2. Copy ATHF templates for LOCK-structured hunts
 3. Start documenting new hunts in markdown
 4. Commit/save each completed hunt
 
@@ -485,7 +485,7 @@ The AI can assist effectively because:
 
 ## What You'll Need From Your Tech Stack
 
-ATHR is designed to work with what you already have. Here's what's required at each maturity level:
+ATHF is designed to work with what you already have. Here's what's required at each maturity level:
 
 ### Level 0-1: Ephemeral → Persistent
 **Requirements:**
@@ -608,16 +608,16 @@ docs_agent.document_results(findings)
 ## FAQ
 
 **Q: Do I need to use your templates?**
-No. Use your own templates with ATHR prompts and memory patterns.
+No. Use your own templates with ATHF prompts and memory patterns.
 
-**Q: Does ATHR require agents/automation?**
+**Q: Does ATHF require agents/automation?**
 No. Level 1-2: Persistent/Augmented work with just markdown files and AI chat tools (GitHub Copilot, Claude Code). No coding required.
 
-**Q: Can I use ATHR without PEAK?**
-Yes. ATHR works with any hunting process. Use LOCK structure for documentation and build AI integration at your own pace.
+**Q: Can I use ATHF without PEAK?**
+Yes. ATHF works with any hunting process. Use LOCK structure for documentation and build AI integration at your own pace.
 
 **Q: Is this just "use ChatGPT for threat hunting"?**
-No. ATHR provides:
+No. ATHF provides:
 - LOCK structure so AI can parse hunts consistently
 - Memory architecture (repo → AI-integrated → structured)
 - Progression from manual to AI-augmented
@@ -666,6 +666,6 @@ MIT License - Use freely, adapt completely, keep your data private.
 
 ---
 
-**ATHR: The memory and automation layer for threat hunting.**
+**ATHF: The memory and automation layer for threat hunting.**
 
 Works with your methodology. Grows with your maturity. Stays out of your way.

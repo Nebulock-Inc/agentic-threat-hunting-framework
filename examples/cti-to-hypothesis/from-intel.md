@@ -1,7 +1,7 @@
 # Example: APT Report to Hypothesis Workflow
 
 **Scenario:** Threat intel team shares report about APT29 campaign targeting cloud infrastructure
-**Hunter:** Using GitHub Copilot with ATHR framework
+**Hunter:** Using GitHub Copilot with ATHF framework
 **Time:** Total 12 minutes from report to hypothesis
 
 ---
