@@ -59,10 +59,10 @@ graph LR
     C --> K
     K -.Memory loop.-> L
 
-    style L fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
-    style O fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-    style C fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    style K fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    style L fill:#e3f2fd,stroke:#1976d2,stroke-width:2px,color:#000
+    style O fill:#fff3e0,stroke:#f57c00,stroke-width:2px,color:#000
+    style C fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#000
+    style K fill:#e8f5e9,stroke:#388e3c,stroke-width:2px,color:#000
 ```
 
 ## The Five Levels of Agentic Hunting
@@ -94,11 +94,11 @@ graph LR
     L2 --> L3
     L3 --> L4
 
-    style L0 fill:#ffebee,stroke:#c62828,stroke-width:2px
-    style L1 fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
-    style L2 fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
-    style L3 fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
-    style L4 fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px
+    style L0 fill:#ffebee,stroke:#c62828,stroke-width:2px,color:#000
+    style L1 fill:#fff3e0,stroke:#ef6c00,stroke-width:2px,color:#000
+    style L2 fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#000
+    style L3 fill:#e3f2fd,stroke:#1565c0,stroke-width:2px,color:#000
+    style L4 fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px,color:#000
 ```
 
 ### Level 1: Documented Hunts
@@ -191,18 +191,18 @@ graph TB
 
     T2 -.-> Level2
 
-    style Level1 fill:#ffebee,stroke:#c62828,stroke-width:3px
-    style Level2 fill:#e8f5e9,stroke:#2e7d32,stroke-width:3px
-    style T1 fill:#fff,stroke:#999,stroke-dasharray: 5 5
-    style T2 fill:#fff,stroke:#999,stroke-dasharray: 5 5
-    style M1 fill:#fff,stroke:#999
-    style M2 fill:#fff,stroke:#999
-    style M3 fill:#fff,stroke:#999
-    style M4 fill:#fff,stroke:#999
-    style M5 fill:#fff,stroke:#999
-    style A1 fill:#fff,stroke:#999
-    style A2 fill:#fff,stroke:#999
-    style A3 fill:#fff,stroke:#999
+    style Level1 fill:#ffebee,stroke:#c62828,stroke-width:3px,color:#000
+    style Level2 fill:#e8f5e9,stroke:#2e7d32,stroke-width:3px,color:#000
+    style T1 fill:#fff,stroke:#999,stroke-dasharray: 5 5,color:#000
+    style T2 fill:#fff,stroke:#999,stroke-dasharray: 5 5,color:#000
+    style M1 fill:#fff,stroke:#999,color:#000
+    style M2 fill:#fff,stroke:#999,color:#000
+    style M3 fill:#fff,stroke:#999,color:#000
+    style M4 fill:#fff,stroke:#999,color:#000
+    style M5 fill:#fff,stroke:#999,color:#000
+    style A1 fill:#fff,stroke:#999,color:#000
+    style A2 fill:#fff,stroke:#999,color:#000
+    style A3 fill:#fff,stroke:#999,color:#000
 ```
 
 ### Level 3: Generative Capabilities
@@ -242,10 +242,10 @@ graph LR
     B --> C["🔍 Enrich<br/>Lookup IOCs"]
     C --> D["📝 Document<br/>Update hunt file"]
 
-    style A fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
-    style B fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-    style C fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    style D fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    style A fill:#e3f2fd,stroke:#1976d2,stroke-width:2px,color:#000
+    style B fill:#fff3e0,stroke:#f57c00,stroke-width:2px,color:#000
+    style C fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#000
+    style D fill:#e8f5e9,stroke:#388e3c,stroke-width:2px,color:#000
 ```
 
 **Example MCP Integrations:**

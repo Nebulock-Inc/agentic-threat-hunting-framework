@@ -96,11 +96,13 @@ The `hunts/` and `queries/` folders are **yours to fill**:
 
 ### 6. Integrate with Your Tools
 
-ATHF is designed to work with your existing stack. See the README sections for detailed integration guidance:
+ATHF is designed to work with your existing stack. The README provides:
 
-- **"Integration Patterns"** - Storage options, AI tools by level, SIEM compatibility
-- **"What You'll Need From Your Tech Stack"** - Requirements for each maturity level
-- **"How ATHF Works With Your Framework"** - Mapping to PEAK, SQRRL, custom methodologies
+- **The Five Levels of Agentic Hunting** - Detailed explanation of each maturity level with "What you get" summaries and examples
+- **Level 3: Generative Capabilities** - "Bring Your Own Tools" approach with MCP servers or APIs for SIEM, EDR, ticketing, and threat intel
+- **Level 3-4 Examples** - Visual diagrams and detailed workflows showing multi-MCP coordination and autonomous agent patterns
+
+See [integrations/README.md](integrations/README.md) and [integrations/MCP_CATALOG.md](integrations/MCP_CATALOG.md) for tool-specific guidance.
 
 ## Maintaining Environmental Context
 
@@ -239,9 +241,9 @@ def update_tech_stack():
 
 ATHF complements existing hunting frameworks ([PEAK](https://www.splunk.com/en_us/blog/security/peak-threat-hunting-framework.html), [SQRRL](https://www.threathunting.net/files/The%20Threat%20Hunting%20Reference%20Model%20Part%202_%20The%20Hunting%20Loop%20_%20Sqrrl.pdf), [TaHiTI](https://www.betaalvereniging.nl/en/safety/tahiti/)) by adding memory and AI augmentation. You can use ATHF standalone or layer it over your current methodology.
 
-**See the README section "How ATHF Works With PEAK"** for detailed mapping showing how PEAK phases map to LOCK steps.
+**Key insight:** Use your existing framework (PEAK, SQRRL, etc.) for your hunting process, LOCK for your documentation structure, and ATHF to add memory and AI capability at each phase.
 
-The key insight: Use PEAK for your hunting process, LOCK for your documentation structure, ATHF to integrate AI at each phase.
+The LOCK pattern maps naturally to most hunting methodologies - Learn (Prepare), Observe (Hypothesis), Check (Investigate), Keep (Document).
 
 ## Adapting the LOCK Loop
 
@@ -373,7 +375,7 @@ While ATHF isn't a contribution repo, we'd love to hear how you're using it:
 - Blog about your experience
 - Share anonymized metrics
 - Present at conferences
-- Tag @sydney-nebulock or open a discussion
+- Open a discussion at [github.com/Nebulock-Inc/agentic-threat-hunting-framework](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/discussions)
 
 But your hunts, your data, and your lessons stay **yours**.
 
