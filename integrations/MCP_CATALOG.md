@@ -17,12 +17,14 @@ You'll need to **do your own research** to find MCP servers for your organizatio
 Once you understand how MCP integration works through the Splunk walkthrough, you can find MCPs for your other security tools:
 
 **Where to look:**
-- Check vendor GitHub repositories (e.g., https://github.com/elastic, https://github.com/microsoft)
-- Search the official MCP servers collection: https://github.com/modelcontextprotocol/servers
+
+- Check vendor GitHub repositories (e.g., <https://github.com/elastic>, <https://github.com/microsoft>)
+- Search the official MCP servers collection: <https://github.com/modelcontextprotocol/servers>
 - Look for vendor-published MCPs on their documentation sites
 - Search GitHub for "[tool-name] mcp server"
 
 **Verify before use:**
+
 - Is it from the official vendor or a trusted source?
 - Does it have active maintenance and community support?
 - Does it fit your security and compliance requirements?
@@ -33,10 +35,10 @@ Once you understand how MCP integration works through the Splunk walkthrough, yo
 
 Want to build an MCP for your security tool?
 
-- **MCP Documentation:** https://modelcontextprotocol.io/docs
-- **Python Quickstart:** https://modelcontextprotocol.io/quickstart/server
-- **Example MCPs:** https://github.com/modelcontextprotocol/servers
-- **Claude Code Integration:** https://docs.claude.com/claude-code/mcp
+- **MCP Documentation:** <https://modelcontextprotocol.io/docs>
+- **Python Quickstart:** <https://modelcontextprotocol.io/quickstart/server>
+- **Example MCPs:** <https://github.com/modelcontextprotocol/servers>
+- **Claude Code Integration:** <https://docs.claude.com/claude-code/mcp>
 
 ---
 

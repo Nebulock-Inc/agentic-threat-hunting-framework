@@ -25,6 +25,7 @@ This guide provides workflows for using AI tools that can read your hunt reposit
 ### Verify AI Can Read Files
 
 Test AI access:
+
 ```
 You: "Read AGENTS.md and summarize what data sources we have"
 AI: [Should list your SIEM, EDR, and other sources]
@@ -108,6 +109,7 @@ CONVERSATION STYLE:
 **Total Time:** 5-10 minutes
 
 **Step 1: Check Memory (2 min)**
+
 ```
 You: "Check if we've hunted T1003.001 (LSASS credential dumping) before.
 Search for this TTP and any related credential dumping hunts.
@@ -115,6 +117,7 @@ Summarize lessons learned."
 ```
 
 **Step 2: Validate Environment (1 min)**
+
 ```
 You: "Read environment.md and tell me:
 1. Do we have visibility into this behavior?
@@ -123,24 +126,28 @@ You: "Read environment.md and tell me:
 ```
 
 **Step 3: Generate Hypothesis (2 min)**
+
 ```
 You: "Generate a LOCK-structured hypothesis for T1003.001.
 Use the system prompt above. This is a proactive hunt."
 ```
 
 **Review checklist:**
+
 - [ ] Hypothesis is testable and specific
 - [ ] Data sources match environment.md
 - [ ] Time range is reasonable
 - [ ] ATT&CK mapping is correct
 
 **Step 4: Create Hunt File (1 min)**
+
 ```
 You: "Create this hypothesis as H-XXXX.md in hunts/ folder.
 Use the next available hunt number."
 ```
 
 **Step 5: Generate Query (2-3 min)**
+
 ```
 You: "Generate a Splunk query with:
 - Time bounds (last 14 days)
@@ -159,12 +166,14 @@ You: "Generate a Splunk query with:
 **Quick Response Steps:**
 
 **1. Rapid Context (1 min)**
+
 ```
 You: "Search past hunts for [behavior/TTP].
 What have we learned about false positives?"
 ```
 
 **2. Incident Hypothesis (2 min)**
+
 ```
 You: "Generate incident-response hypothesis for:
 [paste anomaly description]
@@ -172,6 +181,7 @@ Mark as HIGH priority, active investigation."
 ```
 
 **3. Immediate Query (1 min)**
+
 ```
 You: "Draft query for last 24 hours with these IOCs:
 [paste indicators]
@@ -179,6 +189,7 @@ This is incident response - make it fast."
 ```
 
 **4. Document As You Go**
+
 ```
 You: "Summarize these results in LOCK format for the KEEP section of H-XXXX.md"
 ```
@@ -191,6 +202,7 @@ You: "Summarize these results in LOCK format for the KEEP section of H-XXXX.md"
 **Total Time:** 10-15 minutes
 
 **Step 1: Coverage Gap Analysis (3 min)**
+
 ```
 You: "Analyze past hunts and tell me:
 1. Which tactics have we hunted most/least?
@@ -200,6 +212,7 @@ Consider our environment from environment.md."
 ```
 
 **Step 2: Select TTP and Research (2 min)**
+
 ```
 You: "I want to hunt T1003 (Credential Dumping).
 Search past hunts for:
@@ -230,6 +243,7 @@ Iterate based on feedback.
 **Total Time:** 5-7 minutes
 
 **Step 1: Results Summarization (3 min)**
+
 ```
 You: "Analyze these query results from H-XXXX:
 1. Summary of findings (patterns, counts)
@@ -241,6 +255,7 @@ You: "Analyze these query results from H-XXXX:
 ```
 
 **Step 2: Update Hunt File (2 min)**
+
 ```
 You: "Update H-XXXX.md KEEP section with:
 - Query details (runtime, rows returned)
@@ -250,6 +265,7 @@ You: "Update H-XXXX.md KEEP section with:
 ```
 
 **Step 3: Apply Lessons (1 min)**
+
 ```
 You: "Based on these results, what changes would improve this hunt?
 Should we update the hypothesis or query filters?"
@@ -262,12 +278,14 @@ Should we update the hypothesis or query filters?"
 This example shows how AI searches memory, validates environment, and generates a hypothesis.
 
 **User:**
+
 ```
 Using the system prompt, generate a hypothesis for T1003.001
 (LSASS Memory credential dumping). This is a proactive hunt.
 ```
 
 **AI Response:**
+
 ```
 I'll help generate a hypothesis for T1003.001. Let me first check our repository.
 
@@ -345,6 +363,7 @@ TargetImage="*\\lsass.exe"
 **Rationale:** H-0022 used 30 days and returned excessive noise - starting smaller.
 
 **Known False Positives (from H-0022):**
+
 - CrowdStrike Falcon sensor (CSFalconService.exe)
 - System Center Operations Manager (HealthService.exe)
 - Windows Defender (MsMpEng.exe)
@@ -356,9 +375,11 @@ TargetImage="*\\lsass.exe"
 ---
 
 Would you like me to:
+
 - Create this as H-XXXX.md?
 - Draft the Splunk query with safety bounds?
 - Create a CSV lookup for known-good processes?
+
 ```
 
 **Key Observations:**

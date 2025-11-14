@@ -26,6 +26,7 @@ cp templates/HUNT_LOCK.md hunts/H-0003.md
 ```
 
 Start with the **LEARN** section:
+
 - Write your hypothesis
 - Fill out ABLE scoping table (Actor, Behavior, Location, Evidence)
 - Add threat intel and MITRE ATT&CK context
@@ -55,6 +56,7 @@ Change status to **Completed** when done.
 ### 4. Iterate
 
 Next time you hunt the same behavior:
+
 - Open the same H-####.md file
 - Update queries based on lessons learned
 - Re-run and update findings
@@ -119,6 +121,7 @@ At Level 3, you can connect MCPs to execute hunts directly through Claude.
 ### What are MCPs?
 
 MCP (Model Context Protocol) servers let Claude interact with your security tools:
+
 - Execute Splunk queries
 - Analyze results automatically
 - Create tickets with findings
@@ -148,6 +151,7 @@ Claude:
 ### Time Savings
 
 **Without MCPs (Level 2):**
+
 - Manual query execution: ~10 minutes
 - Copy/paste results: ~5 minutes
 - Analysis and documentation: ~25 minutes
@@ -155,6 +159,7 @@ Claude:
 - **Total:** ~45 minutes per hunt
 
 **With MCPs (Level 3):**
+
 - Claude executes and analyzes automatically
 - Results documented in hunt file
 - Tickets created with full context
@@ -163,21 +168,25 @@ Claude:
 ## Tips
 
 **Creating Hunts:**
+
 - Start with ABLE scoping - be specific about Evidence (log sources, key fields, examples)
 - Actor is optional - focus on Behavior first
 - Use clear MITRE ATT&CK technique IDs in titles
 
 **Executing Hunts:**
+
 - Document query iterations - show what didn't work and why
 - Be honest about false positives - they're learning opportunities
 - Capture telemetry gaps for engineering follow-up
 
 **Refining Hunts:**
+
 - Update the same file as you iterate
 - Keep old queries (comment them out) to show evolution
 - Link related hunts in Follow-up Hunts section
 
 **Status Management:**
+
 - **Planning** = Developing hypothesis and queries
 - **In Progress** = Actively executing and collecting data
 - **Completed** = Results documented, lessons captured

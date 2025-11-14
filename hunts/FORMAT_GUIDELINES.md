@@ -16,6 +16,7 @@ All hunt files in this framework follow the **LOCK** (Learn-Observe-Check-Keep) 
 The HUNT_LOCK.md template contains these sections:
 
 ### Title & Metadata
+
 ```markdown
 # H-XXXX: [Hunt Title]
 
@@ -27,6 +28,7 @@ The HUNT_LOCK.md template contains these sections:
 ```
 
 **Status Values:**
+
 - **Planning** - Hunt is being designed
 - **In Progress** - Hunt is actively being executed
 - **Completed** - Hunt execution finished, results documented
@@ -41,6 +43,7 @@ Educational foundation and hunt planning.
 Clear statement of what you're hunting and why.
 
 **ABLE Scoping Table:**
+
 | Field | Your Input |
 |-------|-----------|
 | **Actor** *(Optional)* | Threat actor or "N/A" |
@@ -49,6 +52,7 @@ Clear statement of what you're hunting and why.
 | **Evidence** | **Source:** [Log source]<br>**Key Fields:** [field1, field2]<br>**Example:** [What malicious activity looks like] |
 
 **Threat Intel & Research:**
+
 - MITRE ATT&CK techniques
 - CTI sources and references
 - Historical context for your environment
@@ -69,6 +73,7 @@ Describe legitimate activity (false positive sources)
 Describe anomalous behaviors you're hunting
 
 **Expected Observables:**
+
 - Processes, network connections, files, registry keys, authentication events
 
 ---
@@ -78,28 +83,34 @@ Describe anomalous behaviors you're hunting
 Investigation execution and results.
 
 **Data Source Information:**
+
 - Index/data source
 - Time range analyzed
 - Events processed
 - Data quality notes
 
 **Hunting Queries:**
+
 ```[language]
 [Initial query]
 ```
+
 **Query Notes:** Did it work? FPs? Gaps?
 
 ```[language]
 [Refined query after iteration]
 ```
+
 **Refinement Rationale:** What changed and why?
 
 **Visualization & Analytics:**
+
 - Time-series, heatmaps, anomaly detection used
 - Patterns observed
 - Screenshots referenced
 
 **Query Performance:**
+
 - What worked well
 - What didn't work
 - Iterations made
@@ -114,6 +125,7 @@ Results, lessons, and follow-up actions.
 3-5 sentences: What was found? Hypothesis proved/disproved?
 
 **Findings Table:**
+
 | Finding | Ticket | Description |
 |---------|--------|-------------|
 | [TP/FP/Suspicious] | [INC-####] | [Brief description] |
@@ -123,21 +135,25 @@ Results, lessons, and follow-up actions.
 **Suspicious Events:** Count requiring investigation
 
 **Detection Logic:**
+
 - Could this become automated detection?
 - Thresholds and conditions for alerts
 - Tuning considerations
 
 **Lessons Learned:**
+
 - What worked well
 - What could be improved
 - Telemetry gaps identified
 
 **Follow-up Actions:**
+
 - [ ] Checklist items for next steps
 - [ ] Detection rule creation
 - [ ] Hypothesis updates needed
 
 **Follow-up Hunts:**
+
 - H-XXXX: [New hunt ideas from findings]
 
 ---
@@ -150,27 +166,35 @@ Results, lessons, and follow-up actions.
 ## Section Purpose Guide
 
 ### LEARN
+
 **Purpose:** Build understanding and context before hunting.
+
 - Explain the TTP being hunted
 - Provide threat intel context
 - Document why this hunt matters now
 - Use ABLE framework to scope precisely
 
 ### OBSERVE
+
 **Purpose:** Create clear, testable hypothesis.
+
 - State what you expect to find
 - Distinguish normal from suspicious
 - List specific observables
 
 ### CHECK
+
 **Purpose:** Execute investigation and document process.
+
 - Embed queries directly in markdown
 - Document what worked and what didn't
 - Show query iterations and refinements
 - Track performance and data quality
 
 ### KEEP
+
 **Purpose:** Capture outcomes and enable improvement.
+
 - Summarize findings (TP/FP/Suspicious)
 - Extract lessons learned
 - Identify detection opportunities
@@ -179,23 +203,27 @@ Results, lessons, and follow-up actions.
 ## Best Practices
 
 ### Query Development
+
 - **Embed queries in markdown** using code blocks with syntax highlighting
 - **Comment your queries** to explain detection logic
 - **Document iterations** - Show initial query and refinements
 - **Explain why queries changed** based on findings
 
 ### ABLE Scoping
+
 - **Actor is optional** - Focus on behavior unless actor context adds value
 - **Evidence section is critical** - Include log sources, key fields, and examples
 - **Be specific** - Vague scoping leads to vague results
 
 ### Single-File Workflow
+
 - **Update the same file** as you iterate (no dated copies)
 - **Status field tracks progress** (Planning → In Progress → Completed)
 - **Keep query history** - Comment out old queries, don't delete them
 - **Document why things changed** in lessons learned
 
 ### Status Management
+
 - **Planning:** Hypothesis defined, queries being developed
 - **In Progress:** Actively hunting, collecting data, refining queries
 - **Completed:** Results documented, findings summarized, lessons captured
@@ -203,12 +231,14 @@ Results, lessons, and follow-up actions.
 ## Why LOCK + ABLE?
 
 **LOCK methodology** ensures structured hunting:
+
 - **Learn:** Educational foundation
 - **Observe:** Clear hypothesis
 - **Check:** Actionable detection
 - **Keep:** Captured lessons
 
 **ABLE scoping** provides precision:
+
 - **Actor:** Who (optional context)
 - **Behavior:** What (required - the actions)
 - **Location:** Where (required - the environment)

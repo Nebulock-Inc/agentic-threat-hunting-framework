@@ -1,6 +1,7 @@
 # H-XXXX: [Hunt Title]
 
 **Hunt Metadata**
+
 - **Date:** YYYY-MM-DD
 - **Hunter:** [Your Name]
 - **Status:** [Planning|In Progress|Completed]
@@ -11,6 +12,7 @@
 ## LEARN: Prepare the Hunt
 
 ### Hypothesis Statement
+
 [Clear statement of what you're hunting for and why. Example: "Detect credential dumping attempts via mimikatz on corporate Windows servers based on recent APT29 activity patterns."]
 
 ### ABLE Scoping
@@ -25,6 +27,7 @@ Define your hunt scope using the ABLE framework:
 | **Evidence** | **Source:** [Log source]<br>**Key Fields:** [field1, field2, field3]<br>**Example:** [What malicious activity looks like]<br><br>**Source:** [Additional source]<br>**Key Fields:** [field1, field2, field3]<br>**Example:** [What malicious activity looks like] |
 
 **ABLE Example:**
+
 | **Field** | **Example** |
 |-----------|-------------|
 | **Actor** | `APT29 (Cozy Bear)` |
@@ -59,16 +62,21 @@ Define your hunt scope using the ABLE framework:
 ## OBSERVE: Expected Behaviors
 
 ### What Normal Looks Like
+
 [Describe legitimate activity that might trigger false positives]
+
 - [Example: System administrators running privileged commands]
 - [Example: Automated maintenance scripts]
 
 ### What Suspicious Looks Like
+
 [Describe the anomalous behavior you're hunting for]
+
 - [Example: Mimikatz execution outside maintenance windows]
 - [Example: Credential access from non-admin users]
 
 ### Expected Observables
+
 - **Processes:** [process_name, command_line patterns]
 - **Network:** [connections, destinations, protocols]
 - **Files:** [paths, names, hashes]
@@ -80,6 +88,7 @@ Define your hunt scope using the ABLE framework:
 ## CHECK: Execute & Analyze
 
 ### Data Source Information
+
 - **Index/Data Source:** [e.g., index=windows, Sysmon logs, CloudTrail]
 - **Time Range:** [Start datetime] to [End datetime]
 - **Events Analyzed:** [Number or "TBD"]
@@ -88,30 +97,36 @@ Define your hunt scope using the ABLE framework:
 ### Hunting Queries
 
 #### Initial Query
+
 ```[language: spl, kql, sigma, etc.]
 [Your initial hunt query]
 ```
 
 **Query Notes:**
+
 - Did this return expected results?
 - False positives encountered?
 - Gaps identified?
 
 #### Refined Query
+
 ```[language]
 [Refined query after initial analysis]
 ```
 
 **Refinement Rationale:**
+
 - What changed and why?
 - What improvements did this bring?
 
 ### Visualization & Analytics
+
 - [Describe any time-series, heatmaps, or anomaly detection used]
 - [Note patterns observed in visualizations]
 - [Add screenshots to support findings]
 
 ### Query Performance
+
 - **What Worked Well:** [Effective detection logic, good data sources]
 - **What Didn't Work:** [Query issues, detection gaps, data limitations]
 - **Iterations Made:** [Summary of query refinements]
@@ -121,6 +136,7 @@ Define your hunt scope using the ABLE framework:
 ## KEEP: Findings & Response
 
 ### Executive Summary
+
 [3-5 sentences summarizing the investigation. State whether hypothesis was proved/disproved and key findings.]
 
 ### Findings
@@ -138,11 +154,13 @@ Define your hunt scope using the ABLE framework:
 ### Detection Logic
 
 **Automation Opportunity:**
+
 - Could this hunt become an automated detection?
 - What thresholds or conditions would trigger alerts?
 - Tuning considerations to reduce false positives?
 
 **Proposed Detection:**
+
 ```[language]
 [Draft detection rule if applicable]
 ```
@@ -150,16 +168,19 @@ Define your hunt scope using the ABLE framework:
 ### Lessons Learned
 
 **What Worked Well:**
+
 - [Successful query strategies]
 - [Effective data sources]
 - [Useful analysis techniques]
 
 **What Could Be Improved:**
+
 - [Query refinements needed]
 - [Data gaps to address]
 - [Tooling or process improvements]
 
 **Telemetry Gaps Identified:**
+
 - [Missing log sources]
 - [Insufficient field visibility]
 - [Collection improvements needed]
@@ -177,6 +198,7 @@ Define your hunt scope using the ABLE framework:
 ### Follow-up Hunts
 
 [New hunt ideas spawned from this investigation]
+
 - H-XXXX: [New hunt based on findings]
 - H-XXXX: [Pivot hunt to explore related TTPs]
 

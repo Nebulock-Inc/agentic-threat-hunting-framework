@@ -15,6 +15,7 @@ At Level 3, Claude doesn't just read about your tools - it **uses** them.
 Instead of copying queries and results back and forth between Claude and your tools, **MCPs let Claude directly interact with your security stack**.
 
 **The transformation:**
+
 - **Before:** You describe your tools to Claude, manually run queries, paste results back
 - **After:** Claude executes queries, analyzes data, and takes actions through tool APIs
 
@@ -23,18 +24,22 @@ Instead of copying queries and results back and forth between Claude and your to
 ## How MCPs Enhance the LOCK Workflow
 
 ### Learn Phase
+
 **Without MCP:** Copy-paste threat intel into Claude
 **With MCP:** Claude queries threat intel platforms directly for TTP context
 
 ### Observe Phase
+
 **Without MCP:** Manually list expected behaviors
 **With MCP:** Claude queries asset inventory to understand your environment
 
 ### Check Phase
+
 **Without MCP:** Copy queries into Splunk manually
 **With MCP:** Claude executes queries and analyzes results
 
 ### Keep Phase
+
 **Without MCP:** Manually create Jira tickets
 **With MCP:** Claude auto-creates tickets with findings
 
@@ -49,6 +54,7 @@ Once you complete it, you'll understand how to integrate MCPs for any security t
 ## Quick Example
 
 ### Without MCP Integration (Level 2)
+
 ```
 You: "Search for SSH brute force attempts in Splunk"
 Claude: "Here's a Splunk query you can run:
@@ -58,6 +64,7 @@ Claude: "Based on those results, I see 3 high-volume IPs..."
 ```
 
 ### With MCP Integration (Level 3)
+
 ```
 You: "Search for SSH brute force attempts"
 Claude: [Executes Splunk query via MCP]
@@ -77,6 +84,7 @@ The difference: **Claude executes queries and analyzes results directly, no copy
 ### Permissions
 
 MCPs run with the credentials you provide. Follow the principle of least privilege:
+
 - **Read-only access** for SIEMs and asset inventory
 - **Create-only access** for ticketing systems
 - **No destructive permissions** (delete, modify critical data)
@@ -84,6 +92,7 @@ MCPs run with the credentials you provide. Follow the principle of least privile
 ### Guardrails
 
 Always maintain human oversight:
+
 - **Queries should be bounded** (time range, result limits)
 - **No automatic remediation** without approval
 - **Audit all MCP actions** in logs
@@ -103,6 +112,7 @@ Always maintain human oversight:
 ## Level 4 Preview
 
 Once you have MCP integrations working, Level 4 (Autonomous) becomes possible. Instead of you asking Claude to run hunts, **autonomous agents** can:
+
 - Monitor CTI feeds and generate draft hunts
 - Execute scheduled hunts automatically
 - Enrich findings with threat intel
@@ -112,8 +122,8 @@ Level 3 gives Claude the **tools**. Level 4 gives it **agency**.
 
 ## Support
 
-- **MCP Documentation:** https://modelcontextprotocol.io
-- **Claude Code MCP Guide:** https://docs.claude.com/claude-code/mcp
-- **ATHF Issues:** https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/issues
+- **MCP Documentation:** <https://modelcontextprotocol.io>
+- **Claude Code MCP Guide:** <https://docs.claude.com/claude-code/mcp>
+- **ATHF Issues:** <https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/issues>
 
 Happy hunting!

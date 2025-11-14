@@ -6,20 +6,23 @@
 
 > Give your threat hunting program memory and agency.
 
-Threat hunting frameworks like PEAK and TaHiTI taught us how to hunt, but not how to make our hunts remember.
+The **Agentic Threat Hunting Framework (ATHF)** is the memory and automation layer for your threat hunting program. It gives your hunts structure, persistence, and context - making every past investigation accessible to both humans and AI.
 
-The **Agentic Threat Hunting Framework (ATHF)** is a blueprint for building systems that can recall past investigations, learn from outcomes, and augment human decision-making. It is the memory and automation layer that makes your existing process AI-ready. ATHF is not a replacement for your methodology. It enhances what you already use by creating structure, memory, and context for both humans and AI.
+ATHF works with any hunting methodology (PEAK, TaHiTI, or your own process). It's not a replacement; it's the layer that makes your existing process AI-ready.
 
 ## Why It Exists
+
 Most threat hunting programs lose valuable context once a hunt ends. Notes live in Slack or tickets, queries are written once and forgotten, and lessons learned exist only in analysts' heads. When someone asks, "Have we hunted this before?", the answer depends entirely on who remembers.
 
-Even when AI tools are introduced, they are often disconnected from the team's actual work. Someone might copy and paste a CTI report into ChatGPT and ask for ideas, but without access to your environment, your data, or your past hunts, the AI starts from zero every time.
+Even AI tools start from zero every time without access to your environment, your data, or your past hunts.
 
-ATHF changes that by giving your hunts structure, persistence, and context. It provides a way to make every past investigation accessible to both humans and AI assistants, turning disjointed documentation into a foundation for memory and learning.
+ATHF changes that by giving your hunts structure, persistence, and context - turning disjointed documentation into a foundation for memory and learning.
 
 ## The Core: The LOCK Pattern
 
 Every threat hunt follows the same basic loop: **Learn → Observe → Check → Keep**.
+
+**Why LOCK?** It's small enough to use and strict enough for agents to interpret.
 
 ATHF formalizes that loop with the **LOCK Pattern**, a lightweight structure that is readable by both humans and AI tools.
 
@@ -31,6 +34,7 @@ ATHF formalizes that loop with the **LOCK Pattern**, a lightweight structure tha
 
 **Check:** Test the hypothesis using bounded queries or scripts.
 *Example (Splunk):*
+
 ```spl
 index=winlogs EventCode=4688 CommandLine="*rundll32*" NOT Signed="TRUE"
 ```
@@ -39,6 +43,9 @@ index=winlogs EventCode=4688 CommandLine="*rundll32*" NOT Signed="TRUE"
 *Example:* "No evidence of execution found in the past 14 days. Query should be expanded to include encoded commands next run."
 
 By capturing every hunt in this format, ATHF makes it possible for AI assistants to recall prior work, generate new hypotheses, and suggest refined queries based on past results.
+
+**Without LOCK:** Every hunt is a fresh tab explosion.
+**With LOCK:** Every hunt becomes part of the memory layer.
 
 ```mermaid
 graph LR
@@ -61,6 +68,8 @@ graph LR
 ## The Five Levels of Agentic Hunting
 
 ATHF defines a simple maturity model for evolving your hunting program. Each level builds on the previous one.
+
+**Most teams will live at Levels 1–2. Everything beyond that is optional maturity.**
 
 | Level | Focus | What Changes | Example |
 |-------|-------|--------------|---------|
@@ -92,7 +101,14 @@ graph LR
     style L4 fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px
 ```
 
-### Level 1 Example: Documented Hunts
+### Level 1: Documented Hunts
+
+**What you get:**
+
+- **Persistent hunt records** that survive beyond Slack threads
+- **Standardized structure** using the LOCK pattern
+- **Knowledge transfer** for new team members
+- **Searchable history** of what's been tested
 
 You document hunts using LOCK in markdown.
 
@@ -131,9 +147,17 @@ Next iteration: expand to include remote registry and PSExec telemetry for broad
 
 When someone new joins the team, they can quickly see what was tested, what was learned, and what should be tried next. This alone prevents redundant hunts and lost context.
 
-### Level 2 Example: Searchable Memory
+### Level 2: Searchable Memory
+
+**What you get:**
+
+- **AI reads your repo** and understands your hunt history
+- **AI recalls past hunts** when you ask questions
+- **AI gives contextually correct suggestions** based on your environment
+- **Instant context retrieval** - seconds instead of minutes
 
 At Level 2, you add an [AGENTS.md](AGENTS.md) file to your repository. This file provides context for AI assistants (Claude Code, GitHub Copilot, Cursor) about:
+
 - Your repository structure (hunts/, templates/, queries/)
 - Available data sources (SIEM indexes, EDR platforms, network logs)
 - Workflow expectations and guardrails
@@ -181,13 +205,51 @@ graph TB
     style A3 fill:#fff,stroke:#999
 ```
 
-### Level 3 Example: Generative Capabilities
+### Level 3: Generative Capabilities
+
+**What you get:**
+
+- **AI executes queries** directly in your SIEM
+- **AI enriches findings** with threat intel lookups
+- **AI creates tickets** in your case management system
+- **AI updates hunt files** with results and commits changes
 
 At this stage, you give your AI assistant **tools to interact with your security stack** via MCP (Model Context Protocol) servers. Instead of manually copying queries to Splunk or looking up IOCs in threat intel, Claude does it directly.
 
-**Level 3 is "Bring Your Own MCP"** - you connect MCPs for whatever tools you already use: SIEM, threat intel, EDR, ticketing, asset inventory, etc.
+**Level 3 is about execution. The AI doesn't just suggest queries; it runs them with your tools.**
+
+**Introduce Optional MCP Servers or APIs for Your Tools:**
+
+Connect MCP servers or APIs for the tools you already use in your security operations:
+
+- **SIEM search** (Splunk, Elastic, Chronicle)
+- **Endpoint data** (CrowdStrike, SentinelOne, Microsoft Defender)
+- **Ticket creation** (Jira, ServiceNow, GitHub Issues)
+- **Threat intel queries** (MISP, VirusTotal, AlienVault OTX)
+
+**Your Assistant Can:**
+
+- **Run queries** - Execute hunt queries and retrieve results directly
+- **Enrich findings** - Look up IOCs, correlate threat intelligence, check reputation
+- **Update hunts** - Document findings and commit changes to hunt files
+- **Trigger actions** - Create tickets, generate alerts, update case management
+
+**Level 3 is "Bring Your Own Tools"** - you connect MCP servers or APIs for whatever tools you already use: SIEM, threat intel, EDR, ticketing, asset inventory, etc.
+
+```mermaid
+graph LR
+    A["💬 Suggest<br/>AI drafts query"] --> B["▶️ Execute<br/>Run in SIEM"]
+    B --> C["🔍 Enrich<br/>Lookup IOCs"]
+    C --> D["📝 Document<br/>Update hunt file"]
+
+    style A fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    style B fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    style C fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    style D fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+```
 
 **Example MCP Integrations:**
+
 - **Splunk:** Execute hunt queries, retrieve results (official MCP available)
 - **CrowdStrike:** Query endpoint telemetry (official MCP available)
 - **Jira:** Auto-create incident tickets (official MCP available)
@@ -196,6 +258,7 @@ At this stage, you give your AI assistant **tools to interact with your security
 **Example: SIEM Query Execution**
 
 Without MCP (Level 2):
+
 ```
 You: "Search for SSH brute force attempts"
 Claude: "Here's a Splunk query: index=linux_secure action=failure | stats count by src_ip"
@@ -204,6 +267,7 @@ Claude: "I see 3 high-volume IPs..."
 ```
 
 With Splunk MCP (Level 3):
+
 ```
 You: "Search for SSH brute force attempts"
 Claude: [Executes Splunk query via MCP]
@@ -223,11 +287,12 @@ Should I create a Jira ticket for investigation?"
 **Multi-MCP Workflow Example**
 
 Run an entire hunt end-to-end:
+
 ```
 You: "Execute hunt H-0042"
 
 Claude:
-1. [Reads H-0042.md hypothesis file]
+1. [Reads H-0042.md hypothesis file (example)]
 2. [Splunk MCP] Executes detection query
 3. [CrowdStrike MCP] Validates suspicious hosts found
 4. [Jira MCP] Creates incident tickets for confirmed threats
@@ -248,6 +313,7 @@ Claude:
 4. **Review example hunts:** See [hunts/](hunts/) directory for examples
 
 **Level 3 Success Criteria:**
+
 - Claude **executes** hunt queries instead of just writing them
 - IOCs are **enriched** automatically with threat intel
 - Incident tickets are **created** with full context
@@ -255,7 +321,14 @@ Claude:
 
 **Learn more:** [integrations/README.md](integrations/README.md)
 
-### Level 4 Example: Autonomous Workflows
+### Level 4: Autonomous Workflows
+
+**What you get:**
+
+- **Agents monitor** CTI feeds without your intervention
+- **Agents generate** draft hunts based on new threats
+- **Agents coordinate** through shared LOCK memory
+- **You validate and approve** rather than create from scratch
 
 At this stage, you move from **reactive assistance** to **proactive automation**. Instead of asking your AI for help with each task, you deploy autonomous agents that monitor, reason, and act based on objectives you define.
 
@@ -263,11 +336,14 @@ The key difference from Level 3: **agents operate autonomously** rather than wai
 
 **Example: Multi-Agent Hunt Pipeline**
 
-Below is a conceptual workflow showing how multiple autonomous agents coordinate:
+<details>
+<summary>Example Multi-Agent Workflow (Conceptual)</summary>
+
+Below is a **conceptual example** showing how multiple autonomous agents could coordinate. This is not included in the repository - it represents a pattern you would implement using your chosen agent framework:
 
 ```yaml
-# config/agent_workflow.yaml
-# Defines autonomous agents and their coordination
+# Example: config/agent_workflow.yaml
+# Conceptual configuration for autonomous agents
 
 agents:
   - name: cti_monitor
@@ -315,7 +391,9 @@ guardrails:
   - daily_summary_report: true
 ```
 
-**How It Works:**
+</details>
+
+**How It Works (Example Scenario):**
 
 1. **CTI Monitor Agent** runs every 6 hours, checking threat feeds
 2. Detects new Qakbot campaign using T1059.003
@@ -333,11 +411,13 @@ guardrails:
 > "3 new draft hunts created overnight based on recent CTI. Ready for your review."
 
 **The difference:**
+
 - **Level 2:** You ask AI questions, it responds
 - **Level 3:** You direct AI to use tools
 - **Level 4:** Agents work autonomously toward objectives, notify you when human judgment is needed
 
 At Level 4, success looks like this:
+
 - Agents **monitor** CTI feeds without your intervention
 - Agents **generate** draft hunts based on new threats
 - Agents **coordinate** through shared memory (LOCK hunts)
@@ -346,6 +426,7 @@ At Level 4, success looks like this:
 **Implementation Options:**
 
 Level 4 can be built using various agent frameworks:
+
 - **LangGraph** - For building stateful, multi-agent workflows
 - **CrewAI** - For role-based agent collaboration
 - **AutoGen** - For conversational agent patterns
@@ -356,8 +437,9 @@ The key is that **all agents share the same memory layer** - your LOCK-structure
 ## How to Get Started
 
 1. **Clone the repository**
+
    ```bash
-   git clone https://github.com/sydney-nebulock/agentic-threat-hunting-framework
+   git clone https://github.com/Nebulock-Inc/agentic-threat-hunting-framework
    ```
 
 2. Review the `templates/` and `hunts/` directories
@@ -401,4 +483,7 @@ ATHF is a framework for the future of threat hunting. It learns, remembers, and 
 
 **Start small. Document one hunt. Add structure. Build memory.**
 
+Memory is the multiplier. Agency is the force.
 Once your program can remember, everything else becomes possible.
+
+Happy thrunting!

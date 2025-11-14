@@ -7,10 +7,12 @@ This folder contains prompts to help you accelerate threat hunting at different 
 ## What's Here
 
 ### basic-prompts.md
+
 **Level:** 0-1 (Manual/Documented)
 **Use for:** Copy-paste prompts for ChatGPT, Claude, or other AI assistants
 
 Contains three prompt templates:
+
 1. **Generate Hypothesis** - From CTI, alerts, or anomalies
 2. **Build Query** - Safe, bounded queries for Splunk, KQL, or Elastic
 3. **Document Results** - Capture findings in LOCK format
@@ -20,10 +22,12 @@ Contains three prompt templates:
 ---
 
 ### ai-workflow.md
+
 **Level:** 2 (Searchable) - AI with Memory
 **Use for:** AI tools that can read your repository (Claude Code, GitHub Copilot, Cursor)
 
 Contains:
+
 - System prompt for AI tools
 - 4 core workflows (threat intel, anomaly investigation, proactive hunting, documentation)
 - Complete example conversation showing AI reasoning
@@ -37,12 +41,14 @@ Contains:
 ## How to Choose
 
 **Use basic-prompts.md if:**
+
 - You're just getting started with AI-assisted hunting
 - You don't have AI tool subscriptions yet
 - You want simple copy-paste templates
 - You're working in a web interface (ChatGPT, Claude.ai)
 
 **Use ai-workflow.md if:**
+
 - You have Claude Code, GitHub Copilot, or Cursor
 - Your hunt repository has AGENTS.md and documented past hunts
 - You want AI to search memory and apply lessons learned
@@ -61,6 +67,7 @@ Contains:
 5. Review and refine the output
 
 **Example:**
+
 ```
 # You have threat intel about PowerShell abuse
 → Use "Generate Hypothesis" prompt from basic-prompts.md
@@ -76,6 +83,7 @@ Contains:
 4. Follow the workflow guides for common scenarios
 
 **Example:**
+
 ```
 You: "Check if we've hunted T1003.001 before. Use the system prompt from prompts/ai-workflow.md"
 AI: [Searches hunts/, reads environment.md, generates context-aware hypothesis]
@@ -104,16 +112,19 @@ AI: [Searches hunts/, reads environment.md, generates context-aware hypothesis]
 ## Platform-Specific Tips
 
 **Splunk Users:**
+
 - Mention "Splunk SPL" in your prompts
 - Specify data models when available
 - AI knows common Splunk patterns (tstats, eval, stats)
 
 **KQL Users (Sentinel/Defender):**
+
 - Mention "KQL for Sentinel" or "KQL for Defender"
 - Specify table names (SecurityEvent, DeviceProcessEvents, etc.)
 - AI understands Sentinel-specific syntax
 
 **Elastic Users:**
+
 - Mention "Elastic EQL" or "Lucene query"
 - Specify index patterns
 - Note which Elastic stack version you're using
@@ -139,6 +150,7 @@ AI: [Searches hunts/, reads environment.md, generates context-aware hypothesis]
 ## Customizing for Your Environment
 
 Feel free to modify these prompts:
+
 - Add your organization's specific data sources
 - Include your ATT&CK coverage gaps
 - Reference your baseline automation
@@ -149,6 +161,7 @@ Feel free to modify these prompts:
 ## Contributing
 
 Have a better prompt? Found a useful workflow?
+
 - Submit a PR with your improvements
 - Share what works in your environment
 - Help others get started faster

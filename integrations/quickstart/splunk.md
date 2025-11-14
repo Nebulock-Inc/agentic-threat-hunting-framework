@@ -5,6 +5,7 @@ This guide shows how to connect Claude Code to Splunk Enterprise or Splunk Cloud
 ## What You Get
 
 Once configured, Claude Code can:
+
 - **Query Splunk:** Run SPL searches and get results
 - **Generate SPL:** AI-assisted query generation
 - **Analyze Data:** Get insights from Splunk logs
@@ -23,7 +24,7 @@ Once configured, Claude Code can:
 2. Install it on your Splunk instance via **Settings → Apps → Install app from file**
 3. Grant the `mcp_tool_execute` capability to your user role
 
-**Documentation:** https://help.splunk.com/en/splunk-cloud-platform/mcp-server-for-splunk-platform/
+**Documentation:** <https://help.splunk.com/en/splunk-cloud-platform/mcp-server-for-splunk-platform/>
 
 ### Step 2: Create API Token
 
@@ -65,6 +66,7 @@ Edit your `~/.claude.json` and add the Splunk MCP server configuration to the pr
 ```
 
 **Configuration:**
+
 - Replace `your-splunk-host.com` with your Splunk server IP or hostname
 - Replace `YOUR_TOKEN_HERE` with the token from Step 2
 - Set `NODE_TLS_REJECT_UNAUTHORIZED: "0"` if using self-signed SSL certificates (testing only)
@@ -103,6 +105,7 @@ Simple prompts that work once Splunk MCP is configured:
 ```
 
 Claude will automatically:
+
 - Execute SPL queries
 - Parse and format results
 - Explain findings
@@ -138,6 +141,7 @@ Consult the [official Splunk MCP documentation](https://help.splunk.com/en/splun
 Check token audience is set to `mcp` (not `search` or `claude-code-mcp`)
 
 **Connection Failed:**
+
 - Verify port 8089 is accessible
 - For self-signed certs, add `NODE_TLS_REJECT_UNAUTHORIZED: "0"` to env
 
@@ -149,9 +153,9 @@ Create a new token in Splunk Web → Settings → Tokens
 
 ## Resources
 
-- **Splunk MCP Server App:** https://splunkbase.splunk.com/app/7931
-- **Official Documentation:** https://help.splunk.com/en/splunk-cloud-platform/mcp-server-for-splunk-platform/
-- **SPL Reference:** https://docs.splunk.com/Documentation/Splunk/latest/SearchReference
+- **Splunk MCP Server App:** <https://splunkbase.splunk.com/app/7931>
+- **Official Documentation:** <https://help.splunk.com/en/splunk-cloud-platform/mcp-server-for-splunk-platform/>
+- **SPL Reference:** <https://docs.splunk.com/Documentation/Splunk/latest/SearchReference>
 
 ---
 
