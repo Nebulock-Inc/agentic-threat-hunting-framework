@@ -4,12 +4,39 @@ This guide walks you through setting up the Agentic Threat Hunting Framework, fr
 
 **This framework is meant to be flexible.** Adapt it to your environment, data sources, and team structure. Use what works for you, modify what doesn't, and skip what isn't relevant.
 
-## Step 1: Clone the Repository
+## Step 1: Choose Your Setup Path
+
+ATHF offers two paths to get started:
+
+### Option A: CLI-Enabled (Recommended)
+
+Install the Python CLI for convenience commands:
 
 ```bash
+# Clone and install
+git clone https://github.com/Nebulock-Inc/agentic-threat-hunting-framework
+cd agentic-threat-hunting-framework
+pip install -e .
+
+# Verify installation
+athf --version
+```
+
+**Benefits:** Interactive hunt creation, automated validation, built-in search and stats
+
+### Option B: Markdown-Only
+
+Use the framework structure without CLI tools:
+
+```bash
+# Clone only
 git clone https://github.com/Nebulock-Inc/agentic-threat-hunting-framework
 cd agentic-threat-hunting-framework
 ```
+
+**Benefits:** Maximum simplicity, full control, no dependencies
+
+> **Note:** Both paths work equally well. The CLI is optional convenience - the framework structure (hunts/, LOCK pattern, AGENTS.md) is what enables AI assistance.
 
 ## Step 2: Explore the Structure
 
@@ -20,6 +47,10 @@ agentic-threat-hunting-framework/
 ├── README.md              # Framework overview
 ├── AGENTS.md              # AI assistant context
 ├── environment.md         # Tech stack and data sources
+├── athf/                  # CLI source code (optional)
+│   ├── commands/          # Hunt management commands
+│   ├── core/              # Hunt parsing and validation
+│   └── utils/             # Helper utilities
 ├── hunts/                 # Hunt hypothesis cards (H-XXXX.md)
 ├── queries/               # Query implementations (H-XXXX.spl/kql)
 ├── runs/                  # Hunt execution results (H-XXXX_YYYY-MM-DD.md)
@@ -43,6 +74,28 @@ Start simple. Pick a recent hunt or create a new one and document it using the L
 
 ### Create a Hunt File
 
+**Using the CLI (Option A):**
+
+```bash
+# Interactive mode - CLI will prompt you for details
+athf hunt new
+
+# Or non-interactive with flags
+athf hunt new \
+  --technique T1110.001 \
+  --title "SSH Brute Force Detection" \
+  --platform linux \
+  --tactic initial-access
+
+# Validate the hunt structure
+athf hunt validate
+
+# View your hunt catalog
+athf hunt list
+```
+
+**Manual Creation (Option B):**
+
 1. Copy a template:
 
    ```bash
@@ -61,6 +114,8 @@ Start simple. Pick a recent hunt or create a new one and document it using the L
    git add hunts/H-0001.md
    git commit -m "Add hunt H-0001: [Brief description]"
    ```
+
+> **Tip:** The CLI (`athf hunt new`) creates the file with YAML frontmatter automatically. Manual creation gives you full control over the content.
 
 ### Example Structure
 
@@ -270,30 +325,65 @@ Don't build a full agent pipeline on day one:
 
 **Detailed examples:** See [level4-agentic-workflows.md](level4-agentic-workflows.md)
 
+## CLI Quick Reference
+
+If you installed the CLI (Option A), here are the most useful commands:
+
+### Hunt Management
+
+```bash
+# Create hunts
+athf hunt new                           # Interactive mode
+athf hunt new --technique T1003.001 --title "LSASS Dumping"
+
+# List and search
+athf hunt list                          # All hunts
+athf hunt list --status completed       # Filter by status
+athf hunt list --platform windows       # Filter by platform
+athf hunt search "kerberoasting"        # Full-text search
+
+# Validation and stats
+athf hunt validate                      # Validate all hunts
+athf hunt validate H-0001               # Validate specific hunt
+athf hunt stats                         # Show statistics
+athf hunt coverage                      # MITRE ATT&CK coverage
+```
+
+### Workspace Initialization
+
+```bash
+athf init                               # Interactive setup
+athf init --non-interactive             # Use defaults
+```
+
+**Full documentation:** [CLI Reference](CLI_REFERENCE.md)
+
 ## Next Steps
 
 **At Level 1:**
 
-- Document 5-10 hunts
-- Establish a hunt numbering convention
+- Document 5-10 hunts (use `athf hunt new` or manual markdown)
+- Establish a hunt numbering convention (CLI handles this automatically)
 - Train team on LOCK pattern
+- Optional: Run `athf hunt validate` to ensure consistency
 
 **At Level 2:**
 
 - Customize AGENTS.md for your environment
-- Use AI to search past hunts
+- Use AI to search past hunts (or `athf hunt search` for CLI users)
 - Generate hypotheses based on lessons learned
+- Optional: Use `athf hunt stats` and `athf hunt coverage` to identify gaps
 
 **At Level 3:**
 
 - Connect your most-used tool (Splunk, CrowdStrike, etc.)
-- Run a full hunt with AI executing queries
+- Run a full hunt with AI executing queries (AI can use `athf hunt new` to document results)
 - Measure time saved vs. manual execution
 
 **At Level 4:**
 
-- Deploy one monitoring agent
-- Review agent-generated drafts
+- Deploy one monitoring agent (agents can use `athf hunt new --non-interactive` to create hunts autonomously)
+- Review agent-generated drafts (use `athf hunt validate` for automated checks)
 - Iterate on guardrails and approval gates
 
 ## Common Questions
@@ -309,6 +399,12 @@ A: Yes! Adapt it to your methodology. The structure is a starting point, not a p
 
 **Q: What if we use a different hunting methodology (PEAK, TaHiTI)?**
 A: ATHF works with any methodology. LOCK is the documentation layer, not a replacement for your existing process.
+
+**Q: Do I need to use the CLI?**
+A: No. The CLI is optional convenience tooling. You can achieve all maturity levels (1-4) using just markdown files. The framework structure (hunts/, LOCK pattern, AGENTS.md) is what enables AI assistance, not the CLI.
+
+**Q: Can I use the CLI with my existing hunt files?**
+A: Yes! The CLI commands (`athf hunt list`, `athf hunt search`, `athf hunt validate`) work with any markdown files in the hunts/ directory, whether created manually or via CLI.
 
 ## Need Help?
 

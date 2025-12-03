@@ -1,156 +1,83 @@
 # ATHF Hunt Showcase
 
-This showcase demonstrates real-world hunt scenarios documented using the ATHF LOCK pattern. Each example shows query evolution, results, and impact - proving the framework's practical value for security practitioners.
+This showcase highlights real hunts from our [hunts/](hunts/) directory, demonstrating how the LOCK pattern structures threat hunting from hypothesis to detection rule deployment.
+
+Each example shows query evolution, results, and impact - proving the framework's practical value for security practitioners.
 
 ---
 
-## Hunt #1: Kerberoasting Detection
+## Hunt #1: macOS Information Stealer Detection
 
-**Hunt ID:** H-0027
-**MITRE ATT&CK:** T1558.003 (Kerberoasting)
-**Platform:** Windows Active Directory
-**Status:** Completed
-
-### Challenge
-
-Detect Kerberoasting attacks where adversaries request service tickets for accounts with Service Principal Names (SPNs) to crack passwords offline.
-
-### Initial Hypothesis
-
-Adversaries will request multiple TGS (Ticket Granting Service) tickets for service accounts in a short time window, especially for accounts with weak passwords.
-
-### Query Evolution
-
-**Iteration 1: Initial baseline (Too noisy)**
-```spl
-index=windows EventCode=4769
-| stats count by src_ip, service_name
-| where count > 5
-```
-**Results:** 247 events - included legitimate service requests, monitoring tools, automated processes
-**Problem:** False positives from backup software, monitoring agents, legitimate admin activity
-
-**Iteration 2: Add filters (Better, still noisy)**
-```spl
-index=windows EventCode=4769
-| where Ticket_Encryption_Type="0x17"
-| stats dc(service_name) as unique_services, values(service_name) as services by src_ip
-| where unique_services > 3
-```
-**Results:** 12 events - filtered RC4 encryption, multiple SPNs
-**Problem:** Still catching legitimate service accounts performing normal operations
-
-**Iteration 3: Final - behavioral anomaly detection**
-```spl
-index=windows EventCode=4769
-| where Ticket_Encryption_Type="0x17"
-| eventstats dc(service_name) as baseline by src_ip
-| where baseline > 5 AND NOT [| inputlookup known_service_accounts.csv]
-| stats dc(service_name) as unique_services,
-        values(service_name) as services,
-        values(src_user) as user
-        by src_ip
-| where unique_services >= 5
-| join type=left user [search index=windows EventCode=4625 | stats count as failed_logins by user]
-```
-**Results:** 3 true positives, 0 false positives
-**Success!**
-
-### Detection Results
-
-**Timeline:**
-- 2025-11-22 14:15:32 - Suspicious TGS requests detected from 10.0.45.188
-- 2025-11-22 14:17:18 - Analyst investigation begins
-- 2025-11-22 14:32:45 - Confirmed Kerberoasting via memory analysis
-- 2025-11-22 14:35:12 - Account disabled, host isolated
-
-**Findings:**
-1. **10.0.45.188** (compromised workstation)
-   - User: contractor_jdoe
-   - Requested 15 unique service tickets in 8 minutes
-   - Services targeted: SQL servers, file shares, backup services
-   - Action: Host isolated, account disabled
-
-2. **10.0.52.22** (penetration test - authorized)
-   - User: pentester_external
-   - Requested 8 service tickets for testing
-   - Action: Confirmed with security team, no action needed
-
-3. **10.0.12.94** (compromised admin workstation)
-   - User: admin_msmith
-   - Requested 12 service tickets
-   - Found: Mimikatz in memory
-   - Action: Incident response engaged, credential reset
-
-### Impact Metrics
-
-- **Time to Detection:** 8 minutes from initial activity
-- **False Positives:** 0 (after query refinement)
-- **Analyst Time Saved:** ~2 hours per week (automated detection rule deployed)
-- **Password Resets Required:** 23 service accounts with weak passwords identified
-- **Policy Change:** Minimum 25-character passwords now required for service accounts
-
-### Automated Detection Rule
-
-Deployed final query as 15-minute scheduled search with alert on results > 0. Integrated with SOAR for automatic ticket creation and user notification.
-
-**Lessons Learned:**
-- RC4 encryption (0x17) is key indicator but requires baseline
-- Behavioral analysis outperforms simple thresholds
-- Whitelist legitimate service accounts to reduce noise
-- Combine with failed login attempts for higher confidence
-
----
-
-## Hunt #2: macOS Information Stealer Detection
+**[View full hunt: H-0001.md →](hunts/H-0001.md)**
 
 **Hunt ID:** H-0001
-**MITRE ATT&CK:** T1005 (Data from Local System)
+**MITRE ATT&CK:** T1005 (Data from Local System), T1059.002 (AppleScript)
 **Platform:** macOS
 **Status:** Completed
 
-### Challenge
+---
 
-Detect information stealers targeting browser data, credentials, and sensitive files on macOS endpoints.
+### Learn
 
-### Initial Hypothesis
+**Context:** Atomic Stealer and similar macOS information stealers were actively targeting organizations. Following a phishing campaign, the security team needed visibility into file access patterns on macOS endpoints.
 
-Malicious processes will access Safari databases, Chrome profiles, and document directories in unusual patterns, especially unsigned or recently downloaded executables.
+**Threat Actor TTPs:** Adversaries use AppleScript to automate collection of sensitive data from infected macOS systems:
+- Safari cookies (session tokens, authentication)
+- Notes database (credentials, sensitive text)
+- Document directories (intellectual property)
 
-### Query Evolution
+**Available Telemetry:**
+- macOS Unified Logging
+- EDR process/file access logs
+- Network connection attempts
+
+**Knowledge Gap:** No visibility into unsigned process file access patterns; unable to distinguish malicious from legitimate applications.
+
+---
+
+### Observe
+
+**Hypothesis:** Malicious processes will access Safari databases, Chrome profiles, and document directories in unusual patterns, especially unsigned or recently downloaded executables.
+
+**Observable Behaviors:**
+- Unsigned/invalid processes accessing browser data
+- Rapid file access (< 5 minutes) spanning multiple sensitive directories
+- Network connection attempts from file collection processes
+- AppleScript (`osascript`) running file duplication commands
+
+---
+
+### Check
+
+**Query Evolution:**
 
 **Iteration 1: Broad file access monitoring (Too noisy)**
 ```spl
 index=mac_edr
-| where file_path LIKE "%Library/Safari%"
-   OR file_path LIKE "%Library/Application Support/Google/Chrome%"
+| where file_path LIKE "%Library/Safari%" OR file_path LIKE "%Library/Application Support/Google/Chrome%"
 | stats count by process_name, file_path
 ```
 **Results:** 247 events - overwhelming noise from legitimate browser activity, system processes, backup tools
 **Problem:** Can't distinguish malicious from legitimate file access
+**Refinement needed:** Focus on unsigned processes
 
 **Iteration 2: Focus on unsigned processes (Better)**
 ```spl
 index=mac_edr process_signature_status=invalid OR process_signature_status=unsigned
-| where file_path LIKE "%Library/Safari/Cookies%"
-   OR file_path LIKE "%Library/Safari/LocalStorage%"
-   OR file_path LIKE "%Google/Chrome%"
-   OR file_path LIKE "%Documents%"
+| where file_path LIKE "%Library/Safari/Cookies%" OR file_path LIKE "%Google/Chrome%" OR file_path LIKE "%Documents%"
 | stats dc(file_path) as unique_files, values(file_path) as files by process_name, process_hash
 | where unique_files > 5
 ```
 **Results:** 12 events - includes developer tools, legitimate unsigned apps
-**Problem:** Some false positives from development environments
+**Problem:** False positives from development environments
+**Refinement needed:** Add timing analysis, network correlation
 
-**Iteration 3: Final - signature + behavior + timing**
+**Iteration 3: Final - signature + behavior + timing (Success!)**
 ```spl
 index=mac_edr process_signature_status!=valid
 | where (file_path LIKE "%Library/Safari%" OR file_path LIKE "%Chrome%" OR file_path LIKE "%Documents%")
-| stats earliest(_time) as first_seen,
-        latest(_time) as last_seen,
-        dc(file_path) as unique_files,
-        values(file_path) as accessed_files,
-        values(process_signature_status) as sig_status
+| stats earliest(_time) as first_seen, latest(_time) as last_seen,
+        dc(file_path) as unique_files, values(file_path) as accessed_files
         by process_name, process_path, process_hash
 | where unique_files > 3
 | eval timespan=last_seen-first_seen
@@ -158,7 +85,7 @@ index=mac_edr process_signature_status!=valid
 | lookup threat_intel_hashes.csv process_hash OUTPUT threat_name, threat_family
 ```
 **Results:** 1 true positive, 0 false positives
-**Success!**
+**Success!** Query ready for detection rule
 
 ### Detection Results
 
@@ -167,7 +94,7 @@ index=mac_edr process_signature_status!=valid
 - 2025-11-15 14:23:45 - EDR behavioral analysis confirms data collection pattern
 - 2025-11-15 14:24:15 - EDR blocks network connection attempt
 - 2025-11-15 14:24:30 - Host automatically isolated
-- 2025-11-15 14:26:12 - Analyst investigation confirms Atomic Stealer
+- 2025-11-15 14:26:12 - Analyst confirms Atomic Stealer
 
 **Finding Details:**
 - **Process:** `SystemHelper` (masquerading as legitimate process)
@@ -189,40 +116,279 @@ index=mac_edr process_signature_status!=valid
 - **Data Protected:** 47 documents, browser cookies, saved passwords
 - **Exfiltration Prevented:** Yes - EDR blocked C2 connection before data loss
 
-### Automated Response
+---
 
-1. EDR behavioral prevention blocked network connection
-2. Host auto-isolated from network
-3. Ticket created in SOAR with full context
-4. User notified via Slack
-5. Security team alerted for forensic investigation
+### Keep
+
+**What We Confirmed:**
+- ✅ Information stealers actively targeting macOS in our environment
+- ✅ Process signature validation is critical for macOS threat hunting
+- ✅ Rapid file access patterns (< 5 minutes) indicate automated collection
+- ✅ Combining file access + signature + timing reduces false positives to near-zero
+
+**True Positives:**
+- 1 confirmed Atomic Stealer infection
+- Detected within 2 minutes of execution
+- Prevented exfiltration of 47 documents + browser credentials
+- Action: Host isolated, process terminated, forensics complete
+
+**False Positives:**
+- 0 after iteration 3 (down from 247 in iteration 1)
+
+**Automated Response:**
+- EDR behavioral prevention blocked network connection
+- Host auto-isolated from network
+- Ticket created in SOAR with full context
+- User notified via Slack
+- Security team alerted for forensic investigation
+
+**Impact Metrics:**
+- **Time to Detection:** 2 minutes from execution
+- **Time to Containment:** 4 minutes (automated)
+- **Analyst Time Saved:** 45 minutes per incident
+- **Data Protected:** 47 documents, cookies, passwords
+- **Exfiltration Prevented:** Yes
 
 **Lessons Learned:**
-- Process signature validation is critical for macOS threat hunting
-- Rapid file access patterns (< 5 minutes) indicate automated collection
-- Combining file access + signature + timing reduces false positives to near-zero
-- EDR integration enabled sub-5-minute contain
+- Process signature validation essential for macOS threat hunting
+- Rapid file access patterns (< 5 minutes) indicate automated tools
+- Combining file access + signature + timing = minimal false positives
+- EDR integration enables sub-5-minute containment
+- Threat intel hash matching confirms malware family
 
-ment
+**Next Steps:**
+- Extend detection to other browser data (Firefox, Brave, Edge)
+- Add detection for Keychain access attempts
+- Create runbook for macOS information stealer response
+- Deploy EDR to remaining 15% of macOS fleet
+
+**Hunt Status:** ✅ Completed - Detection rule deployed and validated
+
+---
+
+## Hunt #2: Linux Crontab Persistence Detection
+
+**[View full hunt: H-0002.md →](hunts/H-0002.md)**
+
+**Hunt ID:** H-0002
+**MITRE ATT&CK:** T1053.003 (Scheduled Task/Job: Cron)
+**Platform:** Linux
+**Status:** Completed
+
+---
+
+### Learn
+
+**Context:** Following a Q3 2024 cryptomining incident on dev servers, the security team identified cron-based persistence as a coverage gap. Recent threat intelligence indicated APT groups (APT28, Rocke, TeamTNT) actively using cron for persistence in Linux environments.
+
+**Threat Actor TTPs:** Adversaries abuse cron to maintain access after initial compromise. Common patterns include:
+- Unusual cron schedules (every minute, odd timing)
+- Network utilities in commands (curl, wget, nc, socat)
+- Obfuscated or base64-encoded commands
+- Execution from temporary directories (/tmp, /dev/shm)
+
+**Available Telemetry:**
+- Auditd file integrity monitoring
+- Syslog / Linux Secure logs
+- Cron daemon process execution logs
+
+**Knowledge Gap:** No baseline of legitimate cron jobs for comparison; 80% production coverage (dev/staging lacked auditd monitoring).
+
+---
+
+### Observe
+
+**Hypothesis:** Adversaries will modify crontab files to achieve persistence on Linux hosts by scheduling malicious commands or scripts to execute at system startup or on defined intervals.
+
+**Observable Behaviors:**
+- Crontab file modifications outside maintenance windows
+- Suspicious command patterns (curl, wget, bash -c, base64, /tmp)
+- Modifications by non-root/non-admin users
+- New cron files created in /etc/cron.d/ with suspicious ownership
+- Cron daemon spawning unexpected network utilities
+
+---
+
+### Check
+
+**Query Evolution:**
+
+**Iteration 1: File modification-only detection (Too broad)**
+```bash
+index=linux sourcetype=auditd
+file_path IN ("/etc/crontab", "/etc/cron.d/*", "/var/spool/cron/crontabs/*")
+action IN ("modified", "created", "written")
+```
+**Results:** 89 events - many legitimate user cron updates
+**Problem:** High noise from legitimate automation, package managers, certbot
+**Refinement needed:** Add user filtering, pattern matching for suspicious commands
+
+**Iteration 2: Pattern matching on suspicious commands (Better)**
+```bash
+index=linux (sourcetype=linux_secure OR sourcetype=syslog) ("CRON" OR "crontab")
+| rex field=_raw "(?<cron_command>.*)"
+| search cron_command IN ("*curl*", "*wget*", "*nc *", "*bash -c*", "*base64*", "*/tmp/*")
+```
+**Results:** 5 events - included backup scripts and monitoring tools
+**Problem:** False positives from legitimate scripts using similar commands
+**Refinement needed:** Add behavioral context, network correlation, baseline comparison
+
+**Iteration 3: Behavioral analysis with context (Success!)**
+```bash
+index=linux sourcetype=auditd earliest=-1h
+file_path IN ("/etc/crontab", "/etc/cron.d/*", "/var/spool/cron/crontabs/*")
+action IN ("modified", "created")
+| join type=left host [
+    search index=linux sourcetype=syslog "CRON"
+    | rex field=_raw "(?<cron_command>.+)"
+    | eval is_suspicious=if(match(cron_command, "curl|wget|nc|base64|/tmp"), "true", "false")
+]
+| where (user!="root" AND process_name!="certbot") OR is_suspicious="true"
+| lookup cron_baseline host, user OUTPUT is_baseline
+| where isnull(is_baseline)
+```
+**Results:** 1 true positive (cryptominer), 1 false positive (backup script)
+**Success!** Query ready for automated detection rule
+
+### Detection Results
+
+**Timeline:**
+- 2025-11-17 03:42:15 - Suspicious crontab modification detected (user "webadmin")
+- 2025-11-17 03:42:30 - Pattern analysis identifies curl to external IP
+- 2025-11-17 03:45:00 - First cron execution observed, reverse shell attempt
+- 2025-11-17 04:12:18 - SOC investigation begins (SOC-2901)
+- 2025-11-17 04:30:00 - Containment complete (entry removed, host isolated)
+
+**Findings:**
+- **True Positive:** User "webadmin" modified personal crontab with curl command to 104.xxx.xxx.23
+  - Schedule: Every 5 minutes
+  - Downloaded cryptominer script
+  - Matched known campaign (TI-0089)
+  - Persistence duration: ~48 hours
+  - Action: Cron entry removed, account reset, host isolated
+
+- **False Positive:** Database backup script using curl to upload to S3 (legitimate but flagged)
+
+### Impact Metrics
+
+- **Time to Detection:** 30 minutes from crontab modification
+- **Time to Containment:** 4.5 hours total
+- **Cryptominer Prevented:** Est. $200/month in cloud compute costs
+- **False Positives:** 1 (backup script - easily whitelisted)
+- **Coverage Identified:** 20% gap in dev/staging environments
+
+### Automated Detection Rule
+
+Deployed final query as 5-minute scheduled search:
+- Alert on crontab modifications by non-root users
+- Pattern match suspicious commands (curl, wget, nc, base64, /tmp)
+- Correlate with network connections from cron processes
+- Compare against baseline of 200 known-good cron jobs
+- Auto-response: Create ticket, snapshot crontab, alert SOC
+
+---
+
+### Keep
+
+**What We Confirmed:**
+- ✅ Cron persistence actively used by adversaries in our environment
+- ✅ Auditd FIM provides real-time visibility into crontab modifications
+- ✅ Multi-context analysis (file + command + network) reduces false positives
+- ✅ Pattern matching on suspicious commands effectively identifies high-risk entries
+
+**True Positives:**
+- 1 confirmed cryptominer persistence via cron
+- Detected within 30 minutes of crontab modification
+- Prevented $200/month in cloud compute costs
+- Action: Contained within 4.5 hours, forensics complete
+
+**False Positives:**
+- 1 backup script using curl (added to whitelist)
+
+**Automated Detection:**
+- Deployed real-time detection rule (5-minute schedule)
+- Alert criteria: Suspicious crontab + command patterns + network activity
+- Auto-response: Ticket creation, crontab snapshot, SOC alert
+- False positive rate: ~2% (easily whitelisted)
+
+**Impact Metrics:**
+- **Time to Detection:** 30 minutes from modification
+- **Time to Containment:** 4.5 hours
+- **Coverage Improvement:** Identified 20% auditd gap in dev/staging
+- **Baseline Created:** 200 known-good cron jobs documented
+
+**Lessons Learned:**
+- Auditd FIM essential for real-time crontab monitoring
+- Baseline of legitimate cron jobs critical for reducing noise
+- Multi-query approach (file + command + process) provides defense-in-depth
+- User-based filtering (excluding root) significantly reduced false positives
+- Threat intel integration confirmed cryptomining campaign match
+
+**Telemetry Gaps:**
+- Dev/staging environments lack auditd (only 80% production coverage)
+- Bash history logging inconsistently enabled
+- No automated cron job inventory for baseline comparison
+
+**Next Steps:**
+- Deploy auditd to dev/staging environments
+- Enable bash history logging across all Linux servers
+- Implement automated cron inventory for baseline maintenance
+- Document playbook for SOC analyst triage
+- Schedule recurring monthly hunt
+
+**Hunt Status:** ✅ Completed - Detection rule deployed and validated
 
 ---
 
 ## Hunt #3: AWS Lambda Persistence Detection
 
-**Hunt ID:** H-0042
+**[View full hunt: H-0003.md →](hunts/H-0003.md)**
+
+**Hunt ID:** H-0003
 **MITRE ATT&CK:** T1546.004 (Event Triggered Execution), T1098 (Account Manipulation)
 **Platform:** AWS Cloud
 **Status:** Completed
 
-### Challenge
+---
 
-Detect adversaries establishing persistence in AWS environments via Lambda functions with backdoor access through IAM role manipulation.
+### Learn
 
-### Initial Hypothesis
+**Context:** Following increased cloud-focused threat intelligence and a compromised service account incident, the security team needed visibility into Lambda-based persistence mechanisms. Recent APT activity showed adversaries favoring serverless persistence over traditional EC2 backdoors.
 
-Attackers with initial access will create Lambda functions with overly permissive IAM roles, scheduled triggers, or API Gateway integrations for persistent backdoor access.
+**Threat Actor TTPs:** Adversaries abuse AWS Lambda for persistence by:
+- Creating functions with administrative IAM roles (`AdministratorAccess`)
+- Configuring API Gateway for public HTTP backdoors
+- Using EventBridge for scheduled recon/execution
+- Masquerading function names as legitimate services
 
-### Query Evolution
+**Available Telemetry:**
+- AWS CloudTrail (Lambda API calls)
+- IAM policy change events
+- API Gateway creation events
+- EventBridge rule configurations
+
+**Knowledge Gap:** No baseline of legitimate Lambda deployment patterns; unable to distinguish DevOps automation from malicious persistence.
+
+---
+
+### Observe
+
+**Hypothesis:** Attackers with initial access will create Lambda functions with overly permissive IAM roles, scheduled triggers, or API Gateway integrations for persistent backdoor access.
+
+**Observable Behaviors:**
+- Lambda creation events in CloudTrail
+- IAM role attachment with `AdministratorAccess` or `PowerUserAccess`
+- API Gateway endpoint creation linked to new Lambda functions
+- EventBridge rules targeting Lambda functions
+- Activity from compromised service accounts
+- Source IPs from unexpected geolocations (residential ISPs, VPNs)
+- Rapid succession of Lambda + IAM + trigger events (< 1 hour)
+
+---
+
+### Check
+
+**Query Evolution:**
 
 **Iteration 1: Monitor all Lambda creations (Too noisy)**
 ```spl
@@ -231,6 +397,7 @@ index=aws_cloudtrail eventName="CreateFunction"
 ```
 **Results:** 89 events in 24 hours - legitimate DevOps activity, CI/CD pipelines, infrastructure as code deployments
 **Problem:** Can't differentiate malicious from legitimate Lambda deployments
+**Refinement needed:** Focus on IAM policy analysis, filter known automation accounts
 
 **Iteration 2: Focus on suspicious IAM policies (Better)**
 ```spl
@@ -246,8 +413,9 @@ index=aws_cloudtrail (eventName="CreateFunction" OR eventName="UpdateFunctionCon
 ```
 **Results:** 8 events - includes some legitimate admin Lambda functions for automation
 **Problem:** Need to filter known automation accounts
+**Refinement needed:** Add trigger analysis, whitelist automation, temporal correlation
 
-**Iteration 3: Final - anomaly + permissions + trigger analysis**
+**Iteration 3: Final - anomaly + permissions + trigger analysis (Success!)**
 ```spl
 index=aws_cloudtrail (eventName="CreateFunction" OR eventName="UpdateFunctionConfiguration" OR eventName="CreateEventSourceMapping")
 | spath input=requestParameters.role output=lambda_role
@@ -269,7 +437,9 @@ index=aws_cloudtrail (eventName="CreateFunction" OR eventName="UpdateFunctionCon
         by userIdentity.principalId, userIdentity.arn
 ```
 **Results:** 2 true positives, 0 false positives
-**Success!**
+**Success!** Query ready for automated detection rule
+
+---
 
 ### Detection Results
 
@@ -319,17 +489,62 @@ index=aws_cloudtrail (eventName="CreateFunction" OR eventName="UpdateFunctionCon
 6. Implemented SCPs (Service Control Policies) to restrict Lambda IAM role permissions
 7. Enhanced monitoring for IAM role creation and modification
 
-**Automated Detection Rule:**
+---
 
-Deployed query as real-time CloudWatch Logs Insights rule with Lambda trigger for automated alerting and initial containment.
+### Keep
+
+**What We Confirmed:**
+- ✅ Lambda persistence actively used for cloud backdoors
+- ✅ IAM role analysis (AdministratorAccess detection) is critical
+- ✅ Multi-event correlation (Lambda + IAM + triggers) identifies complete attack chain
+- ✅ Temporal analysis (< 1 hour) strong indicator of malicious activity
+- ✅ Known automation whitelisting eliminates 87% of false positives
+
+**True Positives:**
+- 2 confirmed malicious Lambda functions for persistence
+- Detection within 3 minutes of Lambda creation
+- Prevented full AWS account compromise (AdministratorAccess available)
+- Affected resources: 2 Lambdas, 2 IAM roles, 1 API Gateway, 1 EventBridge rule
+- Action: All resources deleted, credentials rotated, SCPs implemented
+
+**False Positives:**
+- 0 after automation whitelist applied
+
+**Automated Detection:**
+- Deployed real-time CloudWatch Logs Insights rule (5-minute schedule)
+- Alert criteria: Lambda + admin IAM + public/scheduled trigger
+- Lambda trigger for automated containment (disable function, create ticket, notify SOC)
+- False positive rate: <1%
+
+**Impact Metrics:**
+- **Time to Detection:** 3 minutes from Lambda creation
+- **Time to Containment:** 20 minutes (manual IR response)
+- **Blast Radius Prevented:** Full AWS account compromise
+- **Credential Exposure:** 1 service account compromised (rotated)
+- **Cost of Attack:** $0.47 in Lambda execution (attacker testing)
 
 **Lessons Learned:**
 - Lambda persistence is subtle - functions can remain dormant for weeks
-- IAM role analysis is critical - focus on overly permissive policies created recently
-- API Gateway + Lambda = public backdoor if not properly restricted
+- IAM role analysis critical - focus on overly permissive policies
+- API Gateway + Lambda = public backdoor if not restricted
 - Service account compromise remains primary initial access vector
-- Consider Lambda function code analysis for IOCs (base64, network calls, credential access)
-- SCPs can prevent privilege escalation via Lambda IAM roles
+- Lambda function code analysis needed for IOCs (base64, reverse shells)
+- SCPs prevent privilege escalation via Lambda IAM roles
+
+**Telemetry Gaps:**
+- No automated Lambda function code scanning
+- Lambda execution logs not centralized in SIEM
+- API Gateway access logs not enabled (no invocation visibility)
+- EventBridge rule invocations not logged
+
+**Next Steps:**
+- Deploy Lambda function code scanning for IOCs
+- Enable API Gateway access logging
+- Centralize Lambda execution logs
+- Enforce MFA for all service accounts
+- Implement short-lived credentials for CI/CD
+
+**Hunt Status:** ✅ Completed - Detection rule deployed and validated
 
 ---
 
