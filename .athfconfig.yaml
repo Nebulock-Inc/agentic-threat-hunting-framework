@@ -1,0 +1,5 @@
+siem: Splunk
+query_language: SPL
+edr: CrowdStrike
+hunt_prefix: H-
+hunt_retention_days: 365

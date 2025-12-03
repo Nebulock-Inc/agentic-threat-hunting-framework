@@ -119,6 +119,48 @@ cp templates/HUNT_LOCK.md hunts/H-0001.md
 
 **Full guide:** [docs/getting-started.md](docs/getting-started.md)
 
+## 🔧 CLI Commands
+
+ATHF includes a full-featured CLI for managing your hunts. Here's a quick reference:
+
+### Initialize Workspace
+
+```bash
+athf init                           # Interactive setup
+athf init --non-interactive         # Use defaults
+athf init --siem sentinel --edr defender
+```
+
+### Create Hunts
+
+```bash
+athf hunt new                       # Interactive mode
+athf hunt new \
+  --technique T1003.001 \
+  --title "LSASS Dumping Detection" \
+  --platform windows
+```
+
+### List & Search
+
+```bash
+athf hunt list                      # Show all hunts
+athf hunt list --status completed   # Filter by status
+athf hunt list --output json        # JSON output
+athf hunt search "kerberoasting"    # Full-text search
+```
+
+### Validate & Stats
+
+```bash
+athf hunt validate                  # Validate all hunts
+athf hunt validate H-0001           # Validate specific hunt
+athf hunt stats                     # Show statistics
+athf hunt coverage                  # MITRE ATT&CK coverage
+```
+
+**Full documentation:** [CLI Reference](docs/CLI_REFERENCE.md)
+
 ## 📺 See It In Action
 
 > **Demo coming soon:** Terminal recording showing `athf init`, `athf hunt new`, and `athf hunt list` in action.
