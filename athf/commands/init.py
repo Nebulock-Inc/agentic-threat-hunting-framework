@@ -20,14 +20,18 @@ def init(path, non_interactive):
     """
     base_path = Path(path).resolve()
 
-    # Check if already initialized
-    config_path = base_path / ".athfconfig.yaml"
-    if config_path.exists() and not Confirm.ask(
+    # Check if already initialized (check both old and new locations)
+    old_config_path = base_path / ".athfconfig.yaml"
+    new_config_path = base_path / "config" / ".athfconfig.yaml"
+
+    if (old_config_path.exists() or new_config_path.exists()) and not Confirm.ask(
         f"ATHF already initialized in {base_path}. Reinitialize?",
         default=False
     ):
         console.print("[yellow]Initialization cancelled.[/yellow]")
         return
+
+    config_path = new_config_path
 
     console.print("\n[bold cyan]🎯 Initializing Agentic Threat Hunting Framework[/bold cyan]\n")
 
@@ -39,6 +43,7 @@ def init(path, non_interactive):
 
     # Create directory structure
     directories = [
+        "config",
         "hunts",
         "queries",
         "runs",
@@ -58,7 +63,7 @@ def init(path, non_interactive):
     # Save configuration
     with open(config_path, "w") as f:
         yaml.dump(config, f, default_flow_style=False, sort_keys=False)
-    console.print("  ✓ Created [cyan].athfconfig.yaml[/cyan]")
+    console.print("  ✓ Created [cyan]config/.athfconfig.yaml[/cyan]")
 
     # Create AGENTS.md if it doesn't exist
     agents_path = base_path / "AGENTS.md"

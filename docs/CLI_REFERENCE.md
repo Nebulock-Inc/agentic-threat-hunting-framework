@@ -24,7 +24,7 @@ Complete reference for all `athf` command-line interface commands.
 pip install athf-framework
 ```
 
-See [INSTALL.md](../INSTALL.md) for detailed installation instructions.
+See [INSTALL.md](INSTALL.md) for detailed installation instructions.
 
 ---
 
@@ -904,7 +904,7 @@ done
 ## See Also
 
 - [Getting Started Guide](getting-started.md)
-- [Installation Guide](../INSTALL.md)
+- [Installation Guide](INSTALL.md)
 - [Contributing Guidelines](../CONTRIBUTING.md)
 - [Hunt Format Guidelines](FORMAT_GUIDELINES.md)
 - [MITRE ATT&CK Framework](https://attack.mitre.org/)

@@ -14,6 +14,19 @@ from athf.core.hunt_parser import validate_hunt_file
 console = Console()
 
 
+def get_config_path():
+    """Get config file path, checking new location first, then falling back to root."""
+    new_location = Path("config/.athfconfig.yaml")
+    old_location = Path(".athfconfig.yaml")
+
+    if new_location.exists():
+        return new_location
+    elif old_location.exists():
+        return old_location
+    else:
+        return new_location  # Default to new location for creation
+
+
 @click.group()
 def hunt():
     """Manage threat hunts."""
@@ -35,7 +48,7 @@ def new(technique, title, tactic, platform, data_source, non_interactive):
     console.print("\n[bold cyan]🎯 Creating new hunt[/bold cyan]\n")
 
     # Load config
-    config_path = Path(".athfconfig.yaml")
+    config_path = get_config_path()
     if config_path.exists():
         with open(config_path, "r") as f:
             config = yaml.safe_load(f)

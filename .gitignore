@@ -9,11 +9,10 @@ Thumbs.db
 .vscode/
 .idea/
 .claude/
-.markdownlint.json
-.markdown-link-check.json
 
 # Sensitive data
 *.env
+!config/.env.example
 credentials/
 secrets/
 
@@ -52,7 +51,6 @@ MANIFEST
 # Testing
 .pytest_cache/
 .coverage
-.coveragerc
 coverage.xml
 htmlcov/
 .tox/
@@ -64,9 +62,6 @@ htmlcov/
 dmypy.json
 .pyre/
 .pytype/
-
-# Code quality
-.flake8
 
 # Virtual environments
 tools/mcp/venv/

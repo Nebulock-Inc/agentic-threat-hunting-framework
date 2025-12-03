@@ -46,7 +46,8 @@ Take a few minutes to understand the repository layout:
 agentic-threat-hunting-framework/
 ├── README.md              # Framework overview
 ├── AGENTS.md              # AI assistant context
-├── environment.md         # Tech stack and data sources
+├── docs/
+│   ├── environment.md     # Tech stack and data sources
 ├── athf/                  # CLI source code (optional)
 │   ├── commands/          # Hunt management commands
 │   ├── core/              # Hunt parsing and validation

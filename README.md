@@ -225,6 +225,8 @@ Detected Atomic Stealer collecting Safari cookies via AppleScript.
 
 ## Why This Matters
 
+You might wonder how this interacts with frameworks like [PEAK](https://www.splunk.com/en_us/blog/security/peak-threat-hunting-framework.html). PEAK gives you a solid method for how to hunt. ATHF builds on that foundation by giving you structure, memory, and continuity. PEAK guides the work. ATHF ensures you capture the work, organize it, and reuse it across future hunts.
+
 Agentic threat hunting is not about replacing analysts. It's about building systems that can:
 
 - Remember what has been done before

@@ -16,6 +16,24 @@ ATHF teaches systems how to hunt with memory, learning, and augmentation. It's:
 
 ### 1. Clone and Customize
 
+**Option A: With CLI Tools (Recommended)**
+
+```bash
+git clone https://github.com/Nebulock-Inc/agentic-threat-hunting-framework
+cd agentic-threat-hunting-framework
+
+# Install CLI for convenience commands
+pip install -e .
+
+# Initialize your workspace
+athf init
+
+# Make it yours (optional: remove origin and start fresh)
+git remote remove origin
+```
+
+**Option B: Markdown-Only**
+
 ```bash
 git clone https://github.com/Nebulock-Inc/agentic-threat-hunting-framework
 cd agentic-threat-hunting-framework
@@ -24,6 +42,8 @@ cd agentic-threat-hunting-framework
 rm -rf .git  # Optional: start fresh
 git init
 ```
+
+> **Note:** The CLI is optional convenience tooling. The framework structure (hunts/, LOCK pattern, AGENTS.md) is what enables AI assistance, not the CLI.
 
 ### 2. Choose Your Integration Approach
 
@@ -77,9 +97,10 @@ Edit `templates/` to match your:
 **Level 0 → 1: Manual → Documented (Week 1)**
 
 - Create repository (git, SharePoint, Confluence, Jira, local folder)
-- Start documenting hunts in LOCK-structured markdown
+- Start documenting hunts in LOCK-structured markdown (use `athf hunt new` or manual markdown)
 - Build searchable memory
 - No infrastructure changes needed
+- Optional: Use `athf hunt validate` to ensure consistency
 
 **Level 1 → 2: Documented → Searchable (Week 2-4)**
 
@@ -87,6 +108,7 @@ Edit `templates/` to match your:
 - Ensure knowledge/hunting-knowledge.md is present (included in repo by default)
 - Choose AI tool (GitHub Copilot, Claude Code, Cursor, or org-approved)
 - AI can now read your hunt history automatically and apply expert hunting frameworks
+- Optional: Use `athf hunt search`, `athf hunt stats`, `athf hunt coverage` to explore your hunts
 - No coding required
 
 **Level 2+: Searchable → Generative/Agentic (Month 3-6+)**
@@ -154,15 +176,17 @@ As your hunt repository grows, your memory needs evolve:
 
 **10-50 hunts (Level 1-2):**
 
-- Grep across markdown files works fine
+- Grep across markdown files works fine (or use `athf hunt search` if CLI installed)
 - No additional structure needed
-- Search `hunts/` and `environment.md` with grep
-- Example: `grep -i "nginx" environment.md hunts/*.md`
+- Search `hunts/` and `environment.md` with grep or CLI
+- Example (grep): `grep -i "nginx" environment.md hunts/*.md`
+- Example (CLI): `athf hunt search "nginx"`
 
 **50-200 hunts (Level 2-3):**
 
 - Grep still works but starts to slow down
-- Consider adding simple helpers:
+- CLI commands (`athf hunt search`, `athf hunt list --filter`) handle this scale well
+- Consider adding simple helpers if not using CLI:
   - Tag system in markdown (e.g., `#ransomware`, `#credential-access`)
   - Hunt index file (manually maintained list of hunts by TTP)
   - Simple scripts to search across files
@@ -171,12 +195,13 @@ As your hunt repository grows, your memory needs evolve:
 **200+ hunts (Level 3-4):**
 
 - Structured memory becomes valuable:
+  - CLI provides built-in YAML frontmatter parsing for programmatic access
   - JSON index of hunts (auto-generated from markdown)
-  - SQLite database for faster queries
+  - SQLite database for faster queries (if needed beyond CLI)
   - Full-text search (Elasticsearch, local search tools)
 - Agents can query structured memory efficiently
 
-**Key principle:** Don't build structure until grep becomes painful. Most teams operate at 10-50 hunts where grep is sufficient.
+**Key principle:** Don't build structure until grep becomes painful. Most teams operate at 10-50 hunts where grep (or the CLI) is sufficient.
 
 ### Integration with Asset Management
 
@@ -367,11 +392,22 @@ soar_playbook.trigger("run_athr_hunt", hypothesis=generated_hypothesis)
 
 ### Extend with Tools
 
-Build helpers that work for your environment:
+**Built-in CLI (Included):**
 
-- `new_hunt.sh` - Generate hunt from template
-- `query_validator.py` - Check query safety
-- `metrics_dashboard.py` - Visualize decision log
+ATHF includes a Python CLI for common workflows:
+- `athf hunt new` - Create hunts from templates with YAML frontmatter
+- `athf hunt list` - List and filter hunts
+- `athf hunt search` - Full-text search across hunt files
+- `athf hunt validate` - Validate hunt structure
+- `athf hunt stats` - Success rates and metrics
+- `athf hunt coverage` - MITRE ATT&CK coverage analysis
+
+**Custom helpers for your environment:**
+
+Build additional tools as needed:
+- `query_validator.py` - Check query safety before execution
+- `metrics_dashboard.py` - Visualize hunt metrics
+- Custom integrations with your SOAR/ticketing systems
 
 ## Questions?
 
