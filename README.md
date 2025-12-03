@@ -17,28 +17,16 @@ The **Agentic Threat Hunting Framework (ATHF)** is the memory and automation lay
 
 ATHF works with any hunting methodology (PEAK, TaHiTI, or your own process). It's not a replacement; it's the layer that makes your existing process AI-ready.
 
-## 🎯 What is ATHF?
+## What is ATHF?
 
-**In 5 minutes, you'll have:**
-- ✅ Your first documented hunt using the LOCK pattern
-- ✅ A searchable knowledge base your AI assistant can query
-- ✅ Templates for every hunt scenario
+ATHF provides structure and persistence for threat hunting programs. It's a markdown-based framework that:
 
-**In 1 week, you'll unlock:**
-- 🤖 AI-powered hypothesis generation from past hunts
-- 📊 Automatic hunt metrics and coverage gap analysis
-- 🔍 Instant recall of 100+ past investigations
+- Documents hunts using the LOCK pattern (Learn → Observe → Check → Keep)
+- Maintains a searchable repository of past investigations
+- Enables AI assistants to reference your environment and previous work
+- Works with any SIEM/EDR platform
 
-## 💡 Real Results
-
-| Metric | Before ATHF | After ATHF (90 days) |
-|--------|-------------|----------------------|
-| Hypothesis generation | 20 min | 2 min (-90%) |
-| Hunts documented | 5/month | 15/month (+200%) |
-| Duplicate hunts | ~3/month | 0 (-100%) |
-| Time to find past hunt | 15 min+ | <30 sec |
-
-## Why It Exists
+## The Problem
 
 Most threat hunting programs lose valuable context once a hunt ends. Notes live in Slack or tickets, queries are written once and forgotten, and lessons learned exist only in analysts' heads.
 
