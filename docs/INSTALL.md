@@ -1,6 +1,6 @@
-# ATHF Installation Guide
+# ATHF Installation & Development Guide
 
-This guide covers multiple installation methods for the Agentic Threat Hunting Framework (ATHF).
+This guide covers installation methods and development setup for the Agentic Threat Hunting Framework (ATHF).
 
 ## Quick Start
 
@@ -71,19 +71,6 @@ pip install .
 athf --version
 ```
 
-**For development** (includes testing tools):
-
-```bash
-# Install with development dependencies
-pip install -e ".[dev]"
-
-# Run tests
-pytest
-
-# Run tests with coverage
-pytest --cov=athf --cov-report=term-missing
-```
-
 ---
 
 ### Option 3: No Installation (Pure Markdown)
@@ -115,6 +102,227 @@ cp templates/HUNT_LOCK.md my-hunts/hunts/H-0001.md
 - Manual hunt ID tracking
 - No built-in search or statistics
 - No standardized workflow
+
+---
+
+## Development & Customization
+
+ATHF is designed to be forked and customized for your organization. This section covers setting up your development environment and maintaining code quality in your fork.
+
+### Setting Up Your Fork for Development
+
+```bash
+# Fork and clone your repository
+git clone https://github.com/YOUR-ORG/agentic-threat-hunting-framework
+cd agentic-threat-hunting-framework
+
+# Install with development dependencies
+pip install -e ".[dev]"
+
+# Set up pre-commit hooks (recommended)
+pre-commit install
+
+# Run tests
+pytest tests/ -v
+
+# Run type checking
+mypy athf --ignore-missing-imports
+
+# Run linting
+flake8 athf
+black athf --check
+isort athf --check-only
+```
+
+### Pre-commit Hooks (Optional)
+
+Pre-commit hooks help maintain code quality as you customize ATHF for your organization. Once installed, they run automatically on every commit and check:
+
+- **Code formatting** (black, isort)
+- **Linting** (flake8)
+- **Security** (bandit)
+- **Type checking** (mypy)
+- **File hygiene** (trailing whitespace, end-of-file fixes, etc.)
+
+**Installing Pre-commit Hooks**:
+
+```bash
+# Install pre-commit (included in dev dependencies)
+pip install -e ".[dev]"
+
+# Set up the git hook
+pre-commit install
+
+# Run manually on all files (optional)
+pre-commit run --all-files
+```
+
+**Running Individual Tools**:
+
+```bash
+# Format code
+black athf
+isort athf
+
+# Check formatting without changes
+black athf --check
+isort athf --check-only
+
+# Lint code
+flake8 athf
+
+# Check security issues
+bandit -r athf -c pyproject.toml
+
+# Type check
+mypy athf --ignore-missing-imports
+```
+
+### Code Quality Standards
+
+When customizing ATHF for your team:
+
+**Type Hints**: Maintain type annotations for better IDE support and catch errors early:
+
+```python
+def get_config_path() -> Path:
+    """Get config file path."""
+    return Path("config/.athfconfig.yaml")
+
+def search_hunts(query: str) -> list[dict]:
+    """Search hunts by query string."""
+    results = []
+    return results
+```
+
+The mypy configuration in `pyproject.toml` enforces:
+- `disallow_untyped_defs = true` - All functions need type annotations
+- `disallow_incomplete_defs = true` - Function signatures must be complete
+
+**Testing**: Add tests for custom features you build. ATHF uses pytest:
+
+```bash
+# Run all tests
+pytest tests/ -v
+
+# Run specific test file
+pytest tests/test_commands.py -v
+
+# Run with coverage
+pytest tests/ -v --cov=athf --cov-report=term-missing
+
+# Run specific test
+pytest tests/test_commands.py::TestInitCommand::test_init_creates_structure_non_interactive -v
+```
+
+Tests use Click's `CliRunner` to test actual CLI commands rather than mocks. See [../tests/test_commands.py](../tests/test_commands.py) for examples.
+
+**Documentation**: Keep your fork's documentation current:
+- **AGENTS.md** - Update with your environment details, data sources, team context
+- **environment.md** - Document your tech stack, tools, known gaps
+- **Hunt files** - Use LOCK pattern consistently across all hunts
+- **Custom features** - Document any custom commands or extensions you build
+
+**Security**: Run bandit to check for security issues in custom code:
+
+```bash
+# Check all Python files
+bandit -r athf -c pyproject.toml
+
+# Check specific file
+bandit athf/commands/hunt.py
+```
+
+### Testing Your Changes
+
+Before committing significant customizations:
+
+```bash
+# 1. Run all tests
+pytest tests/ -v
+
+# 2. Check types
+mypy athf --ignore-missing-imports
+
+# 3. Format code
+black athf
+isort athf
+
+# 4. Check security
+bandit -r athf -c pyproject.toml
+
+# 5. Or run pre-commit on everything
+pre-commit run --all-files
+```
+
+### Customization Examples
+
+**Adding a Custom Command**:
+
+```python
+# athf/commands/custom.py
+import click
+from rich.console import Console
+
+console = Console()
+
+@click.command()
+def mycustom() -> None:
+    """My custom command."""
+    console.print("[cyan]Running custom command![/cyan]")
+
+# Register in athf/cli.py
+from athf.commands import custom
+cli.add_command(custom.mycustom)
+```
+
+**Extending Hunt Metadata**: Modify the hunt template in `athf/core/template_engine.py` to add custom fields:
+
+```python
+HUNT_TEMPLATE = """---
+hunt_id: {{ hunt_id }}
+title: {{ title }}
+# Your custom fields
+priority: {{ priority | default('medium') }}
+owner_team: {{ owner_team | default('SOC') }}
+---
+```
+
+**Custom Workflows**: ATHF's structure makes it easy to build custom workflows:
+
+```bash
+#!/bin/bash
+# weekly-hunt-report.sh
+
+# Get all completed hunts from last week
+athf hunt list --status completed --output json | \
+  jq '[.[] | select(.date >= "2025-11-29")]' | \
+  athf stats
+```
+
+### CI/CD Integration
+
+ATHF includes a GitHub Actions workflow ([../.github/workflows/tests.yml](../.github/workflows/tests.yml)) that runs:
+
+- Tests across Python 3.8-3.12 on Ubuntu, macOS, Windows
+- Linting with flake8
+- Type checking with mypy
+- Hunt validation
+- Package building
+
+Customize the workflow for your organization's needs.
+
+### Tools Configuration
+
+All tools are configured in `pyproject.toml`:
+
+- **Black**: Line length 127, targets Python 3.8-3.12
+- **isort**: Black-compatible profile
+- **mypy**: Strict type checking enabled
+- **pytest**: Test discovery, coverage reporting
+- **bandit**: Security checks with test exclusions
+
+See [../pyproject.toml](../pyproject.toml) for full configuration.
 
 ---
 

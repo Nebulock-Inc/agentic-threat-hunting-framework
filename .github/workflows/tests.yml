@@ -48,7 +48,6 @@ jobs:
     - name: Type check with mypy
       run: |
         mypy athf --ignore-missing-imports
-      continue-on-error: true  # Don't fail build on type errors initially
 
     - name: Test with pytest
       run: |

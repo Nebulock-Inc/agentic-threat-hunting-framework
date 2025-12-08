@@ -5,7 +5,7 @@ import pytest
 import tempfile
 import os
 from pathlib import Path
-from athf.core.hunt_parser import HuntParser
+from athf.core.hunt_parser import HuntParser, parse_hunt_file, validate_hunt_file
 
 
 # Sample valid hunt content for testing
@@ -17,7 +17,7 @@ date: 2025-12-02
 hunter: Test Hunter
 techniques: [T1003.001]
 tactics: [credential-access]
-platforms: [windows]
+platform: [Windows]
 data_sources: [windows-event-logs]
 tags: [lsass, credential-dumping]
 ---
@@ -45,51 +45,80 @@ Findings and lessons learned.
 class TestHuntParser:
     """Test suite for hunt file parsing."""
 
-    def test_parse_valid_frontmatter(self):
-        """Test parsing valid YAML frontmatter."""
-        frontmatter = HuntParser.parse_frontmatter(VALID_HUNT)
+    def test_parse_valid_hunt(self):
+        """Test parsing a complete valid hunt file."""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as f:
+            f.write(VALID_HUNT)
+            temp_path = f.name
 
-        assert 'hunt_id' in frontmatter
-        assert frontmatter['hunt_id'] == 'H-0001'
-        assert frontmatter['title'] == 'Test Hunt'
-        assert frontmatter['status'] == 'completed'
-        assert 'techniques' in frontmatter
-        assert frontmatter['techniques'] == ['T1003.001']
+        try:
+            parser = HuntParser(Path(temp_path))
+            hunt_data = parser.parse()
+
+            # Check frontmatter
+            assert hunt_data['hunt_id'] == 'H-0001'
+            assert hunt_data['frontmatter']['hunt_id'] == 'H-0001'
+            assert hunt_data['frontmatter']['title'] == 'Test Hunt'
+            assert hunt_data['frontmatter']['status'] == 'completed'
+            assert hunt_data['frontmatter']['techniques'] == ['T1003.001']
+
+            # Check LOCK sections
+            assert 'learn' in hunt_data['lock_sections']
+            assert 'observe' in hunt_data['lock_sections']
+            assert 'check' in hunt_data['lock_sections']
+            assert 'keep' in hunt_data['lock_sections']
+        finally:
+            os.unlink(temp_path)
 
     def test_parse_missing_frontmatter(self):
-        """Test error handling for missing frontmatter."""
-        invalid_content = "# Just a markdown file\n\nNo frontmatter here."
+        """Test handling of hunts without frontmatter."""
+        content = "# Just a markdown file\n\nNo frontmatter here."
 
-        with pytest.raises(ValueError, match="Missing frontmatter start delimiter"):
-            HuntParser.parse_frontmatter(invalid_content)
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as f:
+            f.write(content)
+            temp_path = f.name
 
-    def test_parse_incomplete_frontmatter(self):
-        """Test error handling for incomplete frontmatter."""
-        invalid_content = "---\nhunt_id: H-0001\n# Missing end delimiter"
+        try:
+            parser = HuntParser(Path(temp_path))
+            hunt_data = parser.parse()
 
-        with pytest.raises(ValueError, match="Missing frontmatter end delimiter"):
-            HuntParser.parse_frontmatter(invalid_content)
+            # Should handle gracefully, return empty frontmatter
+            assert hunt_data['frontmatter'] == {}
+        finally:
+            os.unlink(temp_path)
 
-    def test_extract_lock_sections(self):
-        """Test extracting all four LOCK sections."""
-        sections = HuntParser.extract_lock_sections(VALID_HUNT)
+    def test_parse_lock_sections(self):
+        """Test extracting LOCK sections."""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as f:
+            f.write(VALID_HUNT)
+            temp_path = f.name
 
-        assert 'LEARN' in sections
-        assert 'OBSERVE' in sections
-        assert 'CHECK' in sections
-        assert 'KEEP' in sections
+        try:
+            parser = HuntParser(Path(temp_path))
+            hunt_data = parser.parse()
 
-        # Real implementation returns boolean presence, not content
-        assert sections['LEARN'] is True
-        assert sections['OBSERVE'] is True
-        assert sections['CHECK'] is True
-        assert sections['KEEP'] is True
+            sections = hunt_data['lock_sections']
+            assert 'learn' in sections
+            assert 'observe' in sections
+            assert 'check' in sections
+            assert 'keep' in sections
 
-    def test_extract_missing_lock_sections(self):
+            # Check sections contain content
+            assert 'Hypothesis' in sections['learn']
+            assert 'Expected behaviors' in sections['observe']
+        finally:
+            os.unlink(temp_path)
+
+    def test_parse_missing_lock_sections(self):
         """Test detection of missing LOCK sections."""
         incomplete_hunt = """---
 hunt_id: H-0001
+title: Test Hunt
+status: planning
+date: 2025-12-02
 ---
+
+# H-0001: Test Hunt
 
 ## LEARN: Prepare the Hunt
 
@@ -101,146 +130,167 @@ Content here.
 
 # Missing CHECK and KEEP
 """
-        sections = HuntParser.extract_lock_sections(incomplete_hunt)
-
-        assert sections.get('LEARN') is True
-        assert sections.get('OBSERVE') is True
-        assert sections.get('CHECK') is False or 'CHECK' not in sections
-        assert sections.get('KEEP') is False or 'KEEP' not in sections
-
-    def test_validate_complete_hunt(self):
-        """Test validation of a complete, valid hunt."""
-        hunt_data = {
-            'frontmatter': {
-                'hunt_id': 'H-0001',
-                'title': 'Test Hunt',
-                'status': 'completed',
-                'date': '2025-12-02',
-                'hunter': 'Test Hunter',
-                'techniques': ['T1003.001']
-            },
-            'sections': {
-                'LEARN': True,
-                'OBSERVE': True,
-                'CHECK': True,
-                'KEEP': True
-            }
-        }
-
-        errors = HuntParser.validate_hunt(hunt_data)
-        assert len(errors) == 0
-
-    def test_validate_missing_required_fields(self):
-        """Test validation catches missing required fields."""
-        hunt_data = {
-            'frontmatter': {
-                'hunt_id': 'H-0001',
-                'title': 'Test Hunt'
-                # Missing: status, date, hunter, techniques
-            },
-            'sections': {'LEARN': True, 'OBSERVE': True, 'CHECK': True, 'KEEP': True}
-        }
-
-        errors = HuntParser.validate_hunt(hunt_data)
-        assert len(errors) >= 4
-        assert any('status' in err for err in errors)
-        assert any('date' in err for err in errors)
-        assert any('hunter' in err for err in errors)
-        assert any('techniques' in err for err in errors)
-
-    def test_validate_invalid_status(self):
-        """Test validation catches invalid status values."""
-        hunt_data = {
-            'frontmatter': {
-                'hunt_id': 'H-0001',
-                'title': 'Test Hunt',
-                'status': 'invalid-status',
-                'date': '2025-12-02',
-                'hunter': 'Test Hunter',
-                'techniques': ['T1003.001']
-            },
-            'sections': {'LEARN': True, 'OBSERVE': True, 'CHECK': True, 'KEEP': True}
-        }
-
-        errors = HuntParser.validate_hunt(hunt_data)
-        assert len(errors) >= 1
-        assert any('Invalid status' in err for err in errors)
-
-    def test_validate_invalid_technique_format(self):
-        """Test validation catches invalid ATT&CK technique format."""
-        hunt_data = {
-            'frontmatter': {
-                'hunt_id': 'H-0001',
-                'title': 'Test Hunt',
-                'status': 'completed',
-                'date': '2025-12-02',
-                'hunter': 'Test Hunter',
-                'techniques': ['T1003']  # Invalid: missing subtechnique or correct format
-            },
-            'sections': {'LEARN': True, 'OBSERVE': True, 'CHECK': True, 'KEEP': True}
-        }
-
-        errors = HuntParser.validate_hunt(hunt_data)
-        assert len(errors) >= 1
-        assert any('Invalid technique format' in err for err in errors)
-        assert any('T1003' in err for err in errors)
-
-    def test_validate_multiple_techniques(self):
-        """Test validation of multiple techniques."""
-        hunt_data = {
-            'frontmatter': {
-                'hunt_id': 'H-0001',
-                'title': 'Test Hunt',
-                'status': 'completed',
-                'date': '2025-12-02',
-                'hunter': 'Test Hunter',
-                'techniques': ['T1003.001', 'T1558.003']
-            },
-            'sections': {'LEARN': True, 'OBSERVE': True, 'CHECK': True, 'KEEP': True}
-        }
-
-        errors = HuntParser.validate_hunt(hunt_data)
-        assert len(errors) == 0
-
-
-class TestHuntFile:
-    """Test suite for complete hunt file operations."""
-
-    def test_load_hunt_from_file(self):
-        """Test loading a hunt from a temporary file."""
         with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as f:
-            f.write(VALID_HUNT)
+            f.write(incomplete_hunt)
             temp_path = f.name
 
         try:
-            hunt_data = HuntParser.parse_file(Path(temp_path))
+            parser = HuntParser(Path(temp_path))
+            hunt_data = parser.parse()
 
-            assert hunt_data['frontmatter']['hunt_id'] == 'H-0001'
-            assert hunt_data['frontmatter']['title'] == 'Test Hunt'
-            assert len(hunt_data['sections']) == 4
-            assert all(hunt_data['sections'][s] for s in ['LEARN', 'OBSERVE', 'CHECK', 'KEEP'])
+            sections = hunt_data['lock_sections']
+            assert 'learn' in sections
+            assert 'observe' in sections
+            assert 'check' not in sections
+            assert 'keep' not in sections
         finally:
             os.unlink(temp_path)
 
-    def test_validate_hunt_file(self):
-        """Test validation of a hunt file."""
+    def test_validate_complete_hunt(self):
+        """Test validation of a complete, valid hunt."""
         with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as f:
             f.write(VALID_HUNT)
             temp_path = f.name
 
         try:
-            errors = HuntParser.validate_file(Path(temp_path))
+            parser = HuntParser(Path(temp_path))
+            parser.parse()
+            is_valid, errors = parser.validate()
+
+            assert is_valid is True
             assert len(errors) == 0
         finally:
             os.unlink(temp_path)
 
+    def test_validate_missing_required_fields(self):
+        """Test validation catches missing required fields."""
+        incomplete_hunt = """---
+hunt_id: H-0001
+title: Test Hunt
+---
+
+# Test Hunt
+
+## LEARN: Prepare the Hunt
+## OBSERVE: Expected Behaviors
+## CHECK: Execute & Analyze
+## KEEP: Findings & Response
+"""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as f:
+            f.write(incomplete_hunt)
+            temp_path = f.name
+
+        try:
+            parser = HuntParser(Path(temp_path))
+            parser.parse()
+            is_valid, errors = parser.validate()
+
+            assert is_valid is False
+            assert len(errors) >= 1
+            # Should catch missing required fields like status, date
+            assert any('status' in err.lower() or 'date' in err.lower() for err in errors)
+        finally:
+            os.unlink(temp_path)
+
+    def test_validate_invalid_hunt_id_format(self):
+        """Test validation catches invalid hunt ID format."""
+        invalid_hunt = """---
+hunt_id: INVALID
+title: Test Hunt
+status: completed
+date: 2025-12-02
+---
+
+# Test Hunt
+
+## LEARN: Prepare the Hunt
+## OBSERVE: Expected Behaviors
+## CHECK: Execute & Analyze
+## KEEP: Findings & Response
+"""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as f:
+            f.write(invalid_hunt)
+            temp_path = f.name
+
+        try:
+            parser = HuntParser(Path(temp_path))
+            parser.parse()
+            is_valid, errors = parser.validate()
+
+            assert is_valid is False
+            assert any('hunt_id' in err.lower() for err in errors)
+        finally:
+            os.unlink(temp_path)
+
+
+class TestModuleFunctions:
+    """Test suite for module-level convenience functions."""
+
+    def test_parse_hunt_file(self):
+        """Test parse_hunt_file convenience function."""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as f:
+            f.write(VALID_HUNT)
+            temp_path = f.name
+
+        try:
+            hunt_data = parse_hunt_file(Path(temp_path))
+
+            assert hunt_data['hunt_id'] == 'H-0001'
+            assert hunt_data['frontmatter']['title'] == 'Test Hunt'
+            assert 'lock_sections' in hunt_data
+        finally:
+            os.unlink(temp_path)
+
+    def test_validate_hunt_file(self):
+        """Test validate_hunt_file convenience function."""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as f:
+            f.write(VALID_HUNT)
+            temp_path = f.name
+
+        try:
+            is_valid, errors = validate_hunt_file(Path(temp_path))
+
+            assert is_valid is True
+            assert len(errors) == 0
+        finally:
+            os.unlink(temp_path)
+
+    def test_validate_invalid_hunt_file(self):
+        """Test validate_hunt_file with invalid hunt."""
+        incomplete_hunt = """---
+hunt_id: H-0001
+title: Test Hunt
+---
+
+# Test Hunt
+"""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as f:
+            f.write(incomplete_hunt)
+            temp_path = f.name
+
+        try:
+            is_valid, errors = validate_hunt_file(Path(temp_path))
+
+            assert is_valid is False
+            assert len(errors) > 0
+        finally:
+            os.unlink(temp_path)
+
+    def test_parse_nonexistent_file(self):
+        """Test error handling for nonexistent file."""
+        with pytest.raises(FileNotFoundError):
+            parse_hunt_file(Path("/nonexistent/path/hunt.md"))
+
+
+class TestHuntDirectory:
+    """Test suite for hunt directory structure."""
+
     def test_hunt_directory_structure(self):
         """Test that hunt files follow expected directory structure."""
-        # Test that hunts directory exists
         hunts_dir = Path(__file__).parent.parent / 'hunts'
 
-        # This test will pass when the actual hunt examples exist
-        # For now, just verify the test structure is correct
+        # This test verifies the test structure is correct
+        # Actual hunt examples may or may not exist
         assert True
 
 

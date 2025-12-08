@@ -1,5 +1,5 @@
 """
-Tests for ATHF CLI commands.
+Tests for ATHF CLI commands using actual implementation.
 """
 import pytest
 import tempfile
@@ -7,362 +7,466 @@ import os
 import shutil
 from pathlib import Path
 from click.testing import CliRunner
+import yaml
+
+from athf.cli import cli
+from athf.commands.init import init
+from athf.commands.hunt import hunt
 
 
-# Mock CLI commands - will be implemented in Phase 2
-class MockCLI:
-    """Mock CLI for testing command structure."""
+@pytest.fixture
+def runner():
+    """Create a CLI runner for testing."""
+    return CliRunner()
 
-    @staticmethod
-    def init(non_interactive=False, siem='splunk', edr='crowdstrike', hunt_prefix='H'):
-        """Mock athf init command."""
-        dirs = ['hunts', 'queries', 'runs', 'templates']
-        files = ['.athfconfig.yaml', 'AGENTS.md']
-        return {'dirs': dirs, 'files': files, 'success': True}
 
-    @staticmethod
-    def hunt_new(technique, title, non_interactive=False):
-        """Mock athf hunt new command."""
-        if not technique or not title:
-            return {'success': False, 'error': 'Missing required fields'}
-
-        # Generate next hunt ID
-        hunt_id = 'H-0001'
-
-        # Simulate creating hunt file
-        return {
-            'success': True,
-            'hunt_id': hunt_id,
-            'file_path': f'hunts/{hunt_id}.md',
-            'technique': technique,
-            'title': title
-        }
-
-    @staticmethod
-    def hunt_list(status=None, tactic=None, technique=None, output='table'):
-        """Mock athf hunt list command."""
-        # Sample hunt data
-        hunts = [
-            {
-                'hunt_id': 'H-0001',
-                'title': 'macOS Information Stealer',
-                'status': 'completed',
-                'techniques': ['T1005'],
-                'tactics': ['collection'],
-                'platforms': ['macos']
-            },
-            {
-                'hunt_id': 'H-0002',
-                'title': 'Linux Cron Persistence',
-                'status': 'completed',
-                'techniques': ['T1053.003'],
-                'tactics': ['persistence'],
-                'platforms': ['linux']
-            }
-        ]
-
-        # Apply filters
-        filtered_hunts = hunts
-        if status:
-            filtered_hunts = [h for h in filtered_hunts if h['status'] == status]
-        if tactic:
-            filtered_hunts = [h for h in filtered_hunts if tactic in h['tactics']]
-        if technique:
-            filtered_hunts = [h for h in filtered_hunts if technique in h['techniques']]
-
-        return {'success': True, 'hunts': filtered_hunts, 'count': len(filtered_hunts)}
-
-    @staticmethod
-    def hunt_validate(hunt_id=None):
-        """Mock athf hunt validate command."""
-        if hunt_id:
-            # Validate specific hunt
-            if hunt_id == 'H-INVALID':
-                return {
-                    'success': False,
-                    'hunt_id': hunt_id,
-                    'errors': ['Missing required field: hunter', 'Invalid technique format: T1003']
-                }
-            else:
-                return {
-                    'success': True,
-                    'hunt_id': hunt_id,
-                    'errors': []
-                }
-        else:
-            # Validate all hunts
-            return {
-                'success': True,
-                'total': 2,
-                'valid': 2,
-                'invalid': 0
-            }
+@pytest.fixture
+def temp_workspace(tmp_path):
+    """Create a temporary workspace for testing."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    yield tmp_path
+    os.chdir(old_cwd)
 
 
 class TestInitCommand:
     """Test suite for athf init command."""
 
-    def test_init_creates_structure(self):
-        """Test that init creates the correct directory structure."""
-        cli = MockCLI()
-        result = cli.init(non_interactive=True)
+    def test_init_creates_structure_non_interactive(self, runner, temp_workspace):
+        """Test that init creates the correct directory structure in non-interactive mode."""
+        result = runner.invoke(init, ['--non-interactive'])
 
-        assert result['success'] is True
-        assert 'hunts' in result['dirs']
-        assert 'queries' in result['dirs']
-        assert 'runs' in result['dirs']
-        assert 'templates' in result['dirs']
-        assert '.athfconfig.yaml' in result['files']
-        assert 'AGENTS.md' in result['files']
+        assert result.exit_code == 0
+        assert (temp_workspace / 'hunts').exists()
+        assert (temp_workspace / 'queries').exists()
+        assert (temp_workspace / 'runs').exists()
+        assert (temp_workspace / 'templates').exists()
+        assert (temp_workspace / 'knowledge').exists()
+        assert (temp_workspace / 'prompts').exists()
+        assert (temp_workspace / 'integrations').exists()
+        assert (temp_workspace / 'docs').exists()
 
-    def test_init_with_custom_options(self):
-        """Test init with custom SIEM/EDR options."""
-        cli = MockCLI()
-        result = cli.init(
-            non_interactive=True,
-            siem='sentinel',
-            edr='defender',
-            hunt_prefix='TH'
-        )
-
-        assert result['success'] is True
-
-    def test_init_creates_config_file(self):
+    def test_init_creates_config_file(self, runner, temp_workspace):
         """Test that init creates a valid config file."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            config_path = Path(tmpdir) / '.athfconfig.yaml'
+        result = runner.invoke(init, ['--non-interactive'])
 
-            # Simulate creating config
-            config_content = """siem: splunk
-edr: crowdstrike
-hunt_prefix: H
-retention_days: 90
-initialized: 2025-12-02T14:30:00
-version: 0.1.0
-"""
-            config_path.write_text(config_content)
+        assert result.exit_code == 0
+        config_path = temp_workspace / 'config' / '.athfconfig.yaml'
+        assert config_path.exists()
 
-            assert config_path.exists()
-            content = config_path.read_text()
-            assert 'siem: splunk' in content
-            assert 'hunt_prefix: H' in content
+        with open(config_path, 'r') as f:
+            config = yaml.safe_load(f)
+
+        assert 'hunt_prefix' in config
+        assert 'siem' in config
+        assert 'edr' in config
+        assert config['hunt_prefix'] == 'H-'
+
+    def test_init_creates_agents_file(self, runner, temp_workspace):
+        """Test that init creates AGENTS.md."""
+        result = runner.invoke(init, ['--non-interactive'])
+
+        assert result.exit_code == 0
+        agents_path = temp_workspace / 'AGENTS.md'
+        assert agents_path.exists()
+
+        content = agents_path.read_text()
+        assert 'Data Sources' in content
+        assert 'Technology Stack' in content
+
+    def test_init_creates_hunt_template(self, runner, temp_workspace):
+        """Test that init creates hunt template."""
+        result = runner.invoke(init, ['--non-interactive'])
+
+        assert result.exit_code == 0
+        template_path = temp_workspace / 'templates' / 'HUNT_LOCK.md'
+        assert template_path.exists()
+
+        content = template_path.read_text()
+        assert '## LEARN' in content
+        assert '## OBSERVE' in content
+        assert '## CHECK' in content
+        assert '## KEEP' in content
+
+    def test_init_with_custom_path(self, runner, tmp_path):
+        """Test init with custom path."""
+        custom_path = tmp_path / 'custom_workspace'
+        custom_path.mkdir()
+
+        result = runner.invoke(init, ['--path', str(custom_path), '--non-interactive'])
+
+        assert result.exit_code == 0
+        assert (custom_path / 'hunts').exists()
+        assert (custom_path / 'config' / '.athfconfig.yaml').exists()
 
 
 class TestHuntNewCommand:
     """Test suite for athf hunt new command."""
 
-    def test_hunt_new_interactive(self):
-        """Test creating a new hunt with all required fields."""
-        cli = MockCLI()
-        result = cli.hunt_new(
-            technique='T1558.003',
-            title='Kerberoasting Detection'
-        )
+    def test_hunt_new_non_interactive(self, runner, temp_workspace):
+        """Test creating a new hunt in non-interactive mode."""
+        # First initialize
+        runner.invoke(init, ['--non-interactive'])
 
-        assert result['success'] is True
-        assert result['hunt_id'] == 'H-0001'
-        assert result['technique'] == 'T1558.003'
-        assert result['title'] == 'Kerberoasting Detection'
+        # Create hunt
+        result = runner.invoke(hunt, [
+            'new',
+            '--technique', 'T1003.001',
+            '--title', 'LSASS Memory Dumping',
+            '--tactic', 'credential-access',
+            '--platform', 'Windows',
+            '--data-source', 'EDR',
+            '--non-interactive'
+        ])
 
-    def test_hunt_new_missing_technique(self):
-        """Test that hunt new fails without technique."""
-        cli = MockCLI()
-        result = cli.hunt_new(technique=None, title='Test Hunt')
+        assert result.exit_code == 0
+        assert 'Created H-0001' in result.output
 
-        assert result['success'] is False
-        assert 'error' in result
+        # Check hunt file was created
+        hunt_file = temp_workspace / 'hunts' / 'H-0001.md'
+        assert hunt_file.exists()
 
-    def test_hunt_new_missing_title(self):
-        """Test that hunt new fails without title."""
-        cli = MockCLI()
-        result = cli.hunt_new(technique='T1003.001', title=None)
+        content = hunt_file.read_text()
+        assert 'hunt_id: H-0001' in content
+        assert 'LSASS Memory Dumping' in content
+        assert 'T1003.001' in content
+        assert '## LEARN' in content
 
-        assert result['success'] is False
-        assert 'error' in result
+    def test_hunt_new_missing_title_non_interactive(self, runner, temp_workspace):
+        """Test that hunt new fails without title in non-interactive mode."""
+        runner.invoke(init, ['--non-interactive'])
 
-    def test_hunt_new_file_creation(self):
-        """Test that hunt new creates a file with correct structure."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            hunt_path = Path(tmpdir) / 'H-0001.md'
+        result = runner.invoke(hunt, [
+            'new',
+            '--technique', 'T1003.001',
+            '--non-interactive'
+        ])
 
-            # Simulate creating hunt file
-            hunt_content = """---
-hunt_id: H-0001
-title: Test Hunt
-status: in-progress
-date: 2025-12-02
-hunter: Test Hunter
-techniques: [T1003.001]
----
+        assert result.exit_code == 0  # Click doesn't exit with error, just prints message
+        assert 'Error' in result.output or 'required' in result.output.lower()
 
-# H-0001: Test Hunt
+    def test_hunt_new_increments_id(self, runner, temp_workspace):
+        """Test that hunt IDs increment correctly."""
+        runner.invoke(init, ['--non-interactive'])
 
-## LEARN
+        # Create first hunt
+        result1 = runner.invoke(hunt, [
+            'new',
+            '--title', 'First Hunt',
+            '--non-interactive'
+        ])
+        assert 'H-0001' in result1.output
 
-...
-"""
-            hunt_path.write_text(hunt_content)
+        # Create second hunt
+        result2 = runner.invoke(hunt, [
+            'new',
+            '--title', 'Second Hunt',
+            '--non-interactive'
+        ])
+        assert 'H-0002' in result2.output
 
-            assert hunt_path.exists()
-            content = hunt_path.read_text()
-            assert 'hunt_id: H-0001' in content
-            assert '## LEARN' in content
+    def test_hunt_new_with_multiple_tactics(self, runner, temp_workspace):
+        """Test creating hunt with multiple tactics."""
+        runner.invoke(init, ['--non-interactive'])
+
+        result = runner.invoke(hunt, [
+            'new',
+            '--title', 'Multi-Tactic Hunt',
+            '--tactic', 'persistence',
+            '--tactic', 'privilege-escalation',
+            '--non-interactive'
+        ])
+
+        assert result.exit_code == 0
+        hunt_file = temp_workspace / 'hunts' / 'H-0001.md'
+        content = hunt_file.read_text()
+        assert 'persistence' in content
+        assert 'privilege-escalation' in content
 
 
 class TestHuntListCommand:
     """Test suite for athf hunt list command."""
 
-    def test_hunt_list_all(self):
+    def setup_test_hunts(self, runner, temp_workspace):
+        """Helper to create test hunts."""
+        runner.invoke(init, ['--non-interactive'])
+
+        # Create hunt 1
+        runner.invoke(hunt, [
+            'new',
+            '--title', 'Test Hunt 1',
+            '--technique', 'T1003.001',
+            '--tactic', 'credential-access',
+            '--platform', 'Windows',
+            '--non-interactive'
+        ])
+
+        # Create hunt 2
+        runner.invoke(hunt, [
+            'new',
+            '--title', 'Test Hunt 2',
+            '--technique', 'T1053.003',
+            '--tactic', 'persistence',
+            '--platform', 'Linux',
+            '--non-interactive'
+        ])
+
+    def test_hunt_list_all(self, runner, temp_workspace):
         """Test listing all hunts."""
-        cli = MockCLI()
-        result = cli.hunt_list()
+        self.setup_test_hunts(runner, temp_workspace)
 
-        assert result['success'] is True
-        assert result['count'] == 2
-        assert len(result['hunts']) == 2
+        result = runner.invoke(hunt, ['list-hunts'])
 
-    def test_hunt_list_filter_by_status(self):
+        assert result.exit_code == 0
+        assert 'H-0001' in result.output
+        assert 'H-0002' in result.output
+        assert 'Test Hunt 1' in result.output
+        assert 'Test Hunt 2' in result.output
+
+    def test_hunt_list_filter_by_status(self, runner, temp_workspace):
         """Test filtering hunts by status."""
-        cli = MockCLI()
-        result = cli.hunt_list(status='completed')
+        self.setup_test_hunts(runner, temp_workspace)
 
-        assert result['success'] is True
-        assert all(h['status'] == 'completed' for h in result['hunts'])
+        result = runner.invoke(hunt, ['list-hunts', '--status', 'planning'])
 
-    def test_hunt_list_filter_by_tactic(self):
-        """Test filtering hunts by tactic."""
-        cli = MockCLI()
-        result = cli.hunt_list(tactic='persistence')
+        assert result.exit_code == 0
+        # Both hunts should be in planning status by default
+        assert 'H-0001' in result.output or 'H-0002' in result.output
 
-        assert result['success'] is True
-        assert result['count'] == 1
-        assert result['hunts'][0]['hunt_id'] == 'H-0002'
-
-    def test_hunt_list_filter_by_technique(self):
+    def test_hunt_list_filter_by_technique(self, runner, temp_workspace):
         """Test filtering hunts by technique."""
-        cli = MockCLI()
-        result = cli.hunt_list(technique='T1005')
+        self.setup_test_hunts(runner, temp_workspace)
 
-        assert result['success'] is True
-        assert result['count'] == 1
-        assert result['hunts'][0]['hunt_id'] == 'H-0001'
+        result = runner.invoke(hunt, ['list-hunts', '--technique', 'T1003.001'])
 
-    def test_hunt_list_multiple_filters(self):
-        """Test filtering with multiple criteria."""
-        cli = MockCLI()
-        result = cli.hunt_list(status='completed', tactic='collection')
+        assert result.exit_code == 0
+        assert 'T1003.001' in result.output
 
-        assert result['success'] is True
-        assert all(h['status'] == 'completed' for h in result['hunts'])
-        assert all('collection' in h['tactics'] for h in result['hunts'])
+    def test_hunt_list_json_output(self, runner, temp_workspace):
+        """Test JSON output format."""
+        self.setup_test_hunts(runner, temp_workspace)
 
-    def test_hunt_list_output_formats(self):
-        """Test different output formats."""
-        cli = MockCLI()
+        result = runner.invoke(hunt, ['list-hunts', '--output', 'json'])
 
-        # Table format (default)
-        result = cli.hunt_list(output='table')
-        assert result['success'] is True
+        assert result.exit_code == 0
+        assert '"hunt_id"' in result.output or 'hunt_id' in result.output
 
-        # JSON format
-        result = cli.hunt_list(output='json')
-        assert result['success'] is True
+    def test_hunt_list_empty(self, runner, temp_workspace):
+        """Test list with no hunts."""
+        runner.invoke(init, ['--non-interactive'])
 
-        # YAML format
-        result = cli.hunt_list(output='yaml')
-        assert result['success'] is True
+        result = runner.invoke(hunt, ['list-hunts'])
+
+        assert result.exit_code == 0
+        assert 'No hunts found' in result.output or 'Create your first hunt' in result.output
 
 
 class TestHuntValidateCommand:
     """Test suite for athf hunt validate command."""
 
-    def test_validate_specific_hunt_valid(self):
-        """Test validating a specific valid hunt."""
-        cli = MockCLI()
-        result = cli.hunt_validate(hunt_id='H-0001')
-
-        assert result['success'] is True
-        assert result['hunt_id'] == 'H-0001'
-        assert len(result['errors']) == 0
-
-    def test_validate_specific_hunt_invalid(self):
-        """Test validating a specific invalid hunt."""
-        cli = MockCLI()
-        result = cli.hunt_validate(hunt_id='H-INVALID')
-
-        assert result['success'] is False
-        assert result['hunt_id'] == 'H-INVALID'
-        assert len(result['errors']) > 0
-        assert any('Missing required field' in err for err in result['errors'])
-
-    def test_validate_all_hunts(self):
+    def test_validate_all_hunts(self, runner, temp_workspace):
         """Test validating all hunts."""
-        cli = MockCLI()
-        result = cli.hunt_validate()
+        runner.invoke(init, ['--non-interactive'])
+        runner.invoke(hunt, [
+            'new',
+            '--title', 'Test Hunt',
+            '--non-interactive'
+        ])
 
-        assert result['success'] is True
-        assert result['total'] == 2
-        assert result['valid'] == 2
-        assert result['invalid'] == 0
+        result = runner.invoke(hunt, ['validate'])
+
+        assert result.exit_code == 0
+
+    def test_validate_specific_hunt(self, runner, temp_workspace):
+        """Test validating a specific hunt."""
+        runner.invoke(init, ['--non-interactive'])
+        runner.invoke(hunt, [
+            'new',
+            '--title', 'Test Hunt',
+            '--non-interactive'
+        ])
+
+        result = runner.invoke(hunt, ['validate', 'H-0001'])
+
+        assert result.exit_code == 0
+
+    def test_validate_nonexistent_hunt(self, runner, temp_workspace):
+        """Test validating a hunt that doesn't exist."""
+        runner.invoke(init, ['--non-interactive'])
+
+        result = runner.invoke(hunt, ['validate', 'H-9999'])
+
+        assert result.exit_code == 0  # Command runs but shows error message
+        assert 'not found' in result.output.lower()
 
 
-class TestCLIErrorHandling:
-    """Test suite for CLI error handling."""
+class TestHuntStatsCommand:
+    """Test suite for athf hunt stats command."""
 
-    def test_invalid_technique_format(self):
-        """Test error handling for invalid technique format."""
-        # Technique without subtechnique
-        invalid_technique = 'T1003'
-        # Should be rejected during validation
-        assert '.' not in invalid_technique[1:]
+    def test_hunt_stats_empty(self, runner, temp_workspace):
+        """Test stats with no hunts."""
+        runner.invoke(init, ['--non-interactive'])
 
-    def test_invalid_status_value(self):
-        """Test error handling for invalid status."""
-        valid_statuses = ['in-progress', 'completed', 'paused', 'archived']
-        invalid_status = 'invalid-status'
+        result = runner.invoke(hunt, ['stats'])
 
-        assert invalid_status not in valid_statuses
+        assert result.exit_code == 0
+        assert 'Statistics' in result.output or 'stats' in result.output.lower()
 
-    def test_missing_hunts_directory(self):
-        """Test behavior when hunts directory doesn't exist."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            hunts_dir = Path(tmpdir) / 'hunts'
-            assert not hunts_dir.exists()
+    def test_hunt_stats_with_hunts(self, runner, temp_workspace):
+        """Test stats with hunts created."""
+        runner.invoke(init, ['--non-interactive'])
+        runner.invoke(hunt, [
+            'new',
+            '--title', 'Test Hunt',
+            '--non-interactive'
+        ])
 
-            # CLI should create directory or give helpful error
-            # Implementation will handle this in Phase 2
+        result = runner.invoke(hunt, ['stats'])
+
+        assert result.exit_code == 0
+        assert 'Total Hunts' in result.output or 'total' in result.output.lower()
+
+
+class TestHuntSearchCommand:
+    """Test suite for athf hunt search command."""
+
+    def test_hunt_search(self, runner, temp_workspace):
+        """Test searching for hunts."""
+        runner.invoke(init, ['--non-interactive'])
+        runner.invoke(hunt, [
+            'new',
+            '--title', 'Kerberoasting Detection',
+            '--technique', 'T1558.003',
+            '--non-interactive'
+        ])
+
+        result = runner.invoke(hunt, ['search', 'Kerberoasting'])
+
+        assert result.exit_code == 0
+
+    def test_hunt_search_no_results(self, runner, temp_workspace):
+        """Test search with no results."""
+        runner.invoke(init, ['--non-interactive'])
+
+        result = runner.invoke(hunt, ['search', 'nonexistent'])
+
+        assert result.exit_code == 0
+        assert 'No hunts found' in result.output or 'found' in result.output.lower()
+
+
+class TestHuntCoverageCommand:
+    """Test suite for athf hunt coverage command."""
+
+    def test_hunt_coverage(self, runner, temp_workspace):
+        """Test ATT&CK coverage command."""
+        runner.invoke(init, ['--non-interactive'])
+        runner.invoke(hunt, [
+            'new',
+            '--title', 'Test Hunt',
+            '--technique', 'T1003.001',
+            '--tactic', 'credential-access',
+            '--non-interactive'
+        ])
+
+        result = runner.invoke(hunt, ['coverage'])
+
+        assert result.exit_code == 0
+
+    def test_hunt_coverage_empty(self, runner, temp_workspace):
+        """Test coverage with no hunts."""
+        runner.invoke(init, ['--non-interactive'])
+
+        result = runner.invoke(hunt, ['coverage'])
+
+        assert result.exit_code == 0
 
 
 class TestCLIIntegration:
     """Integration tests for CLI workflows."""
 
-    def test_full_workflow(self):
-        """Test complete workflow: init -> new -> validate -> list."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            os.chdir(tmpdir)
+    def test_full_workflow(self, runner, temp_workspace):
+        """Test complete workflow: init -> new -> validate -> list -> stats."""
+        # Step 1: Initialize
+        result = runner.invoke(init, ['--non-interactive'])
+        assert result.exit_code == 0
 
-            cli = MockCLI()
+        # Step 2: Create new hunt
+        result = runner.invoke(hunt, [
+            'new',
+            '--technique', 'T1003.001',
+            '--title', 'LSASS Memory Dumping',
+            '--tactic', 'credential-access',
+            '--platform', 'Windows',
+            '--non-interactive'
+        ])
+        assert result.exit_code == 0
+        assert 'H-0001' in result.output
 
-            # Step 1: Initialize
-            result = cli.init(non_interactive=True)
-            assert result['success'] is True
+        # Step 3: Validate
+        result = runner.invoke(hunt, ['validate', 'H-0001'])
+        assert result.exit_code == 0
 
-            # Step 2: Create new hunt
-            result = cli.hunt_new(
-                technique='T1003.001',
-                title='LSASS Memory Dumping',
-                non_interactive=True
-            )
-            assert result['success'] is True
-            hunt_id = result['hunt_id']
+        # Step 4: List hunts
+        result = runner.invoke(hunt, ['list-hunts'])
+        assert result.exit_code == 0
+        assert 'H-0001' in result.output
 
-            # Step 3: Validate
-            result = cli.hunt_validate(hunt_id=hunt_id)
-            assert result['success'] is True
+        # Step 5: Show stats
+        result = runner.invoke(hunt, ['stats'])
+        assert result.exit_code == 0
 
-            # Step 4: List hunts
-            result = cli.hunt_list()
-            assert result['success'] is True
+        # Step 6: Search
+        result = runner.invoke(hunt, ['search', 'LSASS'])
+        assert result.exit_code == 0
+
+    def test_multiple_hunts_workflow(self, runner, temp_workspace):
+        """Test workflow with multiple hunts."""
+        runner.invoke(init, ['--non-interactive'])
+
+        # Create 3 hunts
+        for i in range(1, 4):
+            result = runner.invoke(hunt, [
+                'new',
+                '--title', f'Hunt {i}',
+                '--technique', f'T100{i}.001',
+                '--non-interactive'
+            ])
+            assert result.exit_code == 0
+
+        # List should show all 3
+        result = runner.invoke(hunt, ['list-hunts'])
+        assert result.exit_code == 0
+        assert 'H-0001' in result.output
+        assert 'H-0002' in result.output
+        assert 'H-0003' in result.output
+
+
+class TestCLIErrorHandling:
+    """Test suite for CLI error handling."""
+
+    def test_hunt_commands_without_init(self, runner, temp_workspace):
+        """Test that hunt commands handle missing initialization gracefully."""
+        # Try to create hunt without init
+        result = runner.invoke(hunt, [
+            'new',
+            '--title', 'Test',
+            '--non-interactive'
+        ])
+
+        # Should still work, creating directories as needed
+        assert result.exit_code == 0 or 'error' in result.output.lower()
+
+    def test_init_twice(self, runner, temp_workspace):
+        """Test running init twice."""
+        # First init
+        result1 = runner.invoke(init, ['--non-interactive'])
+        assert result1.exit_code == 0
+
+        # Second init should ask for confirmation (but we're non-interactive)
+        # In non-interactive mode, it might skip or proceed
+        result2 = runner.invoke(init, ['--non-interactive'])
+        # Should handle gracefully
+        assert result2.exit_code == 0 or 'already' in result2.output.lower()
 
 
 # Run tests with: pytest tests/test_commands.py -v

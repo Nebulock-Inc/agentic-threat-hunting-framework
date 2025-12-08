@@ -1,6 +1,7 @@
 """Render hunt templates with metadata."""
 
 from datetime import datetime
+from typing import Optional
 from jinja2 import Template
 
 
@@ -160,17 +161,17 @@ tags: {{ tags }}
 def render_hunt_template(
     hunt_id: str,
     title: str,
-    technique: str = None,
-    tactics: list = None,
-    platform: list = None,
-    data_sources: list = None,
+    technique: Optional[str] = None,
+    tactics: Optional[list] = None,
+    platform: Optional[list] = None,
+    data_sources: Optional[list] = None,
     hunter: str = "[Your Name]",
-    hypothesis: str = None,
-    threat_context: str = None,
-    actor: str = None,
-    behavior: str = None,
-    location: str = None,
-    evidence: str = None
+    hypothesis: Optional[str] = None,
+    threat_context: Optional[str] = None,
+    actor: Optional[str] = None,
+    behavior: Optional[str] = None,
+    location: Optional[str] = None,
+    evidence: Optional[str] = None
 ) -> str:
     """Render a hunt template with provided metadata.
 

@@ -9,7 +9,7 @@ from athf.core.hunt_parser import parse_hunt_file
 class HuntManager:
     """Manage hunt files and operations."""
 
-    def __init__(self, hunts_dir: Path = None):
+    def __init__(self, hunts_dir: Optional[Path] = None):
         """Initialize hunt manager.
 
         Args:
@@ -62,11 +62,18 @@ class HuntManager:
                     continue
 
                 # Extract summary info
+                date_val = frontmatter.get("date")
+                # Convert date objects to strings for JSON serialization
+                if hasattr(date_val, 'isoformat'):
+                    date_str = date_val.isoformat()
+                else:
+                    date_str = str(date_val) if date_val else None
+
                 hunts.append({
                     "hunt_id": frontmatter.get("hunt_id"),
                     "title": frontmatter.get("title"),
                     "status": frontmatter.get("status"),
-                    "date": frontmatter.get("date"),
+                    "date": date_str,
                     "platform": frontmatter.get("platform", []),
                     "tactics": frontmatter.get("tactics", []),
                     "techniques": frontmatter.get("techniques", []),
@@ -216,7 +223,7 @@ class HuntManager:
         """
         hunts = self.list_hunts()
 
-        coverage = {}
+        coverage: Dict = {}
 
         for hunt in hunts:
             tactics = hunt.get("tactics", [])

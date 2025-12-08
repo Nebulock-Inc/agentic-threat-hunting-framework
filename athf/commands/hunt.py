@@ -2,6 +2,8 @@
 
 import click
 import yaml
+import random
+from datetime import datetime
 from pathlib import Path
 from rich.console import Console
 from rich.table import Table
@@ -14,7 +16,7 @@ from athf.core.hunt_parser import validate_hunt_file
 console = Console()
 
 
-def get_config_path():
+def get_config_path() -> Path:
     """Get config file path, checking new location first, then falling back to root."""
     new_location = Path("config/.athfconfig.yaml")
     old_location = Path(".athfconfig.yaml")
@@ -64,7 +66,7 @@ Learn more: https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/blo
 
 
 @click.group(epilog=HUNT_EPILOG)
-def hunt():
+def hunt() -> None:
     """Manage threat hunting activities and track program metrics.
 
     \b
@@ -84,7 +86,7 @@ def hunt():
 @click.option("--platform", multiple=True, help="Target platforms (can specify multiple)")
 @click.option("--data-source", multiple=True, help="Data sources (can specify multiple)")
 @click.option("--non-interactive", is_flag=True, help="Skip interactive prompts")
-def new(technique, title, tactic, platform, data_source, non_interactive):
+def new(technique: str, title: str, tactic: tuple, platform: tuple, data_source: tuple, non_interactive: bool) -> None:
     """Create a new hunt hypothesis with LOCK structure.
 
     \b
@@ -192,6 +194,14 @@ def new(technique, title, tactic, platform, data_source, non_interactive):
         f.write(hunt_content)
 
     console.print(f"\n[bold green]✅ Created {hunt_id}: {hunt_title}[/bold green]")
+
+    # Easter egg: Hunt #100 milestone
+    if hunt_id.endswith("0100"):
+        console.print("\n[bold yellow]✨ Milestone Achievement: Hunt #100 ✨[/bold yellow]\n")
+        console.print("[italic]You've built serious hunting muscle memory.")
+        console.print("This is where threat hunting programs transform from reactive to proactive.")
+        console.print("Keep building that institutional knowledge.[/italic]\n")
+
     console.print("\n[bold]Next steps:[/bold]")
     console.print(f"  1. Edit [cyan]{hunt_file}[/cyan] to flesh out your hypothesis")
     console.print("  2. Document your hunt using the LOCK pattern")
@@ -204,7 +214,7 @@ def new(technique, title, tactic, platform, data_source, non_interactive):
 @click.option("--technique", help="Filter by MITRE technique (e.g., T1003.001)")
 @click.option("--platform", help="Filter by platform")
 @click.option("--output", type=click.Choice(["table", "json", "yaml"]), default="table", help="Output format")
-def list_hunts(status, tactic, technique, platform, output):
+def list_hunts(status: str, tactic: str, technique: str, platform: str, output: str) -> None:
     """List all hunts with filtering and formatting options.
 
     \b
@@ -291,7 +301,7 @@ def list_hunts(status, tactic, technique, platform, output):
 
 @hunt.command()
 @click.argument("hunt_id", required=False)
-def validate(hunt_id):
+def validate(hunt_id: str) -> None:
     """Validate hunt file structure and metadata.
 
     \b
@@ -357,7 +367,7 @@ def validate(hunt_id):
         console.print(f"\n[bold]Results:[/bold] {valid_count} valid, {invalid_count} invalid")
 
 
-def _validate_single_hunt(hunt_file: Path):
+def _validate_single_hunt(hunt_file: Path) -> None:
     """Validate a single hunt file."""
     console.print(f"\n[bold]🔍 Validating {hunt_file.name}...[/bold]\n")
 
@@ -372,7 +382,7 @@ def _validate_single_hunt(hunt_file: Path):
 
 
 @hunt.command()
-def stats():
+def stats() -> None:
     """Show hunt program statistics and success metrics.
 
     \b
@@ -414,10 +424,17 @@ def stats():
     console.print(table)
     console.print()
 
+    # Easter egg: First True Positive milestone
+    if stats["true_positives"] == 1 and stats["completed_hunts"] > 0:
+        console.print("[bold yellow]🎯 First True Positive Detected![/bold yellow]\n")
+        console.print("[italic]Every expert threat hunter started here.")
+        console.print("This confirms your hypothesis was testable, your data was sufficient,")
+        console.print("and your analytical instincts were sound. Document what worked.[/italic]\n")
+
 
 @hunt.command()
 @click.argument("query")
-def search(query):
+def search(query: str) -> None:
     """Full-text search across all hunt files.
 
     \b
@@ -465,7 +482,7 @@ def search(query):
 
 
 @hunt.command()
-def coverage():
+def coverage() -> None:
     """Show MITRE ATT&CK technique coverage across hunts.
 
     \b
@@ -506,3 +523,53 @@ def coverage():
         for technique in techniques:
             console.print(f"  • {technique}")
         console.print()
+
+
+@hunt.command(hidden=True)
+def coffee() -> None:
+    """Check your caffeine levels (critical for threat hunting)."""
+    now = datetime.now()
+    hour = now.hour
+
+    # Random caffeine level
+    caffeine_level = random.randint(0, 100)
+
+    # Time-aware status
+    if 3 <= hour < 5:
+        status = "Incident Response Mode"
+        time_message = "Running on pure incident response adrenaline."
+    elif 0 <= hour < 6:
+        status = "Night Hunter"
+        time_message = "The real threat hunting happens in the dark."
+    elif 6 <= hour < 9:
+        status = "Early Bird"
+        time_message = "Morning hunts catch the adversaries."
+    elif 18 <= hour < 24:
+        status = "Evening Detective"
+        time_message = "Picking up where the day shift left off."
+    else:
+        status = "Operational"
+        time_message = "Sustainable hunting pace detected."
+
+    # Caffeine-level specific recommendations
+    if caffeine_level < 30:
+        recommendation = "Consider refueling. Even the best hunters need breaks."
+    elif caffeine_level > 90:
+        recommendation = "Peak operational capacity. Time to chase that hypothesis."
+    else:
+        recommendation = time_message
+
+    console.print("\n[bold]☕ Threat Hunter Caffeine Check[/bold]\n")
+    console.print(f"Current Level: [cyan]{caffeine_level}%[/cyan]")
+    console.print(f"Status: [yellow]{status}[/yellow]")
+    console.print(f"Recommendation: [italic]{recommendation}[/italic]\n")
+
+    # Random wisdom quote
+    wisdom_quotes = [
+        "The best hunts are fueled by curiosity, not just caffeine.",
+        "Caffeine enables the hunt. Rigor validates the findings.",
+        "Stay sharp, stay curious, stay caffeinated.",
+        "Coffee: because threat actors don't work business hours.",
+        "Fuel your hypotheses with coffee. Validate them with data.",
+    ]
+    console.print(f"[dim italic]{random.choice(wisdom_quotes)}[/dim italic]\n")

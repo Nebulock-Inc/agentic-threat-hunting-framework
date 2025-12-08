@@ -208,6 +208,7 @@ Start documenting hunts in the `hunts/` directory using the LOCK pattern.
 
 ### Integration & Customization
 
+- [Installation & Development](docs/INSTALL.md) - Setup, fork customization, testing
 - [MCP Catalog](integrations/MCP_CATALOG.md) - Available tool integrations
 - [Quickstart Guides](integrations/quickstart/) - Setup for specific tools
 - [Using ATHF](USING_ATHF.md) - Adoption and customization
@@ -251,6 +252,26 @@ ATHF is a framework to internalize, not a platform to extend. Fork it, customize
 See [USING_ATHF.md](USING_ATHF.md) for adoption guidance. Your hunts stay yours—sharing back is optional but appreciated ([Discussions](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/discussions)).
 
 The goal is to help every threat hunting team move from ad-hoc memory to structured, agentic capability.
+
+---
+
+## 🛠️ Development & Customization
+
+ATHF is designed to be forked and customized for your organization.
+
+**See [docs/INSTALL.md#development--customization](docs/INSTALL.md#development--customization) for:**
+- Setting up your fork for development
+- Pre-commit hooks for code quality
+- Testing and type checking
+- Customization examples
+- CI/CD integration
+
+Quick start:
+```bash
+pip install -e ".[dev]"       # Install dev dependencies
+pre-commit install            # Set up quality checks
+pytest tests/ -v              # Run tests
+```
 
 ---
 

@@ -12,7 +12,7 @@ console = Console()
 @click.command()
 @click.option("--path", default=".", help="Directory to initialize ATHF in")
 @click.option("--non-interactive", is_flag=True, help="Skip interactive prompts")
-def init(path, non_interactive):
+def init(path: str, non_interactive: bool) -> None:
     """Initialize a new ATHF threat hunting workspace.
 
     \b
@@ -123,7 +123,7 @@ def init(path, non_interactive):
     console.print("  3. Check out the docs at [cyan]docs/getting-started.md[/cyan]")
 
 
-def _default_config():
+def _default_config() -> dict:
     """Return default configuration."""
     return {
         "hunt_prefix": "H-",
@@ -134,11 +134,11 @@ def _default_config():
     }
 
 
-def _interactive_config():
+def _interactive_config() -> dict:
     """Gather configuration interactively."""
     console.print("[bold]📋 Quick setup questions:[/bold]")
 
-    config = {}
+    config: dict = {}
 
     # SIEM
     siem = Prompt.ask(
@@ -178,12 +178,12 @@ def _interactive_config():
         "4. Hunt retention (days)",
         default="365"
     )
-    config["hunt_retention_days"] = int(retention)
+    config["hunt_retention_days"] = int(retention) if isinstance(retention, str) else retention
 
     return config
 
 
-def _create_agents_file(path, config):
+def _create_agents_file(path: Path, config: dict) -> None:
     """Create AGENTS.md file with configuration."""
     content = f"""# ATHF Agent Context
 
@@ -236,7 +236,7 @@ Document what you can't see:
         f.write(content)
 
 
-def _create_hunt_template(path):
+def _create_hunt_template(path: Path) -> None:
     """Create hunt template file."""
     content = """---
 hunt_id: H-XXXX

@@ -12,9 +12,9 @@ class HuntParser:
     def __init__(self, file_path: Path):
         """Initialize parser with hunt file path."""
         self.file_path = Path(file_path)
-        self.frontmatter = {}
+        self.frontmatter: Dict = {}
         self.content = ""
-        self.lock_sections = {}
+        self.lock_sections: Dict = {}
 
     def parse(self) -> Dict:
         """Parse hunt file and return structured data.
