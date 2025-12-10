@@ -467,7 +467,7 @@ Track these metrics to measure Level 4 success:
 ## Learn More
 
 - **Maturity Model:** [maturity-model.md](maturity-model.md)
-- **Level 3 Examples:** [level3-mcp-examples.md](level3-mcp-examples.md)
+- **Level 3 Examples:** [../integrations/README.md](../integrations/README.md)
 - **Getting Started:** [getting-started.md](getting-started.md)
 - **Integration Catalog:** [../integrations/MCP_CATALOG.md](../integrations/MCP_CATALOG.md)
 

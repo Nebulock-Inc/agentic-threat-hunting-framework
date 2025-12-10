@@ -3,6 +3,7 @@
 import re
 from pathlib import Path
 from typing import Dict, List, Tuple
+
 import yaml
 
 
@@ -42,7 +43,7 @@ class HuntParser:
             "hunt_id": self.frontmatter.get("hunt_id"),
             "frontmatter": self.frontmatter,
             "content": self.content,
-            "lock_sections": self.lock_sections
+            "lock_sections": self.lock_sections,
         }
 
     def _parse_frontmatter(self, content: str) -> Dict:
@@ -99,7 +100,7 @@ class HuntParser:
             "learn": r"##\s+LEARN[:\s].*?(?=##\s+OBSERVE|$)",
             "observe": r"##\s+OBSERVE[:\s].*?(?=##\s+CHECK|$)",
             "check": r"##\s+CHECK[:\s].*?(?=##\s+KEEP|$)",
-            "keep": r"##\s+KEEP[:\s].*?(?=##\s+[A-Z]|$)"
+            "keep": r"##\s+KEEP[:\s].*?(?=##\s+[A-Z]|$)",
         }
 
         for section_name, pattern in section_patterns.items():

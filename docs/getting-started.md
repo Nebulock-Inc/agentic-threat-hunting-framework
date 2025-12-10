@@ -46,8 +46,8 @@ Take a few minutes to understand the repository layout:
 agentic-threat-hunting-framework/
 ├── README.md              # Framework overview
 ├── AGENTS.md              # AI assistant context
-├── docs/
-│   ├── environment.md     # Tech stack and data sources
+├── config/                # Workspace configuration
+│   └── .athfconfig.yaml   # Hunt prefix, SIEM/EDR settings
 ├── athf/                  # CLI source code (optional)
 │   ├── commands/          # Hunt management commands
 │   ├── core/              # Hunt parsing and validation
@@ -119,6 +119,8 @@ athf hunt list
 > **Tip:** The CLI (`athf hunt new`) creates the file with YAML frontmatter automatically. Manual creation gives you full control over the content.
 
 ### Example Structure
+
+See [hunts/H-0001.md](../hunts/H-0001.md) for a complete example. Here's a simplified structure:
 
 ```markdown
 # H-0001: SSH Brute Force Detection
@@ -292,7 +294,7 @@ You're at Level 3 when:
 
 **Time investment:** 2-4 weeks depending on tool availability and complexity.
 
-**Detailed examples:** See [level3-mcp-examples.md](level3-mcp-examples.md)
+**Detailed examples:** See [../integrations/README.md](../integrations/README.md)
 
 ## Step 6: Deploy Agents (Level 4 - Optional)
 

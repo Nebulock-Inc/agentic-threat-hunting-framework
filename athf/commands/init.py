@@ -1,10 +1,11 @@
 """Initialize ATHF directory structure."""
 
 from pathlib import Path
+
 import click
 import yaml
 from rich.console import Console
-from rich.prompt import Prompt, Confirm
+from rich.prompt import Confirm, Prompt
 
 console = Console()
 
@@ -46,10 +47,11 @@ def init(path: str, non_interactive: bool) -> None:
 
     \b
     Interactive setup will ask you:
-      1. SIEM platform (Splunk, Sentinel, Elastic, etc.)
-      2. EDR platform (CrowdStrike, SentinelOne, etc.)
-      3. Hunt ID prefix (default: H-)
-      4. Hunt retention period (default: 365 days)
+      1. Workspace name (default: directory name)
+      2. SIEM platform (Splunk, Sentinel, Elastic, etc.)
+      3. EDR platform (CrowdStrike, SentinelOne, etc.)
+      4. Hunt ID prefix (default: H-)
+      5. Hunt retention period (default: 365 days)
 
     \b
     After initialization:
@@ -64,8 +66,7 @@ def init(path: str, non_interactive: bool) -> None:
     new_config_path = base_path / "config" / ".athfconfig.yaml"
 
     if (old_config_path.exists() or new_config_path.exists()) and not Confirm.ask(
-        f"ATHF already initialized in {base_path}. Reinitialize?",
-        default=False
+        f"ATHF already initialized in {base_path}. Reinitialize?", default=False
     ):
         console.print("[yellow]Initialization cancelled.[/yellow]")
         return
@@ -76,22 +77,12 @@ def init(path: str, non_interactive: bool) -> None:
 
     # Gather configuration
     if non_interactive:
-        config = _default_config()
+        config = _default_config(base_path)
     else:
-        config = _interactive_config()
+        config = _interactive_config(base_path)
 
     # Create directory structure
-    directories = [
-        "config",
-        "hunts",
-        "queries",
-        "runs",
-        "templates",
-        "knowledge",
-        "prompts",
-        "integrations",
-        "docs"
-    ]
+    directories = ["config", "hunts", "queries", "runs", "templates", "knowledge", "prompts", "integrations", "docs"]
 
     console.print("\n[bold]Creating directory structure...[/bold]")
     for dir_name in directories:
@@ -123,61 +114,54 @@ def init(path: str, non_interactive: bool) -> None:
     console.print("  3. Check out the docs at [cyan]docs/getting-started.md[/cyan]")
 
 
-def _default_config() -> dict:
+def _default_config(base_path: Path) -> dict:
     """Return default configuration."""
     return {
+        "workspace_name": base_path.name,
         "hunt_prefix": "H-",
         "siem": "Splunk",
         "edr": "CrowdStrike",
         "query_language": "SPL",
-        "hunt_retention_days": 365
+        "hunt_retention_days": 365,
     }
 
 
-def _interactive_config() -> dict:
+def _interactive_config(base_path: Path) -> dict:
     """Gather configuration interactively."""
     console.print("[bold]📋 Quick setup questions:[/bold]")
 
     config: dict = {}
 
+    # Workspace name
+    workspace_name = Prompt.ask(
+        "1. Workspace name (e.g., 'Production Hunts', 'Client-Acme', 'SOC Team')", default=base_path.name
+    )
+    config["workspace_name"] = workspace_name
+
     # SIEM
     siem = Prompt.ask(
-        "1. What SIEM do you use?",
-        choices=["Splunk", "Sentinel", "Elastic", "Chronicle", "Other"],
-        default="Splunk"
+        "2. What SIEM do you use?", choices=["Splunk", "Sentinel", "Elastic", "Chronicle", "Other"], default="Splunk"
     )
     config["siem"] = siem
 
     # Query language mapping
-    query_lang_map = {
-        "Splunk": "SPL",
-        "Sentinel": "KQL",
-        "Elastic": "Lucene",
-        "Chronicle": "YARA-L",
-        "Other": "Custom"
-    }
+    query_lang_map = {"Splunk": "SPL", "Sentinel": "KQL", "Elastic": "Lucene", "Chronicle": "YARA-L", "Other": "Custom"}
     config["query_language"] = query_lang_map.get(siem, "SPL")
 
     # EDR
     edr = Prompt.ask(
-        "2. What's your primary EDR?",
+        "3. What's your primary EDR?",
         choices=["CrowdStrike", "SentinelOne", "Defender", "Carbon Black", "Other"],
-        default="CrowdStrike"
+        default="CrowdStrike",
     )
     config["edr"] = edr
 
     # Hunt prefix
-    hunt_prefix = Prompt.ask(
-        "3. Hunt ID prefix (e.g., H-, HUNT-)",
-        default="H-"
-    )
+    hunt_prefix = Prompt.ask("4. Hunt ID prefix (e.g., H-, HUNT-)", default="H-")
     config["hunt_prefix"] = hunt_prefix
 
     # Retention
-    retention = Prompt.ask(
-        "4. Hunt retention (days)",
-        default="365"
-    )
+    retention = Prompt.ask("5. Hunt retention (days)", default="365")
     config["hunt_retention_days"] = int(retention) if isinstance(retention, str) else retention
 
     return config
@@ -186,6 +170,8 @@ def _interactive_config() -> dict:
 def _create_agents_file(path: Path, config: dict) -> None:
     """Create AGENTS.md file with configuration."""
     content = f"""# ATHF Agent Context
+
+**Workspace:** {config['workspace_name']}
 
 This file provides context to AI assistants about your threat hunting environment.
 

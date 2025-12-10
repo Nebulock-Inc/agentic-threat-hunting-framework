@@ -905,8 +905,7 @@ done
 
 - [Getting Started Guide](getting-started.md)
 - [Installation Guide](INSTALL.md)
-- [Contributing Guidelines](../CONTRIBUTING.md)
-- [Hunt Format Guidelines](FORMAT_GUIDELINES.md)
+- [Hunt Format Guidelines](../hunts/FORMAT_GUIDELINES.md)
 - [MITRE ATT&CK Framework](https://attack.mitre.org/)
 
 ---

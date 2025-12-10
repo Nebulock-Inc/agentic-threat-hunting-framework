@@ -2,8 +2,8 @@
 
 from datetime import datetime
 from typing import Optional
-from jinja2 import Template
 
+from jinja2 import Template
 
 HUNT_TEMPLATE = """---
 hunt_id: {{ hunt_id }}
@@ -171,7 +171,7 @@ def render_hunt_template(
     actor: Optional[str] = None,
     behavior: Optional[str] = None,
     location: Optional[str] = None,
-    evidence: Optional[str] = None
+    evidence: Optional[str] = None,
 ) -> str:
     """Render a hunt template with provided metadata.
 
@@ -220,5 +220,5 @@ def render_hunt_template(
         actor=actor,
         behavior=behavior,
         location=location,
-        evidence=evidence
+        evidence=evidence,
     )

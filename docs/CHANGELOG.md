@@ -30,7 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - None
 
-## [0.1.0] - TBD (Planned First Release)
+## [0.1.0] - 2025-12-10
 
 ### Added
 - Initial ATHF framework documentation
@@ -39,9 +39,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - USING_ATHF.md adoption guide
   - INSTALL.md installation guide
 - Example hunt implementations
-  - H-0001: macOS Information Stealer Detection
-  - H-0002: Linux Cron Persistence Detection
-  - H-0015: Windows Credential Dumping Detection
+  - H-0001: macOS Data Collection via AppleScript Detection
+  - H-0002: Linux Crontab Persistence Detection
+  - H-0003: AWS Lambda Persistence Detection
 - Templates
   - HUNT_LOCK.md template
   - Query templates for Splunk, KQL, Elastic
@@ -91,4 +91,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ATHF is a framework to internalize, not a platform to extend. However, if you've adapted ATHF in interesting ways or have feedback, we'd love to hear about it in [GitHub Discussions](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/discussions).
 
-For more on the philosophy, see [USING_ATHF.md](USING_ATHF.md).
+For more on the philosophy, see [../USING_ATHF.md](../USING_ATHF.md).

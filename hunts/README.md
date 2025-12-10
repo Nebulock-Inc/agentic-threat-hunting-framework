@@ -8,9 +8,10 @@ For template structure details, see [FORMAT_GUIDELINES.md](FORMAT_GUIDELINES.md)
 
 ```
 hunts/
-├── H-0001.md    ← macOS Data Collection via AppleScript Detection
-├── H-0002.md    ← Linux Crontab Persistence hunt
-└── H-0003.md    ← Your next hunt
+├── H-0001.md    ← macOS Data Collection via AppleScript Detection (T1005)
+├── H-0002.md    ← Linux Crontab Persistence Detection (T1053.003)
+├── H-0003.md    ← AWS Lambda Persistence Detection (T1546.004)
+└── H-####.md    ← Your next hunt
 ```
 
 Each file is a complete hunt from planning through execution results.
@@ -19,13 +20,25 @@ Each file is a complete hunt from planning through execution results.
 
 ### 1. Create a New Hunt
 
+**Using CLI (Recommended):**
+
+```bash
+# Interactive mode - prompts you for details
+athf hunt new
+
+# Or specify details directly
+athf hunt new --technique T1110.001 --title "SSH Brute Force Detection" --platform linux
+```
+
+**Manual Method (Alternative):**
+
 Copy the template and fill it out:
 
 ```bash
-cp templates/HUNT_LOCK.md hunts/H-0003.md
+cp ../templates/HUNT_LOCK.md hunts/H-0004.md
 ```
 
-Start with the **LEARN** section:
+**Either way, start with the LEARN section:**
 
 - Write your hypothesis
 - Fill out ABLE scoping table (Actor, Behavior, Location, Evidence)
@@ -213,5 +226,6 @@ Claude:
 ## Example Hunts
 
 - [H-0001.md](H-0001.md) - macOS Data Collection via AppleScript Detection (T1005, T1059.002, T1555.003)
-- [H-0002.md](H-0002.md) - Linux Crontab Persistence (T1053.003)
+- [H-0002.md](H-0002.md) - Linux Crontab Persistence Detection (T1053.003)
+- [H-0003.md](H-0003.md) - AWS Lambda Persistence Detection (T1546.004, T1098)
 - [FORMAT_GUIDELINES.md](FORMAT_GUIDELINES.md) - Template structure reference

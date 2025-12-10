@@ -353,7 +353,7 @@ hunts/
 
 ### With HEARTH
 
-If you use HEARTH format, add converters:
+If you use [HEARTH](https://github.com/THORCollective/HEARTH) format, add converters:
 
 ```bash
 ./tools/convert_to_hearth.py hunts/H-0001.md

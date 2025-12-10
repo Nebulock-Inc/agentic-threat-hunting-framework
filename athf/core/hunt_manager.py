@@ -2,7 +2,8 @@
 
 import re
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import Dict, List, Optional
+
 from athf.core.hunt_parser import parse_hunt_file
 
 
@@ -25,7 +26,7 @@ class HuntManager:
         status: Optional[str] = None,
         tactic: Optional[str] = None,
         technique: Optional[str] = None,
-        platform: Optional[str] = None
+        platform: Optional[str] = None,
     ) -> List[Dict]:
         """List all hunts with optional filters.
 
@@ -64,24 +65,26 @@ class HuntManager:
                 # Extract summary info
                 date_val = frontmatter.get("date")
                 # Convert date objects to strings for JSON serialization
-                if hasattr(date_val, 'isoformat'):
+                if hasattr(date_val, "isoformat"):
                     date_str = date_val.isoformat()
                 else:
                     date_str = str(date_val) if date_val else None
 
-                hunts.append({
-                    "hunt_id": frontmatter.get("hunt_id"),
-                    "title": frontmatter.get("title"),
-                    "status": frontmatter.get("status"),
-                    "date": date_str,
-                    "platform": frontmatter.get("platform", []),
-                    "tactics": frontmatter.get("tactics", []),
-                    "techniques": frontmatter.get("techniques", []),
-                    "findings_count": frontmatter.get("findings_count", 0),
-                    "true_positives": frontmatter.get("true_positives", 0),
-                    "false_positives": frontmatter.get("false_positives", 0),
-                    "file_path": str(hunt_file)
-                })
+                hunts.append(
+                    {
+                        "hunt_id": frontmatter.get("hunt_id"),
+                        "title": frontmatter.get("title"),
+                        "status": frontmatter.get("status"),
+                        "date": date_str,
+                        "platform": frontmatter.get("platform", []),
+                        "tactics": frontmatter.get("tactics", []),
+                        "techniques": frontmatter.get("techniques", []),
+                        "findings_count": frontmatter.get("findings_count", 0),
+                        "true_positives": frontmatter.get("true_positives", 0),
+                        "false_positives": frontmatter.get("false_positives", 0),
+                        "file_path": str(hunt_file),
+                    }
+                )
 
             except Exception:
                 # Skip files that can't be parsed
@@ -160,12 +163,14 @@ class HuntManager:
                     hunt_data = parse_hunt_file(hunt_file)
                     frontmatter = hunt_data.get("frontmatter", {})
 
-                    results.append({
-                        "hunt_id": frontmatter.get("hunt_id"),
-                        "title": frontmatter.get("title"),
-                        "status": frontmatter.get("status"),
-                        "file_path": str(hunt_file)
-                    })
+                    results.append(
+                        {
+                            "hunt_id": frontmatter.get("hunt_id"),
+                            "title": frontmatter.get("title"),
+                            "status": frontmatter.get("status"),
+                            "file_path": str(hunt_file),
+                        }
+                    )
 
             except Exception:
                 continue
@@ -188,7 +193,7 @@ class HuntManager:
                 "true_positives": 0,
                 "false_positives": 0,
                 "success_rate": 0.0,
-                "tp_fp_ratio": 0.0
+                "tp_fp_ratio": 0.0,
             }
 
         total_hunts = len(hunts)
@@ -203,7 +208,7 @@ class HuntManager:
         success_rate = (hunts_with_tp / completed_hunts * 100) if completed_hunts > 0 else 0.0
 
         # Calculate TP/FP ratio
-        tp_fp_ratio = (total_tp / total_fp) if total_fp > 0 else float('inf')
+        tp_fp_ratio = (total_tp / total_fp) if total_fp > 0 else float("inf")
 
         return {
             "total_hunts": total_hunts,
@@ -212,7 +217,7 @@ class HuntManager:
             "true_positives": total_tp,
             "false_positives": total_fp,
             "success_rate": round(success_rate, 1),
-            "tp_fp_ratio": round(tp_fp_ratio, 2) if tp_fp_ratio != float('inf') else "∞"
+            "tp_fp_ratio": round(tp_fp_ratio, 2) if tp_fp_ratio != float("inf") else "∞",
         }
 
     def calculate_attack_coverage(self) -> Dict[str, List[str]]:

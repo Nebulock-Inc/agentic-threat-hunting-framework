@@ -1,10 +1,12 @@
 """
 Pytest configuration and shared fixtures for ATHF tests.
 """
-import pytest
-import tempfile
+
 import shutil
+import tempfile
 from pathlib import Path
+
+import pytest
 
 
 @pytest.fixture
@@ -97,17 +99,17 @@ version: 0.1.0
 def athf_workspace(temp_dir, sample_config_content):
     """Create a complete ATHF workspace structure for testing."""
     # Create directories
-    (temp_dir / 'hunts').mkdir()
-    (temp_dir / 'queries').mkdir()
-    (temp_dir / 'runs').mkdir()
-    (temp_dir / 'templates').mkdir()
+    (temp_dir / "hunts").mkdir()
+    (temp_dir / "queries").mkdir()
+    (temp_dir / "runs").mkdir()
+    (temp_dir / "templates").mkdir()
 
     # Create config file
-    config_path = temp_dir / '.athfconfig.yaml'
+    config_path = temp_dir / ".athfconfig.yaml"
     config_path.write_text(sample_config_content)
 
     # Create AGENTS.md
-    agents_path = temp_dir / 'AGENTS.md'
+    agents_path = temp_dir / "AGENTS.md"
     agents_path.write_text("# ATHF AI Assistant Instructions\n\nTest content.")
 
     yield temp_dir
@@ -116,7 +118,7 @@ def athf_workspace(temp_dir, sample_config_content):
 @pytest.fixture
 def sample_hunt_file(athf_workspace, sample_hunt_content):
     """Create a sample hunt file in the workspace."""
-    hunt_path = athf_workspace / 'hunts' / 'H-0001.md'
+    hunt_path = athf_workspace / "hunts" / "H-0001.md"
     hunt_path.write_text(sample_hunt_content)
     return hunt_path
 
@@ -125,12 +127,12 @@ def sample_hunt_file(athf_workspace, sample_hunt_content):
 def athf_workspace_with_hunts(athf_workspace, sample_hunt_content):
     """Create an ATHF workspace with sample hunt files."""
     # Create first hunt
-    hunt1_path = athf_workspace / 'hunts' / 'H-0001.md'
+    hunt1_path = athf_workspace / "hunts" / "H-0001.md"
     hunt1_path.write_text(sample_hunt_content)
 
     # Create second hunt with different content
-    hunt2_content = sample_hunt_content.replace('H-0001', 'H-0002').replace('Test Hunt', 'Second Hunt')
-    hunt2_path = athf_workspace / 'hunts' / 'H-0002.md'
+    hunt2_content = sample_hunt_content.replace("H-0001", "H-0002").replace("Test Hunt", "Second Hunt")
+    hunt2_path = athf_workspace / "hunts" / "H-0002.md"
     hunt2_path.write_text(hunt2_content)
 
     return athf_workspace
@@ -139,12 +141,6 @@ def athf_workspace_with_hunts(athf_workspace, sample_hunt_content):
 # Custom markers for categorizing tests
 def pytest_configure(config):
     """Register custom markers."""
-    config.addinivalue_line(
-        "markers", "unit: mark test as a unit test (fast, isolated)"
-    )
-    config.addinivalue_line(
-        "markers", "integration: mark test as an integration test (slower, multiple components)"
-    )
-    config.addinivalue_line(
-        "markers", "slow: mark test as slow (skipped in quick test runs)"
-    )
+    config.addinivalue_line("markers", "unit: mark test as a unit test (fast, isolated)")
+    config.addinivalue_line("markers", "integration: mark test as an integration test (slower, multiple components)")
+    config.addinivalue_line("markers", "slow: mark test as slow (skipped in quick test runs)")

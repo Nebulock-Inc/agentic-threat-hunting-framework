@@ -1,10 +1,12 @@
 """ATHF command-line interface."""
 
-import click
 import random
+
+import click
 from rich.console import Console
+
 from athf.__version__ import __version__
-from athf.commands import init, hunt
+from athf.commands import hunt, init
 
 console = Console()
 
@@ -22,7 +24,7 @@ Examples:
   athf hunt search "credential dumping"
 
   # List all completed hunts
-  athf hunt list-hunts --status completed
+  athf hunt list --status completed
 
   # Show program statistics
   athf hunt stats
@@ -52,7 +54,7 @@ Created by Sydney Marrone © 2025
 @click.version_option(
     version=__version__,
     prog_name="athf",
-    message="%(prog)s version %(version)s\nAgentic Threat Hunting Framework\nCreated by Sydney Marrone © 2025"
+    message="%(prog)s version %(version)s\nAgentic Threat Hunting Framework\nCreated by Sydney Marrone © 2025",
 )
 def cli() -> None:
     """Agentic Threat Hunting Framework (ATHF) - Hunt management CLI
@@ -68,7 +70,7 @@ def cli() -> None:
     Quick Start:
       athf init           Set up a new hunting workspace
       athf hunt new       Create a hunt from template
-      athf hunt list-hunts View all hunts
+      athf hunt list      View all hunts
       athf hunt search    Find hunts by keyword
       athf hunt stats     Show program metrics
     """
@@ -102,7 +104,7 @@ def wisdom() -> None:
         "Hunt like an adversary thinks: what would I do if I were already inside?",
         "The best detection is a hunt hypothesis validated repeatedly.",
         "Memory is the multiplier. Agency is the force.",
-        "Document the hunt that found nothing—it eliminates hypotheses for everyone who comes after you."
+        "Document the hunt that found nothing—it eliminates hypotheses for everyone who comes after you.",
     ]
 
     console.print(f"\n💭 [italic]{random.choice(quotes)}[/italic]\n")

@@ -18,7 +18,7 @@ This repository contains threat hunting hypotheses, execution notes, and lessons
 - Read past hunt notes before suggesting new hypotheses
 - Reference lessons learned when generating queries
 - Avoid suggesting hunts we've already completed
-- Use environment.md to inform hunt planning
+- Use [docs/environment.md](docs/environment.md) to inform hunt planning
 - **Focus on behaviors and TTPs (top of Pyramid of Pain), not indicators** - Never build hunts around hashes or IPs alone
 
 ---
@@ -30,7 +30,8 @@ This repository contains threat hunting hypotheses, execution notes, and lessons
 ├── README.md              # Framework overview and landing page
 ├── AGENTS.md              # This file - AI assistant context
 ├── USING_ATHF.md          # Adoption and customization guide
-├── environment.md         # Tech stack, tools, infrastructure inventory
+├── SHOWCASE.md            # Example results and use cases
+├── .athfconfig.yaml       # Workspace configuration (hunt prefix, SIEM settings)
 │
 ├── hunts/                 # Hunt hypothesis cards (LOCK structure)
 │   └── H-XXXX.md          # Single file per hunt (hypothesis, planning, outcomes)
@@ -56,11 +57,20 @@ This repository contains threat hunting hypotheses, execution notes, and lessons
 │   └── quickstart/        # Setup guides for specific tools
 │
 ├── docs/                  # Detailed documentation
+│   ├── environment.md     # Tech stack, tools, infrastructure inventory
 │   ├── getting-started.md # Step-by-step adoption guide
 │   ├── lock-pattern.md    # LOCK methodology details
 │   ├── maturity-model.md  # Five levels explained
-│   └── level3-mcp-examples.md  # MCP integration examples
+│   └── level4-agentic-workflows.md  # Level 4 autonomous agent examples
 │
+├── athf/                  # CLI source code (optional convenience tooling)
+│   ├── commands/          # Hunt management commands
+│   ├── core/              # Hunt parsing and validation
+│   └── utils/             # Helper utilities
+│
+├── config/                # Configuration templates
+├── scripts/               # Helper scripts
+├── tests/                 # Test suite for CLI
 └── assets/                # Images and diagrams
     ├── athf_logo.jpg
     ├── athf_lock.png
@@ -176,11 +186,11 @@ When working with hunts:
 
 ```
 User: "Generate hypothesis for hunting Log4j exploitation"
-AI: *checks environment.md* "I see you run Java applications with log aggregation
+AI: *checks docs/environment.md* "I see you run Java applications with log aggregation
      in Splunk. Here's a hypothesis targeting your environment..."
 ```
 
-**Note:** environment.md may include CVE/patch status for context, but this framework focuses on **behavior-based hunting**, not vulnerability scanning.
+**Note:** [docs/environment.md](docs/environment.md) may include CVE/patch status for context, but this framework focuses on **behavior-based hunting**, not vulnerability scanning.
 
 ---
 
@@ -194,17 +204,17 @@ Before suggesting a hunt, I verify that the required data sources and telemetry 
 
 | Category | Hunt Requires | Why This Matters | Reference |
 |----------|---------------|------------------|-----------|
-| **SIEM/Logs** | Log aggregation platform with query language (SPL, KQL, etc.) | Can't hunt without searchable logs | See environment.md "SIEM / Log Aggregation" |
-| **Endpoint** | EDR with process, network, and/or file telemetry | Determines what adversary behaviors you can detect | See environment.md "EDR / Endpoint Security" |
-| **Network** | Flow data (NetFlow/IPFIX) or firewall/IDS logs | Needed for C2 communication, lateral movement, data exfiltration hunts | See environment.md "Network Security" |
-| **Cloud** | Cloud provider (AWS/Azure/GCP) with CloudTrail/activity logging | Scope of cloud hunting capability | See environment.md "Cloud Security" |
-| **Identity** | Active Directory or identity provider with auth logs | Needed for credential attack, lateral movement, persistence hunts | See environment.md "Identity & Access" |
+| **SIEM/Logs** | Log aggregation platform with query language (SPL, KQL, etc.) | Can't hunt without searchable logs | See [docs/environment.md](docs/environment.md) "SIEM / Log Aggregation" |
+| **Endpoint** | EDR with process, network, and/or file telemetry | Determines what adversary behaviors you can detect | See [docs/environment.md](docs/environment.md) "EDR / Endpoint Security" |
+| **Network** | Flow data (NetFlow/IPFIX) or firewall/IDS logs | Needed for C2 communication, lateral movement, data exfiltration hunts | See [docs/environment.md](docs/environment.md) "Network Security" |
+| **Cloud** | Cloud provider (AWS/Azure/GCP) with CloudTrail/activity logging | Scope of cloud hunting capability | See [docs/environment.md](docs/environment.md) "Cloud Security" |
+| **Identity** | Active Directory or identity provider with auth logs | Needed for credential attack, lateral movement, persistence hunts | See [docs/environment.md](docs/environment.md) "Identity & Access" |
 
 ### How I Use This Information
 
 **Before generating a hunt, I will:**
 
-1. **Check environment.md** for your actual tools, versions, and coverage
+1. **Check [docs/environment.md](docs/environment.md)** for your actual tools, versions, and coverage
 2. **Verify required data sources** exist (e.g., "Is SIEM available? What query language?")
 3. **Confirm compatibility** (e.g., suggesting SPL queries only if you use Splunk)
 4. **Note coverage gaps** (e.g., "You don't have EDR, so we can't hunt process execution patterns")
@@ -213,7 +223,7 @@ Before suggesting a hunt, I verify that the required data sources and telemetry 
 **If I can't find data source information:**
 
 - I will ask you directly: "Do you have [telemetry type]?" or "What's your query language?"
-- I will reference the section in environment.md that should contain the answer
+- I will reference the section in [docs/environment.md](docs/environment.md) that should contain the answer
 - I will not make assumptions about your infrastructure
 
 ### Known Gaps & Blind Spots
@@ -403,7 +413,7 @@ AI Workflow:
    - lateral-movement: 2 hunts  ← Low coverage
    - exfiltration: 1 hunt  ← Low coverage
 3. Prioritize hunt suggestions for low-coverage tactics
-4. Reference environment.md to ensure we have telemetry
+4. Reference [docs/environment.md](docs/environment.md) to ensure we have telemetry
 ```
 
 #### Example 3: Hunt Success Metrics
@@ -509,7 +519,7 @@ AI Workflow:
 ### Hypothesis Validation
 
 - **Check if we've hunted this before** (grep hunts/ folder)
-- **Verify data source availability** (reference environment.md)
+- **Verify data source availability** (reference [docs/environment.md](docs/environment.md))
 - **Ensure hypothesis is testable** (can be validated with a query)
 - **Consider false positive rate** (will this hunt generate noise?)
 
@@ -523,33 +533,8 @@ AI Workflow:
 ### Memory and Context
 
 - **Search before suggesting** - Check if we've hunted this TTP/behavior before
-- **Reference environment.md** - Ensure suggestions match our actual tech stack
+- **Reference [docs/environment.md](docs/environment.md)** - Ensure suggestions match our actual tech stack
 - **Apply past lessons** - Use outcomes from similar hunts to improve new hypotheses
-
----
-
-## AI Workflow Examples
-
-### Level 2 (Searchable) - AI with Memory
-
-**User asks:** "Generate hypothesis for hunting Kerberoasting attacks"
-
-**AI should:**
-
-1. Search `hunts/` for past Kerberoasting hunts
-2. Check `environment.md` for Active Directory presence and logging capabilities
-3. Read any lessons learned from similar hunts (T1558.003, credential access TTPs)
-4. Generate LOCK-formatted hypothesis referencing available data sources
-5. Suggest query targeting confirmed data sources (e.g., Windows Security Event Logs in Splunk)
-
-### Level 3+ (Agentic) - Scripted Workflows
-
-When building automation scripts, AI should:
-
-- Reference this AGENTS.md file to understand repo structure
-- Use environment.md as the tech stack source of truth
-- Follow LOCK structure when auto-generating hunt files
-- Include human-in-the-loop validation for high-risk operations
 
 ---
 
@@ -565,7 +550,7 @@ This section provides essential guidance for AI assistants generating threat hun
 
 1. **Consult Hunting Brain** - Read [knowledge/hunting-knowledge.md](knowledge/hunting-knowledge.md) Section 1 (Hypothesis Generation) and Section 5 (Pyramid of Pain)
 2. **Search Memory First** - Check hunts/ for similar TTPs or past work
-3. **Validate Environment** - Read environment.md to confirm data sources exist
+3. **Validate Environment** - Read [docs/environment.md](docs/environment.md) to confirm data sources exist
 4. **Generate LOCK Hypothesis** - Create testable hypothesis following templates/HUNT_LOCK.md
 5. **Apply Quality Criteria** - Use hunting-knowledge.md Section 1 quality checklist (Falsifiable, Scoped, Observable, Actionable, Contextual)
 6. **Suggest Next Steps** - Offer to create hunt file or draft query
@@ -575,7 +560,7 @@ This section provides essential guidance for AI assistants generating threat hun
 - **Focus on behaviors/TTPs (top of Pyramid of Pain)** - Never build hypothesis around hashes or IPs alone
 - Match hypothesis format: "Adversaries use [behavior] to [goal] on [target]"
 - Reference past hunts by ID (e.g., "Building on H-0022 lessons...")
-- Specify data sources from environment.md (e.g., "index=winlogs", "SecurityEvent table")
+- Specify data sources from [docs/environment.md](docs/environment.md) (e.g., "index=winlogs", "SecurityEvent table")
 - Include bounded time range with justification
 - Consider false positives from similar past hunts
 - Apply hypothesis quality rubric from hunting-knowledge.md
@@ -603,7 +588,7 @@ This section provides essential guidance for AI assistants generating threat hun
 ### Known Coverage Gaps
 
 - [TTPs you can't currently hunt due to telemetry gaps]
-- [Reference environment.md "Known Gaps & Blind Spots" section]
+- [Reference [docs/environment.md](docs/environment.md) "Known Gaps & Blind Spots" section]
 
 **AI Note:** Prioritize hunt suggestions for high-priority TTPs with available telemetry.
 
@@ -645,7 +630,7 @@ This section provides essential guidance for AI assistants generating threat hun
 **When AI needs to recall past hunts:**
 
 - **CLI available:** Use `athf hunt search`, `athf hunt list --filter`, `athf hunt stats`
-- **CLI unavailable:** Use grep/search across `hunts/` folder and `environment.md`
+- **CLI unavailable:** Use grep/search across `hunts/` folder and [docs/environment.md](docs/environment.md)
 - **Level 3+:** Query structured memory via CLI or custom scripts
 
 **CLI benefits:** Structured output (JSON/YAML), built-in filtering, automatic YAML parsing

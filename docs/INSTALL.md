@@ -569,17 +569,17 @@ Your hunt files are separate from the package installation, so uninstalling ATHF
 After installation:
 
 1. **Initialize your workspace**: `athf init`
-2. **Read the getting started guide**: [docs/getting-started.md](docs/getting-started.md)
-3. **Review the CLI reference**: [docs/CLI_REFERENCE.md](docs/CLI_REFERENCE.md)
+2. **Read the getting started guide**: [getting-started.md](getting-started.md)
+3. **Review the CLI reference**: [CLI_REFERENCE.md](CLI_REFERENCE.md)
 4. **Create your first hunt**: `athf hunt new`
-5. **Explore example hunts**: [hunts/H-0001.md](hunts/H-0001.md)
+5. **Explore example hunts**: [../hunts/H-0001.md](../hunts/H-0001.md)
 
 ---
 
 ## Getting Help
 
 - **CLI help**: `athf --help` or `athf <command> --help`
-- **Documentation**: [docs/getting-started.md](docs/getting-started.md)
+- **Documentation**: [getting-started.md](getting-started.md)
 - **Issues**: [GitHub Issues](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/discussions)
 

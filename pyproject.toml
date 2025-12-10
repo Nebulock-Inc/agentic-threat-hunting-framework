@@ -10,10 +10,10 @@ readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "MIT"}
 authors = [
-    {name = "Sydney Marrone", email = "athf@nebulock.com"}
+    {name = "Sydney Marrone", email = "athf@nebulock.io"}
 ]
 maintainers = [
-    {name = "Sydney Marrone", email = "athf@nebulock.com"}
+    {name = "Sydney Marrone", email = "athf@nebulock.io"}
 ]
 keywords = [
     "threat-hunting",
@@ -40,6 +40,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Operating System :: OS Independent",
     "Environment :: Console",
 ]
@@ -85,7 +86,7 @@ athf = ["templates/*.md", "knowledge/*.md"]
 
 [tool.black]
 line-length = 127
-target-version = ['py38', 'py39', 'py310', 'py311', 'py312']
+target-version = ['py38', 'py39', 'py310', 'py311', 'py312', 'py313']
 include = '\.pyi?$'
 exclude = '''
 /(

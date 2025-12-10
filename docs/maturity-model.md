@@ -275,7 +275,7 @@ AI: [Executes Splunk query via MCP]
 3. Follow quickstart guide: [integrations/quickstart/](../integrations/quickstart/)
 4. Review example hunts: See [hunts/](../hunts/) directory
 
-**Detailed workflows:** See [level3-mcp-examples.md](level3-mcp-examples.md) for comprehensive examples
+**Detailed workflows:** See [../integrations/README.md](../integrations/README.md) for comprehensive examples
 
 ### Success Criteria
 

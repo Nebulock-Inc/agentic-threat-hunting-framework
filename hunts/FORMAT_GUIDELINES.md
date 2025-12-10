@@ -254,7 +254,7 @@ tags: [javascript, node-js, living-off-the-land, supply-chain]
 
 **Example:** Full YAML schema with all optional fields populated post-execution
 
-### Best Practices
+### YAML Best Practices
 
 **Consistency**
 
@@ -406,7 +406,6 @@ Results, lessons, and follow-up actions.
 ---
 
 **Hunt Completed:** [Date]
-**Next Review:** [Date for recurring hunt or "N/A"]
 
 ---
 
@@ -447,7 +446,7 @@ Results, lessons, and follow-up actions.
 - Identify detection opportunities
 - Plan follow-up actions and hunts
 
-## Best Practices
+## Hunt Workflow Best Practices
 
 ### Query Development
 
@@ -505,4 +504,4 @@ The result is a condensed, practical template that guides hunters from hypothesi
 
 ## Example Reference
 
-See [H-0001.md](H-0001.md) and [H-0002.md](H-0002.md) for complete hunt examples.
+See [H-0001.md](H-0001.md), [H-0002.md](H-0002.md), and [H-0003.md](H-0003.md) for complete hunt examples.

@@ -1,17 +1,19 @@
 """Hunt management commands."""
 
-import click
-import yaml
 import random
 from datetime import datetime
 from pathlib import Path
-from rich.console import Console
-from rich.table import Table
-from rich.prompt import Prompt
+
+import click
+import yaml
 from rich import box
+from rich.console import Console
+from rich.prompt import Prompt
+from rich.table import Table
+
 from athf.core.hunt_manager import HuntManager
-from athf.core.template_engine import render_hunt_template
 from athf.core.hunt_parser import validate_hunt_file
+from athf.core.template_engine import render_hunt_template
 
 console = Console()
 
@@ -146,16 +148,10 @@ def new(technique: str, title: str, tactic: tuple, platform: tuple, data_source:
         console.print("\n[bold]🔍 Let's build your hypothesis:[/bold]")
 
         # Technique
-        hunt_technique = Prompt.ask(
-            "1. MITRE ATT&CK Technique (e.g., T1003.001)",
-            default=technique or ""
-        )
+        hunt_technique = Prompt.ask("1. MITRE ATT&CK Technique (e.g., T1003.001)", default=technique or "")
 
         # Title
-        hunt_title = Prompt.ask(
-            "2. Hunt Title",
-            default=title or f"Hunt for {hunt_technique}"
-        )
+        hunt_title = Prompt.ask("2. Hunt Title", default=title or f"Hunt for {hunt_technique}")
 
         # Tactics
         console.print("\n3. Primary Tactic(s) (comma-separated):")
@@ -183,7 +179,7 @@ def new(technique: str, title: str, tactic: tuple, platform: tuple, data_source:
         technique=hunt_technique,
         tactics=hunt_tactics,
         platform=hunt_platforms,
-        data_sources=hunt_data_sources
+        data_sources=hunt_data_sources,
     )
 
     # Write hunt file
@@ -208,7 +204,7 @@ def new(technique: str, title: str, tactic: tuple, platform: tuple, data_source:
     console.print("  3. View all hunts: [cyan]athf hunt list[/cyan]")
 
 
-@hunt.command()
+@hunt.command(name="list")
 @click.option("--status", help="Filter by status (planning, active, completed)")
 @click.option("--tactic", help="Filter by MITRE tactic")
 @click.option("--technique", help="Filter by MITRE technique (e.g., T1003.001)")
@@ -250,12 +246,7 @@ def list_hunts(status: str, tactic: str, technique: str, platform: str, output: 
     Note: Use --output instead of --format for specifying output format.
     """
     manager = HuntManager()
-    hunts = manager.list_hunts(
-        status=status,
-        tactic=tactic,
-        technique=technique,
-        platform=platform
-    )
+    hunts = manager.list_hunts(status=status, tactic=tactic, technique=technique, platform=platform)
 
     if not hunts:
         console.print("[yellow]No hunts found.[/yellow]")
@@ -264,6 +255,7 @@ def list_hunts(status: str, tactic: str, technique: str, platform: str, output: 
 
     if output == "json":
         import json
+
         console.print(json.dumps(hunts, indent=2))
         return
 

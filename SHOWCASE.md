@@ -334,7 +334,6 @@ Deployed final query as 5-minute scheduled search:
 - Enable bash history logging across all Linux servers
 - Implement automated cron inventory for baseline maintenance
 - Document playbook for SOC analyst triage
-- Schedule recurring monthly hunt
 
 **Hunt Status:** ✅ Completed - Detection rule deployed and validated
 
