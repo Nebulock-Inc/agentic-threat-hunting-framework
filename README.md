@@ -2,7 +2,7 @@
   <img src="assets/athf_logo.png" alt="ATHF Logo" width="400"/>
 </p>
 
-# Agentic Threat Hunting Framework (ATHF)
+<h1 align="center">Agentic Threat Hunting Framework (ATHF)</h1>
 
 [![PyPI version](https://badge.fury.io/py/athf-framework.svg)](https://badge.fury.io/py/athf-framework)
 [![Python Version](https://img.shields.io/badge/python-3.8%2B-blue)](https://www.python.org/downloads/)
