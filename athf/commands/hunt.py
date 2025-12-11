@@ -3,6 +3,7 @@
 import random
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 
 import click
 import yaml
@@ -88,7 +89,28 @@ def hunt() -> None:
 @click.option("--platform", multiple=True, help="Target platforms (can specify multiple)")
 @click.option("--data-source", multiple=True, help="Data sources (can specify multiple)")
 @click.option("--non-interactive", is_flag=True, help="Skip interactive prompts")
-def new(technique: str, title: str, tactic: tuple, platform: tuple, data_source: tuple, non_interactive: bool) -> None:
+@click.option("--hypothesis", help="Full hypothesis statement")
+@click.option("--threat-context", help="Threat intel or context motivating the hunt")
+@click.option("--actor", help="Threat actor (for ABLE framework)")
+@click.option("--behavior", help="Behavior description (for ABLE framework)")
+@click.option("--location", help="Location/scope (for ABLE framework)")
+@click.option("--evidence", help="Evidence description (for ABLE framework)")
+@click.option("--hunter", help="Hunter name", default="AI Assistant")
+def new(
+    technique: Optional[str],
+    title: Optional[str],
+    tactic: tuple[str, ...],
+    platform: tuple[str, ...],
+    data_source: tuple[str, ...],
+    non_interactive: bool,
+    hypothesis: Optional[str],
+    threat_context: Optional[str],
+    actor: Optional[str],
+    behavior: Optional[str],
+    location: Optional[str],
+    evidence: Optional[str],
+    hunter: Optional[str],
+) -> None:
     """Create a new hunt hypothesis with LOCK structure.
 
     \b
@@ -180,6 +202,13 @@ def new(technique: str, title: str, tactic: tuple, platform: tuple, data_source:
         tactics=hunt_tactics,
         platform=hunt_platforms,
         data_sources=hunt_data_sources,
+        hunter=hunter or "AI Assistant",
+        hypothesis=hypothesis,
+        threat_context=threat_context,
+        actor=actor,
+        behavior=behavior,
+        location=location,
+        evidence=evidence,
     )
 
     # Write hunt file
