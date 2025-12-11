@@ -3,7 +3,7 @@
 import random
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 
 import click
 import yaml
@@ -99,9 +99,9 @@ def hunt() -> None:
 def new(
     technique: Optional[str],
     title: Optional[str],
-    tactic: tuple[str, ...],
-    platform: tuple[str, ...],
-    data_source: tuple[str, ...],
+    tactic: Tuple[str, ...],
+    platform: Tuple[str, ...],
+    data_source: Tuple[str, ...],
     non_interactive: bool,
     hypothesis: Optional[str],
     threat_context: Optional[str],

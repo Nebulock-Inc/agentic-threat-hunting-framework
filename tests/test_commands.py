@@ -187,6 +187,69 @@ class TestHuntNewCommand:
         assert "persistence" in content
         assert "privilege-escalation" in content
 
+    def test_hunt_new_with_rich_content(self, runner, temp_workspace):
+        """Test creating hunt with rich content parameters (hypothesis, threat-context, ABLE framework)."""
+        runner.invoke(init, ["--non-interactive"])
+
+        result = runner.invoke(
+            hunt,
+            [
+                "new",
+                "--title",
+                "Rich Content Hunt",
+                "--technique",
+                "T1003.001",
+                "--tactic",
+                "credential-access",
+                "--platform",
+                "Windows",
+                "--data-source",
+                "Sysmon",
+                "--hypothesis",
+                "Adversaries dump LSASS memory to extract credentials",
+                "--threat-context",
+                "APT29 and ransomware groups commonly use this technique",
+                "--actor",
+                "APT29, Ransomware operators",
+                "--behavior",
+                "Process access to lsass.exe with PROCESS_VM_READ",
+                "--location",
+                "Windows endpoints, Domain Controllers",
+                "--evidence",
+                "Sysmon Event ID 10, EDR process access events",
+                "--hunter",
+                "Test Hunter",
+                "--non-interactive",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "H-0001" in result.output
+
+        hunt_file = temp_workspace / "hunts" / "H-0001.md"
+        content = hunt_file.read_text()
+
+        # Verify YAML frontmatter
+        assert "hunt_id: H-0001" in content
+        assert "hunter: Test Hunter" in content
+
+        # Verify hypothesis is populated
+        assert "Adversaries dump LSASS memory to extract credentials" in content
+
+        # Verify threat context is populated
+        assert "APT29 and ransomware groups commonly use this technique" in content
+
+        # Verify ABLE framework fields are populated
+        assert "APT29, Ransomware operators" in content
+        assert "Process access to lsass.exe with PROCESS_VM_READ" in content
+        assert "Windows endpoints, Domain Controllers" in content
+        assert "Sysmon Event ID 10, EDR process access events" in content
+
+        # Verify it's not using default placeholders
+        assert "[What behavior are you looking for?" not in content
+        assert "[What threat actor/malware/TTP motivates this hunt?]" not in content
+        assert "[Threat actor or malware family]" not in content
+
 
 class TestHuntListCommand:
     """Test suite for athf hunt list command."""
