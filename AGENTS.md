@@ -275,6 +275,48 @@ athf --version
 
 **Full CLI documentation:** [docs/CLI_REFERENCE.md](docs/CLI_REFERENCE.md)
 
+### AI-Friendly Hunt Creation (One-Liner Support)
+
+**NEW:** `athf hunt new` now supports rich content flags for fully-populated hunt files without manual editing.
+
+**Basic Usage:**
+```bash
+athf hunt new --title "Hunt Title" --technique T1003.001 --non-interactive
+```
+
+**AI-Friendly One-Liner (Full Hypothesis + ABLE Framework):**
+```bash
+athf hunt new \
+  --title "macOS Unix Shell Abuse for Reconnaissance" \
+  --technique "T1059.004" \
+  --tactics "execution,defense-evasion" \
+  --platforms "macos" \
+  --data-sources "EDR process telemetry" \
+  --hypothesis "Adversaries execute malicious commands via native macOS shells..." \
+  --threat-context "macOS developer workstations are high-value targets..." \
+  --actor "Generic adversary (malware droppers, supply chain attackers...)" \
+  --behavior "Shell execution from unusual parents performing reconnaissance..." \
+  --location "macOS endpoints (developer workstations)..." \
+  --evidence "EDR process telemetry - Fields: process.name..." \
+  --hunter "Your Name" \
+  --non-interactive
+```
+
+**Benefits:**
+✅ AI assistants can create fully-populated hunt files in one command
+✅ No manual file editing required for basic hunts
+✅ All LOCK template fields can be populated via CLI
+✅ Backwards compatible (all flags are optional)
+
+**Available Rich Content Flags:**
+- `--hypothesis` - Full hypothesis statement
+- `--threat-context` - Threat intel or context motivating the hunt
+- `--actor` - Threat actor (for ABLE framework)
+- `--behavior` - Behavior description (for ABLE framework)
+- `--location` - Location/scope (for ABLE framework)
+- `--evidence` - Evidence description (for ABLE framework)
+- `--hunter` - Hunter name (default: "AI Assistant")
+
 ---
 
 ## Hunting Methodology

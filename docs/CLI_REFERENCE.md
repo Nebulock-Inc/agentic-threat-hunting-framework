@@ -145,6 +145,8 @@ Creates a new hunt file with proper YAML frontmatter and LOCK structure. Automat
 
 ### Options
 
+**Basic Options:**
+
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `--non-interactive` | Flag | False | Skip interactive prompts |
@@ -153,8 +155,19 @@ Creates a new hunt file with proper YAML frontmatter and LOCK structure. Automat
 | `--tactics` | String | - | Comma-separated tactics (e.g., credential-access,defense-evasion) |
 | `--platforms` | String | - | Comma-separated platforms (e.g., windows,linux,macos) |
 | `--data-sources` | String | - | Comma-separated data sources |
-| `--hunter` | String | Your Name | Your name or handle |
+| `--hunter` | String | AI Assistant | Your name or handle |
 | `--severity` | Choice | medium | Severity: `low`, `medium`, `high`, `critical` |
+
+**Rich Content Options (for AI assistants & automation):**
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `--hypothesis` | String | Full hypothesis statement |
+| `--threat-context` | String | Threat intel or context motivating the hunt |
+| `--actor` | String | Threat actor description (for ABLE framework) |
+| `--behavior` | String | Behavior description (for ABLE framework) |
+| `--location` | String | Location/scope description (for ABLE framework) |
+| `--evidence` | String | Evidence description (for ABLE framework) |
 
 \* Required in non-interactive mode
 
@@ -199,6 +212,31 @@ athf hunt new \
   --title "LSASS Memory Dumping" \
   --non-interactive
 ```
+
+**AI-friendly one-liner with rich content** (full hypothesis + ABLE framework):
+
+```bash
+athf hunt new \
+  --title "macOS Unix Shell Abuse for Reconnaissance" \
+  --technique "T1059.004" \
+  --tactics "execution,defense-evasion" \
+  --platforms "macos" \
+  --data-sources "EDR process telemetry" \
+  --hypothesis "Adversaries execute malicious commands via native macOS shells to perform reconnaissance and staging activities" \
+  --threat-context "macOS developer workstations are high-value targets for supply chain attacks and credential theft" \
+  --actor "Generic adversary (malware droppers, supply chain attackers, insider threats)" \
+  --behavior "Shell execution from unusual parents performing reconnaissance or accessing sensitive files" \
+  --location "macOS endpoints (developer workstations, CI/CD infrastructure)" \
+  --evidence "EDR process telemetry - Fields: process.name, process.parent.name, process.command_line" \
+  --hunter "Your Name" \
+  --non-interactive
+```
+
+**Benefits of rich content flags:**
+- ✅ AI assistants can create fully-populated hunt files in one command
+- ✅ No manual file editing required for basic hunts
+- ✅ All LOCK template fields can be populated via CLI
+- ✅ Backwards compatible (all new flags are optional)
 
 ### Output
 
