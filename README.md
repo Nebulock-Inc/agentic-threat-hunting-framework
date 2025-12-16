@@ -1,27 +1,16 @@
-<p align="center">
-  <img src="assets/athf_logo.png" alt="ATHF Logo" width="400"/>
-</p>
+# Agentic Threat Hunting Framework (ATHF)
 
-<h1 align="center">Agentic Threat Hunting Framework (ATHF)</h1>
+![ATHF Logo](https://raw.githubusercontent.com/Nebulock-Inc/agentic-threat-hunting-framework/main/assets/athf_logo.png)
 
-<p align="center">
-  <a href="https://pypi.org/project/agentic-threat-hunting-framework/"><img src="https://img.shields.io/pypi/v/agentic_threat_hunting_framework" alt="PyPI version"></a>
-  <a href="https://pypi.org/project/agentic-threat-hunting-framework/"><img src="https://img.shields.io/pypi/dm/agentic_threat_hunting_framework" alt="PyPI downloads"></a>
-  <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.8%2B-blue" alt="Python Version"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
-  <a href="https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/stargazers"><img src="https://img.shields.io/github/stars/Nebulock-Inc/agentic-threat-hunting-framework?style=social" alt="GitHub stars"></a>
-</p>
+[![PyPI version](https://img.shields.io/pypi/v/agentic-threat-hunting-framework)](https://pypi.org/project/agentic-threat-hunting-framework/)
+[![PyPI downloads](https://img.shields.io/pypi/dm/agentic-threat-hunting-framework)](https://pypi.org/project/agentic-threat-hunting-framework/)
+[![Python Version](https://img.shields.io/badge/python-3.8%2B-blue)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/blob/main/LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/Nebulock-Inc/agentic-threat-hunting-framework?style=social)](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/stargazers)
 
-<p align="center">
-  <strong><a href="#-quick-start">Quick Start</a></strong> •
-  <strong><a href="#installation">Installation</a></strong> •
-  <strong><a href="#documentation">Documentation</a></strong> •
-  <strong><a href="SHOWCASE.md">Examples</a></strong>
-</p>
+**[Quick Start](#-quick-start)** • **[Installation](#installation)** • **[Documentation](#documentation)** • **[Examples](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/blob/main/SHOWCASE.md)**
 
-<p align="center">
-  <em>Give your threat hunting program memory and agency.</em>
-</p>
+*Give your threat hunting program memory and agency.*
 
 The **Agentic Threat Hunting Framework (ATHF)** is the memory and automation layer for your threat hunting program. It gives your hunts structure, persistence, and context - making every past investigation accessible to both humans and AI.
 
@@ -44,13 +33,13 @@ Even AI tools start from zero every time without access to your environment, you
 
 ATHF changes that by giving your hunts structure, persistence, and context.
 
-**Read more:** [docs/why-athf.md](docs/why-athf.md)
+**Read more:** [docs/why-athf.md](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/blob/main/docs/why-athf.md)
 
 ## The LOCK Pattern
 
 Every threat hunt follows the same basic loop: **Learn → Observe → Check → Keep**.
 
-![The LOCK Pattern](assets/athf_lock.png)
+![The LOCK Pattern](https://raw.githubusercontent.com/Nebulock-Inc/agentic-threat-hunting-framework/main/assets/athf_lock.png)
 
 - **Learn:** Gather context from threat intel, alerts, or anomalies
 - **Observe:** Form a hypothesis about adversary behavior
@@ -59,7 +48,7 @@ Every threat hunt follows the same basic loop: **Learn → Observe → Check →
 
 **Why LOCK?** It's small enough to use and strict enough for agents to interpret. By capturing every hunt in this format, ATHF makes it possible for AI assistants to recall prior work and suggest refined queries based on past results.
 
-**Read more:** [docs/lock-pattern.md](docs/lock-pattern.md)
+**Read more:** [docs/lock-pattern.md](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/blob/main/docs/lock-pattern.md)
 
 ## The Five Levels of Agentic Hunting
 
@@ -67,7 +56,7 @@ ATHF defines a simple maturity model. Each level builds on the previous one.
 
 **Most teams will live at Levels 1–2. Everything beyond that is optional maturity.**
 
-![The Five Levels](assets/athf_fivelevels.png)
+![The Five Levels](https://raw.githubusercontent.com/Nebulock-Inc/agentic-threat-hunting-framework/main/assets/athf_fivelevels.png)
 
 | Level | Capability | What You Get |
 |-------|-----------|--------------|
@@ -82,7 +71,7 @@ ATHF defines a simple maturity model. Each level builds on the previous one.
 **Level 3:** 2-4 weeks (optional)
 **Level 4:** 1-3 months (optional)
 
-**Read more:** [docs/maturity-model.md](docs/maturity-model.md)
+**Read more:** [docs/maturity-model.md](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/blob/main/docs/maturity-model.md)
 
 ## 🚀 Quick Start
 
@@ -128,7 +117,7 @@ cp templates/HUNT_LOCK.md hunts/H-0001.md
 
 **Choose your AI assistant:** Claude Code, GitHub Copilot, or Cursor - any tool that can read your repository files.
 
-**Full guide:** [docs/getting-started.md](docs/getting-started.md)
+**Full guide:** [docs/getting-started.md](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/blob/main/docs/getting-started.md)
 
 ## 🔧 CLI Commands
 
@@ -169,15 +158,15 @@ athf hunt stats                     # Show statistics
 athf hunt coverage                  # MITRE ATT&CK coverage
 ```
 
-**Full documentation:** [CLI Reference](docs/CLI_REFERENCE.md)
+**Full documentation:** [CLI Reference](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/blob/main/docs/CLI_REFERENCE.md)
 
 ## 📺 See It In Action
 
-![ATHF Demo](assets/athf-cli-workflow.gif)
+![ATHF Demo](https://raw.githubusercontent.com/Nebulock-Inc/agentic-threat-hunting-framework/main/assets/athf-cli-workflow.gif)
 
 Watch ATHF in action: initialize a workspace, create hunts, and explore your threat hunting catalog in under 60 seconds.
 
-**[View example hunts →](SHOWCASE.md)**
+**[View example hunts →](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/blob/main/SHOWCASE.md)**
 
 ## Installation
 
@@ -214,24 +203,24 @@ Start documenting hunts in the `hunts/` directory using the LOCK pattern.
 
 ### Core Concepts
 
-- [Why ATHF Exists](docs/why-athf.md) - The problem and solution
-- [The LOCK Pattern](docs/lock-pattern.md) - Structure for all hunts
-- [Maturity Model](docs/maturity-model.md) - The five levels explained
-- [Getting Started](docs/getting-started.md) - Step-by-step onboarding
+- [Why ATHF Exists](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/blob/main/docs/why-athf.md) - The problem and solution
+- [The LOCK Pattern](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/blob/main/docs/lock-pattern.md) - Structure for all hunts
+- [Maturity Model](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/blob/main/docs/maturity-model.md) - The five levels explained
+- [Getting Started](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/blob/main/docs/getting-started.md) - Step-by-step onboarding
 
 ### Level-Specific Guides
 
-- [Level 1: Documented Hunts](docs/maturity-model.md#level-1-documented-hunts)
-- [Level 2: Searchable Memory](docs/maturity-model.md#level-2-searchable-memory)
-- [Level 3: Generative Capabilities](docs/level4-agentic-workflows.md)
-- [Level 4: Agentic Workflows](docs/level4-agentic-workflows.md)
+- [Level 1: Documented Hunts](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/blob/main/docs/maturity-model.md#level-1-documented-hunts)
+- [Level 2: Searchable Memory](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/blob/main/docs/maturity-model.md#level-2-searchable-memory)
+- [Level 3: Generative Capabilities](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/blob/main/docs/level4-agentic-workflows.md)
+- [Level 4: Agentic Workflows](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/blob/main/docs/level4-agentic-workflows.md)
 
 ### Integration & Customization
 
-- [Installation & Development](docs/INSTALL.md) - Setup, fork customization, testing
-- [MCP Catalog](integrations/MCP_CATALOG.md) - Available tool integrations
-- [Quickstart Guides](integrations/quickstart/) - Setup for specific tools
-- [Using ATHF](USING_ATHF.md) - Adoption and customization
+- [Installation & Development](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/blob/main/docs/INSTALL.md) - Setup, fork customization, testing
+- [MCP Catalog](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/blob/main/integrations/MCP_CATALOG.md) - Available tool integrations
+- [Quickstart Guides](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/tree/main/integrations/quickstart/) - Setup for specific tools
+- [Using ATHF](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/blob/main/USING_ATHF.md) - Adoption and customization
 
 ## 🎖️ Featured Hunts
 
@@ -242,7 +231,7 @@ Detected Atomic Stealer collecting Safari cookies via AppleScript.
 
 **Key Insight:** Behavior-based detection outperformed signature-based approaches. Process signature validation identified unsigned malware attempting data collection.
 
-[View full hunt →](hunts/H-0001.md) | [See more examples →](SHOWCASE.md)
+[View full hunt →](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/blob/main/hunts/H-0001.md) | [See more examples →](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/blob/main/SHOWCASE.md)
 
 ## Why This Matters
 
@@ -260,7 +249,7 @@ When your framework has memory, you stop losing knowledge to turnover or forgott
 
 - **GitHub Discussions:** [Ask questions, share hunts](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/discussions)
 - **Issues:** [Report bugs or request features](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/issues)
-- **Adoption Guide:** See [USING_ATHF.md](USING_ATHF.md) for how to use ATHF in your organization
+- **Adoption Guide:** See [USING_ATHF.md](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/blob/main/USING_ATHF.md) for how to use ATHF in your organization
 - **LinkedIn:** [Nebulock Inc.](https://www.linkedin.com/company/nebulock-inc) - Follow for updates
 
 ## 📖 Using ATHF
@@ -269,7 +258,7 @@ ATHF is a framework to internalize, not a platform to extend. Fork it, customize
 
 **Repository:** [https://github.com/Nebulock-Inc/agentic-threat-hunting-framework](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework)
 
-See [USING_ATHF.md](USING_ATHF.md) for adoption guidance. Your hunts stay yours—sharing back is optional but appreciated ([Discussions](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/discussions)).
+See [USING_ATHF.md](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/blob/main/USING_ATHF.md) for adoption guidance. Your hunts stay yours—sharing back is optional but appreciated ([Discussions](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/discussions)).
 
 The goal is to help every threat hunting team move from ad-hoc memory to structured, agentic capability.
 
@@ -279,7 +268,7 @@ The goal is to help every threat hunting team move from ad-hoc memory to structu
 
 ATHF is designed to be forked and customized for your organization.
 
-**See [docs/INSTALL.md#development--customization](docs/INSTALL.md#development--customization) for:**
+**See [docs/INSTALL.md#development--customization](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/blob/main/docs/INSTALL.md#development--customization) for:**
 - Setting up your fork for development
 - Pre-commit hooks for code quality
 - Testing and type checking
