@@ -2,7 +2,7 @@
 
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 from athf.core.attack_matrix import ATTACK_TACTICS, TOTAL_TECHNIQUES, get_sorted_tactics
 from athf.core.hunt_parser import parse_hunt_file
@@ -261,7 +261,7 @@ class HuntManager:
                 "total_techniques": ATTACK_TACTICS[tactic_key]["technique_count"],
             }
 
-        all_unique_techniques: set[str] = set()
+        all_unique_techniques: Set[str] = set()
 
         for hunt in hunts:
             hunt_id = hunt.get("hunt_id", "UNKNOWN")

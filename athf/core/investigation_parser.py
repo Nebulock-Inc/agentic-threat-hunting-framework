@@ -8,7 +8,7 @@ Investigation parser is simpler than hunt parser:
 
 import re
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 import yaml
 
@@ -85,7 +85,7 @@ class InvestigationParser:
 
         return content_without_fm.strip()
 
-    def validate(self) -> tuple[bool, List[str]]:
+    def validate(self) -> Tuple[bool, List[str]]:
         """Validate investigation structure.
 
         Lightweight validation - only checks minimal required fields.
@@ -140,7 +140,7 @@ def parse_investigation_file(file_path: Path) -> Dict[str, Any]:
     return parser.parse()
 
 
-def validate_investigation_file(file_path: Path) -> tuple[bool, List[str]]:
+def validate_investigation_file(file_path: Path) -> Tuple[bool, List[str]]:
     """Convenience function to validate an investigation file.
 
     Args:

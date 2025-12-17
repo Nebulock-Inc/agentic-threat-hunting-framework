@@ -234,7 +234,7 @@ def _find_hunts_by_tactic(tactic: str) -> List[Path]:
     normalized_tactic = tactic.replace("-", " ").lower()
 
     for hunt_file in hunts_dir.glob("H-*.md"):
-        content = hunt_file.read_text()
+        content = hunt_file.read_text(encoding='utf-8')
 
         # Check YAML frontmatter for tactics field
         if content.startswith("---"):
@@ -263,7 +263,7 @@ def _find_hunts_by_platform(platform: str) -> List[Path]:
     normalized_platform = platform.lower()
 
     for hunt_file in hunts_dir.glob("H-*.md"):
-        content = hunt_file.read_text()
+        content = hunt_file.read_text(encoding='utf-8')
 
         # Check YAML frontmatter for platform field
         if content.startswith("---"):

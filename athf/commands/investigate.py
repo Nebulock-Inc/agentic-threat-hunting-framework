@@ -3,7 +3,7 @@
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional, Tuple
 
 import click
 import yaml
@@ -82,8 +82,8 @@ def new(
     title: Optional[str],
     investigation_type: Optional[str],
     tags: Optional[str],
-    data_source: tuple[str, ...],
-    related_hunt: tuple[str, ...],
+    data_source: Tuple[str, ...],
+    related_hunt: Tuple[str, ...],
     investigator: Optional[str],
     non_interactive: bool,
 ) -> None:
@@ -200,9 +200,9 @@ def _render_investigation_template(
     title: str,
     investigator: str,
     investigation_type: str,
-    tags: list[str],
-    data_sources: list[str],
-    related_hunts: list[str],
+    tags: List[str],
+    data_sources: List[str],
+    related_hunts: List[str],
 ) -> str:
     """Render investigation template with provided values.
 
@@ -569,8 +569,8 @@ def validate(investigation_id: str) -> None:
 def promote(
     investigation_id: str,
     technique: Optional[str],
-    tactic: tuple[str, ...],
-    platform: tuple[str, ...],
+    tactic: Tuple[str, ...],
+    platform: Tuple[str, ...],
     status: str,
     non_interactive: bool,
 ) -> None:
