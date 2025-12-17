@@ -502,20 +502,56 @@ def search(query: str) -> None:
         console.print()
 
 
+def _render_progress_bar(covered: int, total: int, width: int = 20) -> str:
+    """Render a visual progress bar with filled and empty blocks.
+
+    Args:
+        covered: Number of covered techniques
+        total: Total number of techniques
+        width: Width of the progress bar in characters
+
+    Returns:
+        ASCII progress bar string using simple characters
+    """
+    if total == 0:
+        return "·" * width
+
+    # Cap percentage at 100% for visual display
+    percentage = min(covered / total, 1.0)
+    filled = int(percentage * width)
+    empty = width - filled
+
+    # Use simple characters that render reliably
+    filled_char = "■"
+    empty_char = "·"
+
+    return filled_char * filled + empty_char * empty
+
+
 @hunt.command()
-def coverage() -> None:
+@click.option("--detailed", is_flag=True, help="Show detailed technique coverage with hunt references")
+def coverage(detailed: bool) -> None:
     """Show MITRE ATT&CK technique coverage across hunts.
 
     \b
     Analyzes and displays:
-    • Which tactics you've hunted (e.g., Persistence, Credential Access)
-    • Which techniques per tactic
-    • Coverage gaps (tactics with few/no hunts)
-    • Hunt distribution across the ATT&CK matrix
+    • Hunt count per tactic across all 14 ATT&CK tactics
+    • Technique count per tactic (with caveats - see note below)
+    • Overall unique technique coverage across all hunts
+    • Detailed technique-to-hunt mapping (with --detailed)
 
     \b
-    Example:
+    Examples:
+      # Show coverage overview
       athf hunt coverage
+
+      # Show detailed technique mapping
+      athf hunt coverage --detailed
+
+    \b
+    Note on technique counts:
+      Per-tactic technique counts may include duplicates if hunts cover
+      multiple tactics. The overall unique technique count (bottom) is accurate.
 
     \b
     Use this to:
@@ -527,23 +563,64 @@ def coverage() -> None:
 
     \b
     Pro tip:
-      Combine with threat intel to focus on attacker-relevant TTPs.
-      Example: "Which persistence techniques are we NOT hunting?"
+      Focus on tactics with no coverage that align with your threat model.
+      Use --detailed to see which specific techniques each hunt covers.
     """
+    from athf.core.attack_matrix import ATTACK_TACTICS, get_sorted_tactics
+
     manager = HuntManager()
     coverage = manager.calculate_attack_coverage()
 
-    if not coverage:
+    if not coverage or not coverage.get("by_tactic"):
         console.print("[yellow]No hunt coverage data available.[/yellow]")
         return
 
-    console.print("\n[bold cyan]🎯 MITRE ATT&CK Coverage[/bold cyan]\n")
+    summary = coverage["summary"]
+    by_tactic = coverage["by_tactic"]
 
-    for tactic, techniques in sorted(coverage.items()):
-        console.print(f"[bold]{tactic.title()}[/bold] ({len(techniques)} techniques)")
-        for technique in techniques:
-            console.print(f"  • {technique}")
-        console.print()
+    # Display title
+    console.print("\n[bold]MITRE ATT&CK Coverage[/bold]")
+    console.print("─" * 60 + "\n")
+
+    # Display all tactics in ATT&CK order with hunt counts
+    for tactic_key in get_sorted_tactics():
+        data = by_tactic.get(tactic_key, {})
+        tactic_name = ATTACK_TACTICS[tactic_key]["name"]
+
+        hunt_count = data.get("hunt_count", 0)
+        techniques_covered = data.get("techniques_covered", 0)
+
+        # Format: "Tactic Name          2 hunts, 7 techniques"
+        if hunt_count > 0:
+            console.print(f"{tactic_name:<24} {hunt_count} hunts, {techniques_covered} techniques")
+        else:
+            console.print(f"{tactic_name:<24} [dim]no coverage[/dim]")
+
+    # Display overall coverage
+    console.print(
+        f"\n[bold]Overall: {summary['unique_techniques']}/{summary['total_techniques']} techniques ({summary['overall_coverage_pct']:.0f}%)[/bold]\n"
+    )
+
+    # Display detailed technique coverage if requested
+    if detailed:
+        console.print("\n[bold cyan]🔍 Detailed Technique Coverage[/bold cyan]\n")
+
+        for tactic_key in get_sorted_tactics():
+            data = by_tactic.get(tactic_key, {})
+            if data.get("hunt_count", 0) == 0:
+                continue  # Skip tactics with no hunts in detailed view
+
+            tactic_name = ATTACK_TACTICS[tactic_key]["name"]
+            console.print(
+                f"\n[bold]{tactic_name}[/bold] ({data['hunt_count']} hunts, {len(data['techniques'])} unique techniques)"
+            )
+
+            # Show techniques with hunt references
+            for technique, hunt_ids in sorted(data["techniques"].items()):
+                hunt_refs = ", ".join(sorted(set(hunt_ids)))  # Remove duplicates and sort
+                console.print(f"  • [yellow]{technique}[/yellow] - {hunt_refs}")
+
+    console.print()
 
 
 @hunt.command(hidden=True)

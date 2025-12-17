@@ -2,8 +2,9 @@
 
 import re
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
+from athf.core.attack_matrix import ATTACK_TACTICS, TOTAL_TECHNIQUES, get_sorted_tactics
 from athf.core.hunt_parser import parse_hunt_file
 
 
@@ -220,26 +221,93 @@ class HuntManager:
             "tp_fp_ratio": round(tp_fp_ratio, 2) if tp_fp_ratio != float("inf") else "∞",
         }
 
-    def calculate_attack_coverage(self) -> Dict[str, List[str]]:
-        """Calculate MITRE ATT&CK technique coverage.
+    def calculate_attack_coverage(self) -> Dict[str, Any]:
+        """Calculate MITRE ATT&CK technique coverage with hunt references.
 
         Returns:
-            Dict mapping tactics to lists of covered techniques
+            Dict with structure:
+            {
+                "summary": {
+                    "total_hunts": int,
+                    "completed_hunts": int,
+                    "unique_techniques": int,
+                    "tactics_covered": int,
+                    "total_techniques": int,
+                    "overall_coverage_pct": float
+                },
+                "by_tactic": {
+                    "tactic-name": {
+                        "hunt_count": int,
+                        "hunt_ids": List[str],
+                        "techniques": {
+                            "T1234.001": ["H-0001", "H-0003"]
+                        },
+                        "techniques_covered": int,
+                        "total_techniques": int,
+                        "coverage_pct": float
+                    }
+                }
+            }
         """
         hunts = self.list_hunts()
 
-        coverage: Dict = {}
+        # Initialize coverage structure for ALL ATT&CK tactics (not just ones with hunts)
+        coverage_by_tactic: Dict[str, Dict[str, Any]] = {}
+        for tactic_key in get_sorted_tactics():
+            coverage_by_tactic[tactic_key] = {
+                "hunt_count": 0,
+                "hunt_ids": set(),
+                "techniques": {},
+                "total_techniques": ATTACK_TACTICS[tactic_key]["technique_count"],
+            }
+
+        all_unique_techniques: set[str] = set()
 
         for hunt in hunts:
+            hunt_id = hunt.get("hunt_id", "UNKNOWN")
             tactics = hunt.get("tactics", [])
             techniques = hunt.get("techniques", [])
 
+            # Track all unique techniques across all hunts
+            all_unique_techniques.update(techniques)
+
             for tactic in tactics:
-                if tactic not in coverage:
-                    coverage[tactic] = set()
+                # Skip if tactic not in ATT&CK matrix (might be custom tactic)
+                if tactic not in coverage_by_tactic:
+                    continue
 
+                # Track hunt IDs for this tactic
+                coverage_by_tactic[tactic]["hunt_ids"].add(hunt_id)
+
+                # Track which hunts cover each technique under this tactic
                 for technique in techniques:
-                    coverage[tactic].add(technique)
+                    if technique not in coverage_by_tactic[tactic]["techniques"]:
+                        coverage_by_tactic[tactic]["techniques"][technique] = []
+                    coverage_by_tactic[tactic]["techniques"][technique].append(hunt_id)
 
-        # Convert sets to sorted lists
-        return {tactic: sorted(list(techniques)) for tactic, techniques in coverage.items()}
+        # Calculate coverage percentages and convert sets to sorted lists
+        for tactic in coverage_by_tactic:
+            coverage_by_tactic[tactic]["hunt_count"] = len(coverage_by_tactic[tactic]["hunt_ids"])
+            coverage_by_tactic[tactic]["hunt_ids"] = sorted(coverage_by_tactic[tactic]["hunt_ids"])
+            coverage_by_tactic[tactic]["techniques_covered"] = len(coverage_by_tactic[tactic]["techniques"])
+
+            # Calculate coverage percentage
+            total = coverage_by_tactic[tactic]["total_techniques"]
+            covered = coverage_by_tactic[tactic]["techniques_covered"]
+            coverage_by_tactic[tactic]["coverage_pct"] = (covered / total * 100) if total > 0 else 0.0
+
+        # Calculate overall coverage
+        tactics_with_hunts = len([t for t in coverage_by_tactic.values() if t["hunt_count"] > 0])
+        overall_coverage_pct = (len(all_unique_techniques) / TOTAL_TECHNIQUES * 100) if TOTAL_TECHNIQUES > 0 else 0.0
+
+        # Build summary
+        summary = {
+            "total_hunts": len(hunts),
+            "completed_hunts": len([h for h in hunts if h.get("status") == "completed"]),
+            "unique_techniques": len(all_unique_techniques),
+            "tactics_covered": tactics_with_hunts,
+            "total_techniques": TOTAL_TECHNIQUES,
+            "overall_coverage_pct": overall_coverage_pct,
+        }
+
+        return {"summary": summary, "by_tactic": coverage_by_tactic}

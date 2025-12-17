@@ -8,12 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Phase 4: Community & Packaging infrastructure
-  - GitHub issue templates (bug report, feature request, hunt contribution)
-  - GitHub Actions workflows (tests.yml, publish.yml)
-  - Complete testing suite with pytest fixtures
-  - PyPI publication setup (pyproject.toml, MANIFEST.in, setup.py)
-  - Code quality configurations (.flake8, .coveragerc, pytest.ini)
+- None
 
 ### Changed
 - None
@@ -30,7 +25,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - None
 
-## [0.1.0] - 2025-12-10
+## [0.2.0] - 2024-12-17
+
+### Added
+- **CLI Commands**
+  - `athf context` - AI-optimized context loading (replaces ~5 Read operations, 75% token savings)
+  - `athf env` - Environment setup and management (setup, info, activate, clean)
+  - `athf investigate` - Investigation workflow for exploratory work (separate from hunt metrics)
+  - `athf similar` - Semantic search for similar hunts using scikit-learn embeddings
+- **Core Modules**
+  - `athf/core/attack_matrix.py` - MITRE ATT&CK coverage tracking and analysis
+  - `athf/core/investigation_parser.py` - Parser for I-XXXX investigation files
+- **Testing Infrastructure**
+  - Comprehensive test suite for all new commands (tests/commands/)
+  - Command-specific test modules (test_context.py, test_env.py, test_similar.py)
+  - Integration tests for multi-command workflows
+- **Rich Content CLI Flags**
+  - `--hypothesis`, `--threat-context`, `--actor`, `--behavior`, `--location`, `--evidence`
+  - Enable fully-populated hunt files via single CLI command
+  - AI-friendly one-liner hunt creation without manual editing
+
+### Changed
+- Enhanced `athf hunt` command with investigation integration
+- Updated CLI help system with improved command descriptions
+- Improved context bundling for AI workflows (structured JSON/YAML output)
+- Updated documentation to reflect new commands and workflows
+
+### Fixed
+- Python 3.8 compatibility issues
+- Testing framework stability improvements
+
+## [0.1.0] - 2024-12-10
 
 ### Added
 - Initial ATHF framework documentation

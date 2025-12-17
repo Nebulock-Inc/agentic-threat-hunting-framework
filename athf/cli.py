@@ -6,7 +6,7 @@ import click
 from rich.console import Console
 
 from athf.__version__ import __version__
-from athf.commands import hunt, init
+from athf.commands import context, env, hunt, init, investigate, similar
 
 console = Console()
 
@@ -79,6 +79,12 @@ def cli() -> None:
 # Register command groups
 cli.add_command(init.init)
 cli.add_command(hunt.hunt)
+cli.add_command(investigate.investigate)
+
+# Phase 1 commands (env, context, similar)
+cli.add_command(env.env)
+cli.add_command(context.context)
+cli.add_command(similar.similar)
 
 
 @cli.command(hidden=True)
