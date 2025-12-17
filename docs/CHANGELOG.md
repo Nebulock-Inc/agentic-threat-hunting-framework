@@ -36,7 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Python 3.8 compatibility: `int | str` → `Union[int, str]` in `athf/commands/env.py`
 - Windows UTF-8 encoding errors in `athf/commands/context.py` (3 instances) and `athf/commands/similar.py` (2 instances)
 - Test assertion errors in `tests/commands/test_env.py` for env info and activate commands
-- Mypy type errors for scikit-learn imports in `athf/commands/similar.py` (added type: ignore comments)
+- Mypy unused-ignore errors in `athf/commands/similar.py` (sklearn imports handled by --ignore-missing-imports flag)
 - CI/CD pipeline errors blocking builds on Python 3.8-3.12 across all platforms
 
 ## [0.2.0] - 2024-12-17
