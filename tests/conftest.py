@@ -91,7 +91,7 @@ edr: crowdstrike
 hunt_prefix: H
 retention_days: 90
 initialized: 2025-12-02T14:30:00
-version: 0.2.1
+version: 0.2.2
 """
 
 

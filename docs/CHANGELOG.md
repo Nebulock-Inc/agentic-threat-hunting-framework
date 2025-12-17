@@ -25,6 +25,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - None
 
+## [0.2.2] - 2024-12-17
+
+### Fixed
+- Type errors in `athf/core/attack_matrix.py` (added TypedDict for proper mypy checking)
+- Python 3.8 compatibility: `list[str]` → `List[str]` in `athf/core/attack_matrix.py`
+- Python 3.8 compatibility: `tuple[...]` → `Tuple[...]` in `athf/core/investigation_parser.py`
+- Python 3.8 compatibility: `tuple[...]`, `list[str]` → `Tuple[...]`, `List[str]` in `athf/commands/investigate.py`
+- Python 3.8 compatibility: `set[str]` → `Set[str]` in `athf/core/hunt_manager.py`
+- Python 3.8 compatibility: `int | str` → `Union[int, str]` in `athf/commands/env.py`
+- Windows UTF-8 encoding errors in `athf/commands/context.py` (3 instances) and `athf/commands/similar.py` (2 instances)
+- Test assertion errors in `tests/commands/test_env.py` for env info and activate commands
+- Mypy unused-ignore errors in `athf/commands/similar.py` (sklearn imports handled by --ignore-missing-imports flag)
+- CI/CD pipeline errors blocking builds on Python 3.8-3.12 across all platforms
+
 ## [0.2.1] - 2024-12-17
 
 ### Fixed
