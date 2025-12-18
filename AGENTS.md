@@ -270,6 +270,32 @@ ATHF provides the following hunt execution capabilities:
 
 **Purpose:** ATHF includes CLI tools (`athf` command) that automate common hunt management tasks. When available, these commands are faster and more reliable than manual file operations.
 
+### 🔧 SETUP: Virtual Environment Activation
+
+**CRITICAL:** The `athf` command requires the virtual environment to be activated. Activate it once at the start of your session:
+
+```bash
+source .venv/bin/activate
+```
+
+**Verify activation:**
+```bash
+which athf
+# Should output: /Users/sydney/work/hunt-vault/.venv/bin/athf
+
+athf --version
+# Should succeed with version number
+```
+
+**Why this matters:**
+- System `athf` (if installed) may lack dependencies like `scikit-learn`
+- Venv `athf` has all required dependencies (scikit-learn, anthropic, etc.)
+- Activation ensures correct Python interpreter
+
+**For AI Assistants:** Before running any `athf` commands, verify venv is activated with `which athf`. If it returns a system path, run `source .venv/bin/activate` first.
+
+---
+
 ### ⚠️ CRITICAL: Two Mandatory Tools for AI Assistants
 
 **These two commands are REQUIRED for all hunt workflows:**
@@ -405,13 +431,16 @@ athf context --tactic credential-access --format json
 # Export context for macOS platform hunts
 athf context --platform macos --format json
 
+# Combine filters: persistence hunts on Linux platform
+athf context --tactic persistence --platform linux --format json
+
 # Export full repository context (use sparingly)
 athf context --full --format json
 ```
 
 **What's included:**
 - `docs/environment.md` - Tech stack, data sources
-- Past hunts - Filtered by hunt ID, tactic, or platform
+- Past hunts - Filtered by hunt ID, tactic, platform, or combinations
 - Domain knowledge - Relevant domain files based on tactic
 
 **When to use:**

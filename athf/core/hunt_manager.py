@@ -154,7 +154,14 @@ class HuntManager:
         results = []
         query_lower = query.lower()
 
+        # Exclude documentation files
+        exclude_files = {"README.md", "FORMAT_GUIDELINES.md"}
+
         for hunt_file in self.hunts_dir.glob("*.md"):
+            # Skip documentation files
+            if hunt_file.name in exclude_files:
+                continue
+
             try:
                 with open(hunt_file, "r", encoding="utf-8") as f:
                     content = f.read()

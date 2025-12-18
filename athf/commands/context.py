@@ -22,6 +22,9 @@ Examples:
   # Export context for macOS platform hunts
   athf context --platform macos
 
+  # Combine filters: persistence hunts on Linux
+  athf context --tactic persistence --platform linux
+
   # Export full repository context (large output)
   athf context --full
 
@@ -86,18 +89,20 @@ def context(
     • With context: 1 command, ~1,000 tokens
     • Savings: ~2,000 tokens per hunt (~$0.03 per hunt)
     """
-    # Validate mutually exclusive options
-    exclusive_options = sum([bool(hunt), bool(tactic), bool(platform), full])
-    if exclusive_options == 0:
-        console.print("[red]Error: Must specify one of: --hunt, --tactic, --platform, or --full[/red]")
+    # Validate that at least one filter is provided
+    has_filter = any([hunt, tactic, platform, full])
+    if not has_filter:
+        console.print("[red]Error: Must specify at least one of: --hunt, --tactic, --platform, or --full[/red]")
         console.print("\n[dim]Examples:[/dim]")
         console.print("  athf context --hunt H-0013")
         console.print("  athf context --tactic credential-access")
         console.print("  athf context --platform macos")
+        console.print("  athf context --tactic persistence --platform linux")
         raise click.Abort()
 
-    if exclusive_options > 1:
-        console.print("[red]Error: Only one filter option allowed at a time[/red]")
+    # --full flag is mutually exclusive with other filters
+    if full and (hunt or tactic or platform):
+        console.print("[red]Error: --full cannot be combined with other filters[/red]")
         raise click.Abort()
 
     # Build context bundle
@@ -158,17 +163,26 @@ def _build_context(
     if index_path.exists():
         context["hunt_index"] = _read_and_optimize(index_path)
 
-    # Load hunts based on filter
-    if hunt:
-        hunt_files = [Path(f"hunts/{hunt}.md")]
-    elif tactic:
-        hunt_files = _find_hunts_by_tactic(tactic)
-    elif platform:
-        hunt_files = _find_hunts_by_platform(platform)
-    elif full:
+    # Load hunts based on filters (can be combined)
+    if full:
+        # Full export: include all hunts
         hunt_files = list(Path("hunts").glob("H-*.md"))
+    elif hunt:
+        # Specific hunt: only load that one
+        hunt_files = [Path(f"hunts/{hunt}.md")]
     else:
-        hunt_files = []
+        # Combine tactic and platform filters
+        if tactic and platform:
+            # Both filters: find hunts matching both criteria
+            tactic_hunts = set(_find_hunts_by_tactic(tactic))
+            platform_hunts = set(_find_hunts_by_platform(platform))
+            hunt_files = list(tactic_hunts & platform_hunts)  # Intersection
+        elif tactic:
+            hunt_files = _find_hunts_by_tactic(tactic)
+        elif platform:
+            hunt_files = _find_hunts_by_platform(platform)
+        else:
+            hunt_files = []
 
     # Load hunt content
     for hunt_file in hunt_files:

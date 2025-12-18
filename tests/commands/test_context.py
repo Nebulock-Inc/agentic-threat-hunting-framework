@@ -22,14 +22,32 @@ class TestContextCommand:
         result = runner.invoke(context, [])
 
         assert result.exit_code != 0
-        assert "Must specify one of" in result.output
+        assert "Must specify at least one of" in result.output
 
-    def test_context_rejects_multiple_filters(self, runner):
-        """Test that context rejects multiple filter options."""
-        result = runner.invoke(context, ["--hunt", "H-0001", "--tactic", "credential-access"])
+    def test_context_allows_combined_filters(self, runner, tmp_path):
+        """Test that context allows combining tactic and platform filters."""
+        output_file = tmp_path / "context.json"
+        result = runner.invoke(
+            context,
+            ["--tactic", "persistence", "--platform", "linux", "--format", "json", "--output", str(output_file)],
+        )
+
+        assert result.exit_code == 0
+
+        output_data = json.loads(output_file.read_text())
+        assert output_data["metadata"]["filters"]["tactic"] == "persistence"
+        assert output_data["metadata"]["filters"]["platform"] == "linux"
+
+        # Verify hunts match both filters (if any exist)
+        for hunt in output_data["hunts"]:
+            assert hunt["hunt_id"]  # Should have valid hunt IDs
+
+    def test_context_full_rejects_other_filters(self, runner):
+        """Test that --full flag cannot be combined with other filters."""
+        result = runner.invoke(context, ["--full", "--tactic", "persistence"])
 
         assert result.exit_code != 0
-        assert "Only one filter option allowed" in result.output
+        assert "cannot be combined" in result.output
 
     def test_context_hunt_json_output(self, runner, tmp_path):
         """Test context export for specific hunt with JSON output."""
