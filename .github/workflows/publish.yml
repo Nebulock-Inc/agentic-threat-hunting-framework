@@ -68,9 +68,9 @@ jobs:
       run: |
         echo "### 🎉 Published to PyPI" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "**Install:** \`pip install athf-framework==${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "**Install:** \`pip install agentic-threat-hunting-framework==${GITHUB_REF_NAME#v}\`" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "**Package:** https://pypi.org/project/athf-framework/${{ github.ref_name }}/" >> $GITHUB_STEP_SUMMARY
+        echo "**Package:** https://pypi.org/project/agentic-threat-hunting-framework/${GITHUB_REF_NAME#v}/" >> $GITHUB_STEP_SUMMARY
 
   publish-docker:
     name: Publish Docker Image (Optional)
