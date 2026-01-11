@@ -144,7 +144,7 @@ def _find_similar_hunts(
     hunt_files = list(hunts_dir.glob("H-*.md"))
 
     if not hunt_files:
-        console.print("[yellow]No hunts found in hunts/ directory[/yellow]")
+        # Don't print warning - let the output format handle empty results
         return []
 
     # Extract hunt content and metadata
@@ -172,7 +172,7 @@ def _find_similar_hunts(
         )
 
     if not hunt_data:
-        console.print("[yellow]No hunts available for comparison[/yellow]")
+        # Don't print warning - let the output format handle empty results
         return []
 
     # Build TF-IDF vectors using searchable text (weighted semantic sections)

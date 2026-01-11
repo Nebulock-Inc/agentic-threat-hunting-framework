@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agentic-threat-hunting-framework"
-version = "0.2.2"
+version = "0.2.4"
 description = "Agentic Threat Hunting Framework - Memory and AI for threat hunters"
 readme = {file = "README.md", content-type = "text/markdown"}
 requires-python = ">=3.8"
@@ -82,10 +82,21 @@ Discussions = "https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/
 athf = "athf.cli:main"
 
 [tool.setuptools]
-packages = ["athf", "athf.commands", "athf.core", "athf.utils"]
+packages = ["athf", "athf.commands", "athf.core", "athf.utils", "athf.data"]
 
 [tool.setuptools.package-data]
-athf = ["templates/*.md", "knowledge/*.md"]
+"athf.data" = [
+    "templates/*.md",
+    "knowledge/*.md",
+    "knowledge/**/*.md",
+    "prompts/*.md",
+    "hunts/*.md",
+    "hunts/**/*.md",
+    "docs/*.md",
+    "docs/**/*.md",
+    "integrations/*.md",
+    "integrations/**/*.md",
+]
 
 [tool.black]
 line-length = 127

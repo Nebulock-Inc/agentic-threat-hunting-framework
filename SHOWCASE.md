@@ -1,6 +1,6 @@
 # ATHF Hunt Showcase
 
-This showcase highlights real hunts from our [hunts/](hunts/) directory, demonstrating how the LOCK pattern structures threat hunting from hypothesis to detection rule deployment.
+This showcase highlights real hunts from our [hunts/](athf/data/hunts/) directory, demonstrating how the LOCK pattern structures threat hunting from hypothesis to detection rule deployment.
 
 Each example shows query evolution, results, and impact - proving the framework's practical value for security practitioners.
 
@@ -8,7 +8,7 @@ Each example shows query evolution, results, and impact - proving the framework'
 
 ## Hunt #1: macOS Information Stealer Detection
 
-**[View full hunt: H-0001.md →](hunts/H-0001.md)**
+**[View full hunt: H-0001.md →](athf/data/hunts/H-0001.md)**
 
 **Hunt ID:** H-0001
 **MITRE ATT&CK:** T1005 (Data from Local System), T1059.002 (AppleScript)
@@ -168,7 +168,7 @@ index=mac_edr process_signature_status!=valid
 
 ## Hunt #2: Linux Crontab Persistence Detection
 
-**[View full hunt: H-0002.md →](hunts/H-0002.md)**
+**[View full hunt: H-0002.md →](athf/data/hunts/H-0002.md)**
 
 **Hunt ID:** H-0002
 **MITRE ATT&CK:** T1053.003 (Scheduled Task/Job: Cron)
@@ -341,7 +341,7 @@ Deployed final query as 5-minute scheduled search:
 
 ## Hunt #3: AWS Lambda Persistence Detection
 
-**[View full hunt: H-0003.md →](hunts/H-0003.md)**
+**[View full hunt: H-0003.md →](athf/data/hunts/H-0003.md)**
 
 **Hunt ID:** H-0003
 **MITRE ATT&CK:** T1546.004 (Event Triggered Execution), T1098 (Account Manipulation)
@@ -591,4 +591,4 @@ All hunt templates and queries are available in the `hunts/` and `queries/` dire
 
 ---
 
-**Ready to document your own hunts?** Check out the [Getting Started Guide](docs/getting-started.md) and [templates/](templates/).
+**Ready to document your own hunts?** Check out the [Getting Started Guide](athf/data/docs/getting-started.md) and [templates/](athf/data/templates/).

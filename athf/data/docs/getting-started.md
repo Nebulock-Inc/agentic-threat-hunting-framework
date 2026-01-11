@@ -67,7 +67,7 @@ agentic-threat-hunting-framework/
 
 - [templates/](../templates/) - Ready-to-use LOCK hunt templates
 - [hunts/](../hunts/) - Example hunts showing the LOCK pattern
-- [AGENTS.md](../AGENTS.md) - Template for AI context (customize later)
+- [AGENTS.md](../../../AGENTS.md) - Template for AI context (customize later)
 
 ## Step 3: Document Your First Hunt (Level 1)
 
@@ -155,7 +155,7 @@ To make your hunts AI-accessible, add context files that describe your environme
 
 ### Customize AGENTS.md
 
-1. Open [AGENTS.md](../AGENTS.md)
+1. Open [AGENTS.md](../../../AGENTS.md)
 2. Update the following sections:
    - **Data Sources:** Replace placeholders with your actual SIEM indexes, EDR platforms, etc.
    - **Technology Stack:** List your security tools

@@ -1,11 +1,14 @@
 """Initialize ATHF directory structure."""
 
+import shutil
 from pathlib import Path
 
 import click
 import yaml
 from rich.console import Console
 from rich.prompt import Confirm, Prompt
+
+from athf.data import get_data_path
 
 console = Console()
 
@@ -106,6 +109,9 @@ def init(path: str, non_interactive: bool) -> None:
     if not (templates_path / "HUNT_LOCK.md").exists():
         _create_hunt_template(templates_path / "HUNT_LOCK.md")
         console.print("  ✓ Created [cyan]templates/HUNT_LOCK.md[/cyan]")
+
+    # Copy reference files from package data
+    _copy_reference_files(base_path)
 
     console.print("\n[bold green]✅ ATHF initialized successfully![/bold green]")
     console.print("\n[bold]Next steps:[/bold]")
@@ -409,3 +415,42 @@ tags: []
 
     with open(path, "w", encoding="utf-8") as f:
         f.write(content)
+
+
+def _copy_reference_files(base_path: Path) -> None:
+    """Copy reference files from package data to workspace.
+
+    Copies knowledge base, prompts, example hunts, docs, and integrations
+    from the installed package to the user's workspace.
+    """
+    try:
+        data_path = get_data_path()
+    except Exception:
+        # Package data not available (e.g., development mode)
+        console.print("  [dim]Skipping reference file copy (package data not available)[/dim]")
+        return
+
+    # Directories to copy from package to workspace
+    copy_dirs = ["knowledge", "prompts", "hunts", "docs", "integrations"]
+
+    for dir_name in copy_dirs:
+        src_dir = data_path / dir_name
+        dst_dir = base_path / dir_name
+
+        if src_dir.exists() and src_dir.is_dir():
+            try:
+                # Copy files, don't overwrite existing
+                for src_file in src_dir.rglob("*"):
+                    if src_file.is_file():
+                        # Calculate relative path and destination
+                        rel_path = src_file.relative_to(src_dir)
+                        dst_file = dst_dir / rel_path
+
+                        # Only copy if destination doesn't exist
+                        if not dst_file.exists():
+                            dst_file.parent.mkdir(parents=True, exist_ok=True)
+                            shutil.copy2(src_file, dst_file)
+
+                console.print(f"  ✓ Copied reference files to [cyan]{dir_name}/[/cyan]")
+            except Exception as e:
+                console.print(f"  [yellow]Warning: Could not copy {dir_name}/: {e}[/yellow]")

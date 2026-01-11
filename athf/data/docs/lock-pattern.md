@@ -6,7 +6,7 @@ ATHF formalizes that loop with the **LOCK Pattern**, a lightweight structure tha
 
 **Why LOCK?** It's small enough to use and strict enough for agents to interpret.
 
-![The LOCK Pattern](../assets/athf_lock.png)
+![The LOCK Pattern](../../../assets/athf_lock.png)
 
 ## The Four Phases
 
@@ -107,7 +107,7 @@ Next iteration: expand to include remote registry and PSExec telemetry for broad
 - [H-0001: macOS Information Stealer Detection](../hunts/H-0001.md) - Complete hunt with YAML frontmatter, detailed LOCK sections, query evolution, and results
 - [H-0002: Linux Crontab Persistence Detection](../hunts/H-0002.md) - Multi-query approach with behavioral analysis
 - [H-0003: AWS Lambda Persistence Detection](../hunts/H-0003.md) - Cloud hunting with CloudTrail correlation
-- [Hunt Showcase](../SHOWCASE.md) - Side-by-side comparison of all three hunts
+- [Hunt Showcase](../../../SHOWCASE.md) - Side-by-side comparison of all three hunts
 
 ## Best Practices
 

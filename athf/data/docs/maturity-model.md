@@ -4,7 +4,7 @@ ATHF defines a simple maturity model for evolving your hunting program. Each lev
 
 **Most teams will live at Levels 1–2. Everything beyond that is optional maturity.**
 
-![The Five Levels of Agentic Hunting](../assets/athf_fivelevels.png)
+![The Five Levels of Agentic Hunting](../../../assets/athf_fivelevels.png)
 
 ## Overview
 
@@ -130,7 +130,7 @@ At Level 2, you add context files to your repository that provide AI assistants 
 
 ### Required Context Files
 
-#### [AGENTS.md](../AGENTS.md)
+#### [AGENTS.md](../../../AGENTS.md)
 
 Provides environmental and structural context:
 
@@ -159,11 +159,11 @@ The AI automatically searches your hunts directory, references past investigatio
 
 **The combination of AGENTS.md (environmental context) and hunting-knowledge.md (domain expertise) transforms AI assistants from generic helpers into informed threat hunting partners.**
 
-![Manual vs. AI-Assisted Content Creation](../assets/athf_manual_v_ai.png)
+![Manual vs. AI-Assisted Content Creation](../../../assets/athf_manual_v_ai.png)
 
 ### Getting Started at Level 2
 
-1. Review the included [AGENTS.md](../AGENTS.md) template
+1. Review the included [AGENTS.md](../../../AGENTS.md) template
 2. Customize it with your environment details
 3. Review [knowledge/hunting-knowledge.md](../knowledge/hunting-knowledge.md) (already included)
 4. Open your repo in Claude Code or similar AI assistant

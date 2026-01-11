@@ -72,7 +72,9 @@ class TestContextCommand:
 
         assert result.exit_code == 0
         assert "# ATHF Context Export" in result.output
-        assert "## Environment" in result.output or "## Hunts" in result.output
+        # In an isolated test environment without hunts/environment files,
+        # only the header and filters will be present
+        assert "Filters:" in result.output
 
     def test_context_hunt_yaml_output(self, runner):
         """Test context export with YAML output."""

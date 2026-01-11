@@ -130,14 +130,18 @@ class TestHuntNewCommand:
         )
 
         assert result.exit_code == 0
-        assert "Created H-0001" in result.output
+        # Extract created hunt ID from output (init may copy sample hunts)
+        import re
+        match = re.search(r"Created (H-\d+)", result.output)
+        assert match, f"Could not find hunt ID in output: {result.output}"
+        hunt_id = match.group(1)
 
         # Check hunt file was created
-        hunt_file = temp_workspace / "hunts" / "H-0001.md"
+        hunt_file = temp_workspace / "hunts" / f"{hunt_id}.md"
         assert hunt_file.exists()
 
         content = hunt_file.read_text()
-        assert "hunt_id: H-0001" in content
+        assert f"hunt_id: {hunt_id}" in content
         assert "LSASS Memory Dumping" in content
         assert "T1003.001" in content
         assert "## LEARN" in content
@@ -153,18 +157,29 @@ class TestHuntNewCommand:
 
     def test_hunt_new_increments_id(self, runner, temp_workspace):
         """Test that hunt IDs increment correctly."""
+        import re
         runner.invoke(init, ["--non-interactive"])
 
         # Create first hunt
         result1 = runner.invoke(hunt, ["new", "--title", "First Hunt", "--non-interactive"])
-        assert "H-0001" in result1.output
+        match1 = re.search(r"Created (H-\d+)", result1.output)
+        assert match1, f"Could not find hunt ID in output: {result1.output}"
+        hunt_id_1 = match1.group(1)
+        num1 = int(hunt_id_1.split("-")[1])
 
         # Create second hunt
         result2 = runner.invoke(hunt, ["new", "--title", "Second Hunt", "--non-interactive"])
-        assert "H-0002" in result2.output
+        match2 = re.search(r"Created (H-\d+)", result2.output)
+        assert match2, f"Could not find hunt ID in output: {result2.output}"
+        hunt_id_2 = match2.group(1)
+        num2 = int(hunt_id_2.split("-")[1])
+
+        # Second hunt should have ID incremented by 1
+        assert num2 == num1 + 1, f"Expected {hunt_id_2} to be one more than {hunt_id_1}"
 
     def test_hunt_new_with_multiple_tactics(self, runner, temp_workspace):
         """Test creating hunt with multiple tactics."""
+        import re
         runner.invoke(init, ["--non-interactive"])
 
         result = runner.invoke(
@@ -182,13 +197,19 @@ class TestHuntNewCommand:
         )
 
         assert result.exit_code == 0
-        hunt_file = temp_workspace / "hunts" / "H-0001.md"
+        # Extract created hunt ID from output
+        match = re.search(r"Created (H-\d+)", result.output)
+        assert match, f"Could not find hunt ID in output: {result.output}"
+        hunt_id = match.group(1)
+
+        hunt_file = temp_workspace / "hunts" / f"{hunt_id}.md"
         content = hunt_file.read_text()
         assert "persistence" in content
         assert "privilege-escalation" in content
 
     def test_hunt_new_with_rich_content(self, runner, temp_workspace):
         """Test creating hunt with rich content parameters (hypothesis, threat-context, ABLE framework)."""
+        import re
         runner.invoke(init, ["--non-interactive"])
 
         result = runner.invoke(
@@ -224,13 +245,16 @@ class TestHuntNewCommand:
         )
 
         assert result.exit_code == 0
-        assert "H-0001" in result.output
+        # Extract created hunt ID from output
+        match = re.search(r"Created (H-\d+)", result.output)
+        assert match, f"Could not find hunt ID in output: {result.output}"
+        hunt_id = match.group(1)
 
-        hunt_file = temp_workspace / "hunts" / "H-0001.md"
+        hunt_file = temp_workspace / "hunts" / f"{hunt_id}.md"
         content = hunt_file.read_text()
 
         # Verify YAML frontmatter
-        assert "hunt_id: H-0001" in content
+        assert f"hunt_id: {hunt_id}" in content
         assert "hunter: Test Hunter" in content
 
         # Verify hypothesis is populated
@@ -299,8 +323,7 @@ class TestHuntListCommand:
         result = runner.invoke(hunt, ["list"])
 
         assert result.exit_code == 0
-        assert "H-0001" in result.output
-        assert "H-0002" in result.output
+        # Sample hunts may be copied, so just check our test hunts are listed
         assert "Test Hunt 1" in result.output
         assert "Test Hunt 2" in result.output
 
@@ -311,8 +334,9 @@ class TestHuntListCommand:
         result = runner.invoke(hunt, ["list", "--status", "planning"])
 
         assert result.exit_code == 0
-        # Both hunts should be in planning status by default
-        assert "H-0001" in result.output or "H-0002" in result.output
+        # Created test hunts should be in planning status by default
+        # (sample hunts may have different statuses)
+        assert "Test Hunt 1" in result.output or "Test Hunt 2" in result.output
 
     def test_hunt_list_filter_by_technique(self, runner, temp_workspace):
         """Test filtering hunts by technique."""
@@ -333,13 +357,16 @@ class TestHuntListCommand:
         assert '"hunt_id"' in result.output or "hunt_id" in result.output
 
     def test_hunt_list_empty(self, runner, temp_workspace):
-        """Test list with no hunts."""
+        """Test list with no user-created hunts (sample hunts may exist)."""
         runner.invoke(init, ["--non-interactive"])
 
         result = runner.invoke(hunt, ["list"])
 
+        # init may copy sample hunts, so this test just checks the command works
+        # If no sample hunts exist, we'll see "No hunts found"
+        # If sample hunts exist, we'll see the hunt catalog
         assert result.exit_code == 0
-        assert "No hunts found" in result.output or "Create your first hunt" in result.output
+        assert "No hunts found" in result.output or "Hunt Catalog" in result.output or "H-" in result.output
 
 
 class TestHuntValidateCommand:
@@ -447,6 +474,8 @@ class TestCLIIntegration:
 
     def test_full_workflow(self, runner, temp_workspace):
         """Test complete workflow: init -> new -> validate -> list -> stats."""
+        import re
+
         # Step 1: Initialize
         result = runner.invoke(init, ["--non-interactive"])
         assert result.exit_code == 0
@@ -468,16 +497,19 @@ class TestCLIIntegration:
             ],
         )
         assert result.exit_code == 0
-        assert "H-0001" in result.output
+        # Extract created hunt ID from output
+        match = re.search(r"Created (H-\d+)", result.output)
+        assert match, f"Could not find hunt ID in output: {result.output}"
+        hunt_id = match.group(1)
 
         # Step 3: Validate
-        result = runner.invoke(hunt, ["validate", "H-0001"])
+        result = runner.invoke(hunt, ["validate", hunt_id])
         assert result.exit_code == 0
 
         # Step 4: List hunts
         result = runner.invoke(hunt, ["list"])
         assert result.exit_code == 0
-        assert "H-0001" in result.output
+        assert hunt_id in result.output
 
         # Step 5: Show stats
         result = runner.invoke(hunt, ["stats"])

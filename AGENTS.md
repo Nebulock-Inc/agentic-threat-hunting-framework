@@ -10,11 +10,11 @@ This repository contains threat hunting investigations using the LOCK pattern (L
 
 **AI assistants should:**
 
-- **Start with [docs/getting-started.md](docs/getting-started.md)** - Entry point for framework adoption
-- **Read [knowledge/hunting-knowledge.md](knowledge/hunting-knowledge.md)** - Expert hunting frameworks and analytical methods
+- **Start with [docs/getting-started.md](athf/data/docs/getting-started.md)** - Entry point for framework adoption
+- **Read [knowledge/hunting-knowledge.md](athf/data/knowledge/hunting-knowledge.md)** - Expert hunting frameworks and analytical methods
 - **Browse past hunts** - Search hunt history before suggesting new hypotheses
 - Reference lessons learned when generating queries
-- Use [docs/environment.md](docs/environment.md) to inform hunt planning
+- Use [docs/environment.md](athf/data/docs/environment.md) to inform hunt planning
 - **Focus on behaviors and TTPs (top of Pyramid of Pain), not indicators**
 
 ---
@@ -87,7 +87,7 @@ This repository contains threat hunting investigations using the LOCK pattern (L
 
 ### knowledge/hunting-knowledge.md
 
-Contains expert threat hunting knowledge that AI should apply when generating hypotheses:
+The file [knowledge/hunting-knowledge.md](athf/data/knowledge/hunting-knowledge.md) contains expert threat hunting knowledge that AI should apply when generating hypotheses:
 
 **Core Sections:**
 1. **Hypothesis Generation** - Pattern-based generation, quality criteria, examples
@@ -107,7 +107,7 @@ Contains expert threat hunting knowledge that AI should apply when generating hy
 
 ## Data Sources
 
-See [docs/environment.md](docs/environment.md) for complete data source inventory including:
+See [docs/environment.md](athf/data/docs/environment.md) for complete data source inventory including:
 - SIEM/log aggregation platforms
 - EDR/endpoint telemetry coverage
 - Network visibility capabilities
@@ -115,7 +115,7 @@ See [docs/environment.md](docs/environment.md) for complete data source inventor
 - Identity and authentication logs
 - Known visibility gaps and blind spots
 
-**AI Note:** Always verify data sources exist in [docs/environment.md](docs/environment.md) before generating queries.
+**AI Note:** Always verify data sources exist in [docs/environment.md](athf/data/docs/environment.md) before generating queries.
 
 ---
 
@@ -129,7 +129,7 @@ This repository follows the **LOCK pattern**:
 4. **Keep** - Record decision and lessons learned
 
 **AI assistants should:**
-- Generate hypotheses in LOCK format (see [templates/HUNT_LOCK.md](templates/HUNT_LOCK.md))
+- Generate hypotheses in LOCK format (see [templates/HUNT_LOCK.md](athf/data/templates/HUNT_LOCK.md))
 - Ensure queries are bounded by time, scope, and impact
 - Document lessons learned after hunt execution
 - Reference past hunts when suggesting new ones
@@ -178,7 +178,7 @@ This repository follows the **LOCK pattern**:
 ### Hypothesis Validation
 
 - **Check if we've hunted this before** - Search past hunts by MITRE tactic or keyword
-- **Verify data source availability** (reference [docs/environment.md](docs/environment.md))
+- **Verify data source availability** (reference [docs/environment.md](athf/data/docs/environment.md))
 - **Ensure hypothesis is testable** (can be validated with a query)
 - **Consider false positive rate** (will this hunt generate noise?)
 
@@ -201,10 +201,10 @@ This repository follows the **LOCK pattern**:
 
 **Core Process:**
 
-1. **Consult Hunting Brain** - Read [knowledge/hunting-knowledge.md](knowledge/hunting-knowledge.md) Section 1 (Hypothesis Generation) and Section 5 (Pyramid of Pain)
+1. **Consult Hunting Brain** - Read [knowledge/hunting-knowledge.md](athf/data/knowledge/hunting-knowledge.md) Section 1 (Hypothesis Generation) and Section 5 (Pyramid of Pain)
 2. **Search Memory First** - **REQUIRED: Use `athf similar "your hypothesis keywords"` to check for duplicate hunts** (saves time, avoids redundant work)
-3. **Validate Environment** - Read [docs/environment.md](docs/environment.md) to confirm data sources exist
-4. **Generate LOCK Hypothesis** - Create testable hypothesis following [templates/HUNT_LOCK.md](templates/HUNT_LOCK.md)
+3. **Validate Environment** - Read [docs/environment.md](athf/data/docs/environment.md) to confirm data sources exist
+4. **Generate LOCK Hypothesis** - Create testable hypothesis following [templates/HUNT_LOCK.md](athf/data/templates/HUNT_LOCK.md)
 5. **Apply Quality Criteria** - Use quality checklist (Falsifiable, Scoped, Observable, Actionable, Contextual)
 6. **Suggest Next Steps** - Offer to create hunt file or draft query
 
@@ -213,14 +213,14 @@ This repository follows the **LOCK pattern**:
 - **Focus on behaviors/TTPs (top of Pyramid of Pain)** - Never build hypothesis around hashes or IPs alone
 - Match hypothesis format: "Adversaries use [behavior] to [goal] on [target]"
 - Reference past hunts by ID (e.g., "Building on H-0022 lessons...")
-- Specify data sources from [docs/environment.md](docs/environment.md)
+- Specify data sources from [docs/environment.md](athf/data/docs/environment.md)
 - Include bounded time range with justification
 - Consider false positives from similar past hunts
 - Apply hypothesis quality rubric from hunting-knowledge.md
 
-**Output Must Follow:** [templates/HUNT_LOCK.md](templates/HUNT_LOCK.md) structure
+**Output Must Follow:** [templates/HUNT_LOCK.md](athf/data/templates/HUNT_LOCK.md) structure
 
-**Complete workflow details:** [prompts/ai-workflow.md](prompts/ai-workflow.md)
+**Complete workflow details:** [prompts/ai-workflow.md](athf/data/prompts/ai-workflow.md)
 
 ---
 
@@ -364,7 +364,7 @@ athf --version
 - Custom filtering beyond CLI capabilities
 - CLI not installed
 
-**Full CLI documentation:** [docs/CLI_REFERENCE.md](docs/CLI_REFERENCE.md)
+**Full CLI documentation:** [docs/CLI_REFERENCE.md](athf/data/docs/CLI_REFERENCE.md)
 
 ### AI-Friendly Hunt Creation (One-Liner Support)
 

@@ -40,7 +40,7 @@ Getting Started:
 Documentation:
   • Full docs: https://github.com/Nebulock-Inc/agentic-threat-hunting-framework
   • CLI reference: docs/CLI_REFERENCE.md
-  • AI workflows: prompts/ai-workflow.md
+  • AI workflows: Run 'athf init' to get prompts/ai-workflow.md
 
 \b
 Need help? Run 'athf COMMAND --help' for command-specific help.

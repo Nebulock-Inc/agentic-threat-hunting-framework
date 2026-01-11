@@ -132,11 +132,11 @@ ATHF is designed to work with your existing stack. The README provides:
 - **Level 3: Generative Capabilities** - "Bring Your Own Tools" approach with MCP servers or APIs for SIEM, EDR, ticketing, and threat intel
 - **Level 3-4 Examples** - Visual diagrams and detailed workflows showing multi-MCP coordination and autonomous agent patterns
 
-See [integrations/README.md](integrations/README.md) and [integrations/MCP_CATALOG.md](integrations/MCP_CATALOG.md) for tool-specific guidance.
+See [integrations/README.md](athf/data/integrations/README.md) and [integrations/MCP_CATALOG.md](athf/data/integrations/MCP_CATALOG.md) for tool-specific guidance.
 
 ## Maintaining Environmental Context
 
-The [environment.md](docs/environment.md) file is a living document that informs hunt planning and enables AI-assisted hypothesis generation at all maturity levels.
+The [environment.md](athf/data/docs/environment.md) file is a living document that informs hunt planning and enables AI-assisted hypothesis generation at all maturity levels.
 
 ### Who Maintains This File?
 

@@ -7,23 +7,8 @@ include USING_ATHF.md
 include INSTALL.md
 include CHANGELOG.md
 
-# Include all markdown documentation in docs/
-recursive-include docs *.md
-
-# Include templates
-recursive-include templates *.md
-
-# Include example hunts
-recursive-include hunts *.md
-
-# Include example queries
-recursive-include queries *.spl *.kql *.sql
-
-# Include knowledge base
-recursive-include knowledge *.md
-
-# Include integration documentation
-recursive-include integrations *.md
+# Include all data files (moved to athf/data/)
+recursive-include athf/data *.md
 
 # Include visual assets
 recursive-include assets *.png *.gif *.svg
