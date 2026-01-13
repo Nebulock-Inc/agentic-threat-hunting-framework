@@ -25,6 +25,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - None
 
+## [0.3.1] - 2026-01-13
+
+### Fixed
+- **Packaging Bug** - Fixed `ModuleNotFoundError: No module named 'athf.agents'` when installing via pip/pipx
+  - Added missing packages to `pyproject.toml`: `athf.agents`, `athf.agents.llm`
+  - Packages list now includes all subdirectories: athf, athf.agents, athf.agents.llm, athf.commands, athf.core, athf.data, athf.utils
+  - Verified wheel build includes all agent module files
+
+## [0.3.0] - 2026-01-11
+
+### Added
+- **Agent Framework** - Autonomous agents for threat hunting workflows
+  - `athf.agents` - Base agent framework and orchestration
+  - `athf.agents.llm` - LLM-powered agents (hypothesis generation, research, finding analysis)
+  - Agent orchestration with task delegation and result aggregation
+- **Research Workflow** - Pre-hunt research and investigation (`athf research`)
+- **Drift Detection** - Behavioral anomaly detection infrastructure (`athf drift`)
+- **Signal Investigation** - Low-fidelity pattern scoring and investigation (`athf signals`)
+
+### Changed
+- CLI refactored to support agent-based workflows
+- Enhanced hunt creation with agent-generated hypotheses
+
 ## [0.2.2] - 2024-12-17
 
 ### Fixed
