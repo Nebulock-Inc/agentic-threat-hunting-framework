@@ -448,7 +448,9 @@ def stats() -> None:
     # Easter egg: First True Positive milestone
     if stats["true_positives"] == 1 and stats["completed_hunts"] > 0:
         console.print("[bold yellow]🎯 First True Positive Detected![/bold yellow]\n")
-        console.print("[italic]Every expert threat hunter started here. This confirms your hypothesis was testable, your data was sufficient, and your analytical instincts were sound. Document what worked.[/italic]\n")
+        console.print(
+            "[italic]Every expert threat hunter started here. This confirms your hypothesis was testable, your data was sufficient, and your analytical instincts were sound. Document what worked.[/italic]\n"
+        )
 
 
 @hunt.command()

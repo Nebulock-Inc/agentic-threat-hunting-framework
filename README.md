@@ -24,6 +24,7 @@ ATHF provides structure and persistence for threat hunting programs. It's a mark
 - Maintains a searchable repository of past investigations
 - Enables AI assistants to reference your environment and previous work
 - Works with any SIEM/EDR platform
+- **NEW:** Includes AI-powered research and hypothesis generation agents (v0.3.0+)
 
 ## The Problem
 
@@ -63,8 +64,8 @@ ATHF defines a simple maturity model. Each level builds on the previous one.
 | **0** | Ad-hoc | Hunts exist in Slack, tickets, or analyst notes |
 | **1** | Documented | Persistent hunt records using LOCK |
 | **2** | Searchable | AI reads and recalls your hunts |
-| **3** | Generative | AI executes queries via MCP tools |
-| **4** | Agentic | Autonomous agents monitor and act |
+| **3** | Generative | AI executes queries via MCP tools, conducts research |
+| **4** | Agentic | Autonomous agents monitor and act, generate hypotheses |
 
 **Level 1:** Operational within a day
 **Level 2:** Operational within a week
@@ -84,8 +85,11 @@ pip install agentic-threat-hunting-framework
 # Initialize your hunt program
 athf init
 
-# Create your first hunt
-athf hunt new --technique T1003.001 --title "LSASS Credential Dumping"
+# NEW: Conduct research before hunting (5-skill methodology)
+athf research new --topic "LSASS dumping" --technique T1003.001
+
+# Create your first hunt (link to research)
+athf hunt new --technique T1003.001 --title "LSASS Credential Dumping" --research R-0001
 ```
 
 ### Option 2: Install from Source (Development)
@@ -109,7 +113,8 @@ git clone https://github.com/Nebulock-Inc/agentic-threat-hunting-framework
 cd agentic-threat-hunting-framework
 
 # Copy a template and start documenting
-cp templates/HUNT_LOCK.md hunts/H-0001.md
+mkdir -p hunts
+cp athf/data/templates/HUNT_LOCK.md hunts/H-0001.md
 
 # Customize AGENTS.md with your environment
 # Add your SIEM, EDR, and data sources
@@ -130,6 +135,23 @@ athf init                           # Interactive setup
 athf init --non-interactive         # Use defaults
 ```
 
+### Research & Hypothesis Generation (NEW in v0.3.0)
+
+```bash
+# Conduct thorough pre-hunt research (15-20 min)
+athf research new --topic "LSASS dumping" --technique T1003.001
+
+# Quick research for urgent hunts (5 min)
+athf research new --topic "Pass-the-Hash" --depth basic
+
+# Generate AI-powered hypothesis from threat intel
+athf agent run hypothesis-generator --threat-intel "APT29 targeting SaaS"
+
+# List research and agents
+athf research list
+athf agent list
+```
+
 ### Create Hunts
 
 ```bash
@@ -137,7 +159,8 @@ athf hunt new                       # Interactive mode
 athf hunt new \
   --technique T1003.001 \
   --title "LSASS Dumping Detection" \
-  --platform windows
+  --platform windows \
+  --research R-0001                 # Link to research document
 ```
 
 ### List & Search
@@ -147,6 +170,7 @@ athf hunt list                      # Show all hunts
 athf hunt list --status completed   # Filter by status
 athf hunt list --output json        # JSON output
 athf hunt search "kerberoasting"    # Full-text search
+athf research search "credential"   # Search research docs
 ```
 
 ### Validate & Stats
@@ -156,6 +180,7 @@ athf hunt validate                  # Validate all hunts
 athf hunt validate H-0001           # Validate specific hunt
 athf hunt stats                     # Show statistics
 athf hunt coverage                  # MITRE ATT&CK coverage
+athf research stats                 # Research metrics
 ```
 
 **Full documentation:** [CLI Reference](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/blob/main/docs/CLI_REFERENCE.md)
@@ -170,34 +195,11 @@ Watch ATHF in action: initialize a workspace, create hunts, and explore your thr
 
 ## Installation
 
-### Prerequisites
+See the [Quick Start](#-quick-start) section above for installation options (PyPI, source, or pure markdown).
+
+**Prerequisites:**
 - Python 3.8-3.13 (for CLI option)
 - Your favorite AI code assistant
-
-### From PyPI (Recommended)
-
-```bash
-pip install agentic-threat-hunting-framework
-athf init
-```
-
-### From Source (Development)
-
-```bash
-git clone https://github.com/Nebulock-Inc/agentic-threat-hunting-framework
-cd agentic-threat-hunting-framework
-pip install -e .
-athf init
-```
-
-### Markdown-Only Setup (No Installation)
-
-```bash
-git clone https://github.com/Nebulock-Inc/agentic-threat-hunting-framework
-cd agentic-threat-hunting-framework
-```
-
-Start documenting hunts in the `hunts/` directory using the LOCK pattern.
 
 ## Documentation
 
@@ -245,20 +247,15 @@ Agentic threat hunting is not about replacing analysts. It's about building syst
 
 When your framework has memory, you stop losing knowledge to turnover or forgotten notes. When your AI assistant can reference that memory, it becomes a force multiplier.
 
-## 💬 Community & Support
+## 💬 Community & Adoption
 
 - **GitHub Discussions:** [Ask questions, share hunts](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/discussions)
 - **Issues:** [Report bugs or request features](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/issues)
-- **Adoption Guide:** See [USING_ATHF.md](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/blob/main/USING_ATHF.md) for how to use ATHF in your organization
 - **LinkedIn:** [Nebulock Inc.](https://www.linkedin.com/company/nebulock-inc) - Follow for updates
 
-## 📖 Using ATHF
-
-ATHF is a framework to internalize, not a platform to extend. Fork it, customize it, make it yours.
+**Using ATHF in Your Organization:** ATHF is a framework to internalize, not a platform to extend. Fork it, customize it, make it yours. See [USING_ATHF.md](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/blob/main/USING_ATHF.md) for adoption guidance. Your hunts stay yours—sharing back is optional but appreciated.
 
 **Repository:** [https://github.com/Nebulock-Inc/agentic-threat-hunting-framework](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework)
-
-See [USING_ATHF.md](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/blob/main/USING_ATHF.md) for adoption guidance. Your hunts stay yours—sharing back is optional but appreciated ([Discussions](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/discussions)).
 
 The goal is to help every threat hunting team move from ad-hoc memory to structured, agentic capability.
 

@@ -3,15 +3,11 @@ Tests for ATHF CLI commands using actual implementation.
 """
 
 import os
-import shutil
-import tempfile
-from pathlib import Path
 
 import pytest
 import yaml
 from click.testing import CliRunner
 
-from athf.cli import cli
 from athf.commands.hunt import hunt
 from athf.commands.init import init
 
@@ -132,6 +128,7 @@ class TestHuntNewCommand:
         assert result.exit_code == 0
         # Extract created hunt ID from output (init may copy sample hunts)
         import re
+
         match = re.search(r"Created (H-\d+)", result.output)
         assert match, f"Could not find hunt ID in output: {result.output}"
         hunt_id = match.group(1)
@@ -158,6 +155,7 @@ class TestHuntNewCommand:
     def test_hunt_new_increments_id(self, runner, temp_workspace):
         """Test that hunt IDs increment correctly."""
         import re
+
         runner.invoke(init, ["--non-interactive"])
 
         # Create first hunt
@@ -180,6 +178,7 @@ class TestHuntNewCommand:
     def test_hunt_new_with_multiple_tactics(self, runner, temp_workspace):
         """Test creating hunt with multiple tactics."""
         import re
+
         runner.invoke(init, ["--non-interactive"])
 
         result = runner.invoke(
@@ -210,6 +209,7 @@ class TestHuntNewCommand:
     def test_hunt_new_with_rich_content(self, runner, temp_workspace):
         """Test creating hunt with rich content parameters (hypothesis, threat-context, ABLE framework)."""
         import re
+
         runner.invoke(init, ["--non-interactive"])
 
         result = runner.invoke(

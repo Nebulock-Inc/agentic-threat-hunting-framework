@@ -121,7 +121,7 @@ def _get_hunt_text(hunt_id: str) -> Optional[str]:
     hunt_file = Path(f"hunts/{hunt_id}.md")
     if not hunt_file.exists():
         return None
-    return hunt_file.read_text(encoding='utf-8')
+    return hunt_file.read_text(encoding="utf-8")
 
 
 def _find_similar_hunts(
@@ -156,7 +156,7 @@ def _find_similar_hunts(
         if exclude_hunt and hunt_id == exclude_hunt:
             continue
 
-        content = hunt_file.read_text(encoding='utf-8')
+        content = hunt_file.read_text(encoding="utf-8")
         metadata = _extract_hunt_metadata(content)
 
         # Extract searchable text (weighted semantic sections)
@@ -233,7 +233,7 @@ def _extract_hunt_metadata(content: str) -> Dict[str, Any]:
     return {}
 
 
-def _extract_searchable_text(content: str, metadata: Dict[str, Any]) -> str:
+def _extract_searchable_text(content: str, metadata: Dict[str, Any]) -> str:  # noqa: C901
     """Extract semantically important text for similarity matching.
 
     Focuses on key sections and applies weighting to improve match accuracy:

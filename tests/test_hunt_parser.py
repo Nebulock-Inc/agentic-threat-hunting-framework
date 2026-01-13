@@ -289,8 +289,6 @@ class TestHuntDirectory:
 
     def test_hunt_directory_structure(self):
         """Test that hunt files follow expected directory structure."""
-        hunts_dir = Path(__file__).parent.parent / "hunts"
-
         # This test verifies the test structure is correct
         # Actual hunt examples may or may not exist
         assert True

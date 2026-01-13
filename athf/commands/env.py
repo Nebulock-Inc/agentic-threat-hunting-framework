@@ -54,7 +54,7 @@ def env() -> None:
 )
 @click.option("--dev", is_flag=True, help="Install development dependencies")
 @click.option("--clean", is_flag=True, help="Remove existing venv before creating")
-def setup(python: str, dev: bool, clean: bool) -> None:
+def setup(python: str, dev: bool, clean: bool) -> None:  # noqa: C901
     """Setup Python virtual environment with dependencies.
 
     Creates .venv directory and installs athf package with
@@ -240,7 +240,7 @@ def clean() -> None:
 
 
 @env.command(name="info")
-def info() -> None:
+def info() -> None:  # noqa: C901
     """Show virtual environment information.
 
     Display Python version, installed packages, and venv location.

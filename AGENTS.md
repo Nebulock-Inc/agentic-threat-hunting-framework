@@ -1,6 +1,6 @@
-# AGENTS.md - Context for AI Assistants
+# AGENTS.md - Context for AI Assistants Using ATHF
 
-**Purpose:** This file provides AI assistants with context about your threat hunting repository and environment.
+**Purpose:** This file provides AI assistants with context about threat hunting repositories using the Agentic Threat Hunting Framework (ATHF).
 
 ---
 
@@ -14,7 +14,7 @@ This repository contains threat hunting investigations using the LOCK pattern (L
 - **Read [knowledge/hunting-knowledge.md](athf/data/knowledge/hunting-knowledge.md)** - Expert hunting frameworks and analytical methods
 - **Browse past hunts** - Search hunt history before suggesting new hypotheses
 - Reference lessons learned when generating queries
-- Use [docs/environment.md](athf/data/docs/environment.md) to inform hunt planning
+- Use [docs/environment.md](athf/data/docs/environment.md) template to understand available data sources
 - **Focus on behaviors and TTPs (top of Pyramid of Pain), not indicators**
 
 ---
@@ -36,50 +36,92 @@ This repository contains threat hunting investigations using the LOCK pattern (L
 
 ## Repository Structure
 
+### Framework Source Code (athf/)
+
+```
+athf/                           # CLI source code
+├── agents/                     # Agent implementations
+│   ├── base.py                 # Base agent classes
+│   └── llm/                    # LLM-powered agents
+│       ├── hypothesis_generator.py  # Hypothesis generation
+│       └── hunt_researcher.py       # Pre-hunt research agent
+├── commands/                   # CLI commands
+│   ├── agent.py                # Agent management
+│   ├── context.py              # Context export for AI
+│   ├── env.py                  # Virtual environment setup
+│   ├── hunt.py                 # Hunt management commands
+│   ├── init.py                 # Workspace initialization
+│   ├── investigate.py          # Investigation commands
+│   ├── research.py             # Research management
+│   └── similar.py              # Semantic search
+├── core/                       # Core functionality
+│   ├── attack_matrix.py        # MITRE ATT&CK coverage
+│   ├── hunt_manager.py         # Hunt lifecycle management
+│   ├── hunt_parser.py          # Hunt file parser
+│   ├── investigation_parser.py # Investigation parser
+│   ├── research_manager.py     # Research lifecycle
+│   ├── template_engine.py      # Template rendering
+│   └── web_search.py           # Tavily search integration
+├── utils/                      # Helper utilities
+└── data/                       # Bundled templates and docs
+    ├── docs/                   # Framework documentation
+    ├── templates/              # Hunt templates
+    ├── knowledge/              # Hunting expertise
+    ├── prompts/                # AI workflow templates
+    ├── hunts/                  # Example hunts
+    └── integrations/           # Integration guides
+```
+
+### User Workspace (Created by athf init)
+
 ```
 /
-├── README.md              # Framework overview
-├── AGENTS.md              # 🤖 This file - AI context
-├── USING_ATHF.md          # Adoption guide
-├── SHOWCASE.md            # Example results
-├── .athfconfig.yaml       # Workspace configuration
+├── README.md                   # Project overview
+├── AGENTS.md                   # 🤖 This file - AI context
+├── .athfconfig.yaml            # Workspace configuration
+├── environment.md              # Data sources and tech stack
 │
-├── hunts/                 # Hunt investigations (H-XXXX.md)
-│   └── README.md          # Hunt creation guide
+├── hunts/                      # Hunt investigations (H-XXXX.md)
+│   └── README.md               # Hunt creation guide
 │
-├── investigations/        # Exploratory work (I-XXXX.md)
-│   └── README.md          # Investigation workflow guide
+├── investigations/             # Exploratory work (I-XXXX.md)
+│   └── README.md               # Investigation workflow guide
 │
-├── queries/               # Query implementations
-│   └── README.md          # Query library documentation
+├── queries/                    # Query implementations
+│   └── README.md               # Query library documentation
 │
-├── templates/             # Hunt templates
-├── prompts/               # AI workflow templates
-├── knowledge/             # Hunting expertise and frameworks
-│   ├── hunting-knowledge.md      # Core hunting knowledge
-│   ├── mitre-attack.md           # ATT&CK framework methodology
-│   └── domains/                  # Domain-specific knowledge
-│       ├── endpoint-security.md  # Process execution, LOTL, persistence
-│       ├── iam-security.md       # Authentication, credential attacks
-│       ├── insider-threat.md     # Data exfiltration, sabotage
-│       └── cloud-security.md     # AWS/Azure/GCP threats
+├── knowledge/                  # Hunting expertise and frameworks
+│   ├── hunting-knowledge.md   # Core hunting knowledge
+│   ├── mitre-attack.md        # ATT&CK framework methodology
+│   └── domains/               # (EXAMPLE) Domain-specific knowledge
+│       ├── endpoint-security.md 
+│       ├── iam-security.md
+│       ├── insider-threat.md
+│       └── cloud-security.md
 │
-├── integrations/          # MCP servers and tool integrations
-│   ├── MCP_CATALOG.md     # Available integrations
-│   └── quickstart/        # Integration setup guides
+├── integrations/               # Data source integrations
+│   └── MCP_CATALOG.md          # Available integrations
 │
-├── docs/                  # Detailed documentation
-│   ├── CLI_REFERENCE.md   # Complete CLI command reference
-│   ├── environment.md     # Tech stack and data sources
-│   └── getting-started.md # Adoption guide
-│
-├── athf/                  # CLI source code
-│   ├── commands/          # Hunt/investigate management
-│   ├── core/              # Parsers and validation
-│   └── utils/             # Helper utilities
-│
-└── tests/                 # Test suite
+└── docs/                       # Additional documentation
+    └── CLI_REFERENCE.md        # Complete CLI command reference
 ```
+
+---
+
+## Nested AGENTS.md Files
+
+This repository can use nested AGENTS.md files for specialized context. The closest file in the directory hierarchy takes precedence.
+
+| Directory | Context | When to Load |
+|-----------|---------|--------------|
+| Root `/` | General hunting methodology | Default context |
+| `integrations/<datasource>/` | Query execution, data source specifics | Writing queries for that data source |
+| `hunts/` | Hunt execution workflow, LOCK pattern | Creating/executing hunts |
+| `research/` | Research-first workflow | Pre-hunt research |
+| `queries/` | Query library, parameterized queries | Alert triage |
+| `investigations/` | Investigation workflow | Exploratory analysis |
+
+**Note:** Nested AGENTS.md files are optional. Organizations can add them to provide context-specific guidance.
 
 ---
 
@@ -107,7 +149,8 @@ The file [knowledge/hunting-knowledge.md](athf/data/knowledge/hunting-knowledge.
 
 ## Data Sources
 
-See [docs/environment.md](athf/data/docs/environment.md) for complete data source inventory including:
+See [docs/environment.md](athf/data/docs/environment.md) template for documenting your organization's data sources:
+
 - SIEM/log aggregation platforms
 - EDR/endpoint telemetry coverage
 - Network visibility capabilities
@@ -115,7 +158,13 @@ See [docs/environment.md](athf/data/docs/environment.md) for complete data sourc
 - Identity and authentication logs
 - Known visibility gaps and blind spots
 
-**AI Note:** Always verify data sources exist in [docs/environment.md](athf/data/docs/environment.md) before generating queries.
+**AI Note:** Always verify data sources exist in the user's environment.md before generating queries or hunt hypotheses.
+
+**Supported Integrations:** Any data source with query capabilities
+
+**Common Examples:** Splunk, Elasticsearch, Athena, BigQuery, PostgreSQL, Microsoft Sentinel, Sumo Logic, etc.
+
+**Integration-Specific Guidance:** Organizations should create `integrations/<datasource>/AGENTS.md` files for data source-specific query syntax, field naming, and best practices.
 
 ---
 
@@ -136,7 +185,7 @@ This repository follows the **LOCK pattern**:
 
 ---
 
-## Investigation Workflow
+## Investigation vs Hunt
 
 **Purpose:** Investigations (I-XXXX) are for exploratory work, alert triage, and ad-hoc analysis that **does NOT contribute to hunt metrics**.
 
@@ -166,107 +215,55 @@ This repository follows the **LOCK pattern**:
 
 ---
 
-## Guardrails for AI Assistance
+## Query Guardrails
 
-### Query Safety
+### Universal Rules (Apply to All Data Sources)
 
-- **Always include time bounds** (e.g., last 7 days, not "all time")
-- **Limit result sets** (e.g., `| head 1000`, `TOP 100`, `LIMIT 1000`)
-- **Avoid expensive operations** without explicit approval
-- **Test on small windows first** before expanding timeframe
+**Mandatory Rules:**
+- ✅ Always include time bounds (7 days max initially for exploratory queries)
+- ✅ Always start with `LIMIT 100` or equivalent (progressive strategy)
+- ✅ Use `athf validate query --sql "..."` before executing (if supported by your data source)
+- ✅ **COUNT-FIRST:** Count baseline → Count filtered → Analyze → Pull results only if justified
+- ✅ **Sequential execution:** ONE query at a time, STOP for user feedback
+- ❌ Never omit LIMIT or time constraints
+- ❌ Never execute multiple queries in parallel without user approval
+
+**COUNT-FIRST Decision Tree:**
+- count = 0 → Skip (no results)
+- count < 100 → LIMIT 100
+- count 100-1000 → LIMIT 1000
+- count > 1000 → Refine filters first, then proceed
+
+**If timeout or slow query:** Reduce time range → Add filters → Simplify aggregations
+
+### Data Source-Specific Guidance
+
+Query syntax, field naming, and performance optimization vary by data source. Refer to integration-specific AGENTS.md files in your workspace:
+
+- `integrations/clickhouse/AGENTS.md` - ClickHouse query syntax, field escaping, timeout prevention
+- `integrations/splunk/AGENTS.md` - SPL query patterns, search modes
+- `integrations/elasticsearch/AGENTS.md` - Query DSL, aggregations
+- `integrations/athena/AGENTS.md` - Presto SQL, partition optimization
+
+**See your workspace `integrations/` directory for deployed data source guidance.**
 
 ### Hypothesis Validation
 
-- **Check if we've hunted this before** - Search past hunts by MITRE tactic or keyword
-- **Verify data source availability** (reference [docs/environment.md](athf/data/docs/environment.md))
-- **Ensure hypothesis is testable** (can be validated with a query)
-- **Consider false positive rate** (will this hunt generate noise?)
+- **Check if we've hunted this before** - Use `athf similar "hypothesis keywords"` to find duplicate hunts
+- **Verify data source availability** - Reference environment.md
+- **Ensure hypothesis is testable** - Can be validated with a query
+- **Consider false positive rate** - Will this hunt generate noise?
 
 ### Documentation
 
 - **Use LOCK structure** for all hunt documentation
-- **Capture negative results** (hunts that found nothing are still valuable)
-- **Record lessons learned** (what worked, what didn't, what to try next)
-- **Link related hunts** (reference past work)
-
-### Memory and Context
-
-- **Search before suggesting** - Check if we've hunted this TTP/behavior before
-- **Reference environment.md** - Ensure suggestions match our actual tech stack
-- **Apply past lessons** - Use outcomes from similar hunts to improve new hypotheses
+- **Capture negative results** - Hunts that found nothing are still valuable
+- **Record lessons learned** - What worked, what didn't, what to try next
+- **Link related hunts** - Reference past work
 
 ---
 
-## Hypothesis Generation Workflow
-
-**Core Process:**
-
-1. **Consult Hunting Brain** - Read [knowledge/hunting-knowledge.md](athf/data/knowledge/hunting-knowledge.md) Section 1 (Hypothesis Generation) and Section 5 (Pyramid of Pain)
-2. **Search Memory First** - **REQUIRED: Use `athf similar "your hypothesis keywords"` to check for duplicate hunts** (saves time, avoids redundant work)
-3. **Validate Environment** - Read [docs/environment.md](athf/data/docs/environment.md) to confirm data sources exist
-4. **Generate LOCK Hypothesis** - Create testable hypothesis following [templates/HUNT_LOCK.md](athf/data/templates/HUNT_LOCK.md)
-5. **Apply Quality Criteria** - Use quality checklist (Falsifiable, Scoped, Observable, Actionable, Contextual)
-6. **Suggest Next Steps** - Offer to create hunt file or draft query
-
-**Key Requirements:**
-
-- **Focus on behaviors/TTPs (top of Pyramid of Pain)** - Never build hypothesis around hashes or IPs alone
-- Match hypothesis format: "Adversaries use [behavior] to [goal] on [target]"
-- Reference past hunts by ID (e.g., "Building on H-0022 lessons...")
-- Specify data sources from [docs/environment.md](athf/data/docs/environment.md)
-- Include bounded time range with justification
-- Consider false positives from similar past hunts
-- Apply hypothesis quality rubric from hunting-knowledge.md
-
-**Output Must Follow:** [templates/HUNT_LOCK.md](athf/data/templates/HUNT_LOCK.md) structure
-
-**Complete workflow details:** [prompts/ai-workflow.md](athf/data/prompts/ai-workflow.md)
-
----
-
-## Hunt Execution Workflow
-
-ATHF provides the following hunt execution capabilities:
-
-1. **Load Context** - `athf context --hunt H-XXXX --format json`
-   - Loads environment.md, past hunts, domain knowledge
-   - Saves ~75% token usage vs. multiple Read operations
-   - Returns JSON/YAML/Markdown with structured context
-
-2. **Find Similar Hunts** - `athf similar "hypothesis keywords"`
-   - Semantic search to check for duplicate hunts
-   - Finds related past work
-   - Avoids redundant effort
-
-**Recommended Workflow:**
-
-1. Use `athf similar "hypothesis keywords"` to check for duplicate hunts
-2. Use `athf context --hunt H-XXXX --format json` to load context
-3. Write query with proper bounds (time limits, LIMIT clause, no SQL comments)
-4. Execute query manually via your data source tool (SIEM, database client, etc.)
-5. Document results in hunt file
-
-**Benefits:**
-- Context loading saves ~75% token usage
-- Semantic search prevents duplicate work
-- Manual execution provides full control
-- Works with any data source (not limited to specific integrations)
-
----
-
-## Priority TTPs
-
-### High Priority (based on threat model)
-
-- TA0006 - Credential Access
-- TA0004 - Privilege Escalation
-- TA0008 - Lateral Movement
-
-**AI Note:** Prioritize hunt suggestions for high-priority TTPs with available telemetry.
-
----
-
-## CLI Commands for AI Assistants
+## CLI Commands (Required Workflow)
 
 **Purpose:** ATHF includes CLI tools (`athf` command) that automate common hunt management tasks. When available, these commands are faster and more reliable than manual file operations.
 
@@ -281,7 +278,7 @@ source .venv/bin/activate
 **Verify activation:**
 ```bash
 which athf
-# Should output: /Users/sydney/work/hunt-vault/.venv/bin/athf
+# Should output: /path/to/workspace/.venv/bin/athf
 
 athf --version
 # Should succeed with version number
@@ -319,56 +316,115 @@ athf --version
 
 ---
 
-### Quick Command Reference
+### Five Mandatory Tools
 
-| Command | Use When | Replaces Manual | Output Format |
-|---------|----------|-----------------|---------------|
-| `athf env setup` | Setup Python environment | Manual venv + pip install | Environment created |
-| `athf hunt new` | Creating new hunt | Manual file + YAML | Hunt file created |
-| `athf hunt search "kerberoasting"` | Full-text search | grep across files | Text results |
-| `athf hunt list --tactic credential-access` | Filter by metadata | grep + YAML parsing | Table/JSON/YAML |
-| `athf hunt stats` | Calculate metrics | Manual TP/FP counting | Statistics summary |
-| `athf hunt coverage` | ATT&CK gap analysis | Manual technique tracking | Coverage report |
-| `athf hunt validate H-0001` | Check structure | Manual YAML check | Validation results |
-| `athf context --hunt H-0013` | AI context loading | ~5 Read operations | JSON/Markdown/YAML |
-| `athf similar "password spraying"` | Find similar hunts | Manual hunt search | Table/JSON/YAML |
-| `athf investigate new` | Create investigation | Manual file + YAML | Investigation file created |
-| `athf investigate list` | List investigations | grep across files | Table/JSON/YAML |
-| `athf investigate search "keyword"` | Search investigations | grep across files | Text results |
-| `athf investigate validate I-0001` | Check investigation | Manual check | Validation results |
-| `athf investigate promote I-0001` | Convert to hunt | Manual file creation | Hunt file created |
+| Step | Command | When | Purpose |
+|------|---------|------|---------|
+| 1 | `athf similar "keywords"` | BEFORE hypothesis | Check for duplicate hunts |
+| 2 | `athf research new --topic "..."` | REQUIRED: Before hypothesis | Thorough pre-hunt research (15-20 min) - **NEW** |
+| 3 | `athf agent run hypothesis-generator --threat-intel "..."` | AFTER research | Generate structured hypothesis - **NEW** |
+| 4 | `athf hunt new --technique T1XXX --title "..." --non-interactive` | WHEN creating hunt | Auto-generate hunt file (⚠️ NEVER use Write tool) |
+| 5 | `athf context --hunt H-XXXX --format json` | BEFORE executing queries | Load all context efficiently |
 
-### CLI Availability Check
+---
 
-AI assistants should verify CLI is installed before using:
+### Hunt Execution Steps
+
+1. **Check duplicates:** `athf similar "hypothesis keywords"`
+2. **Deep research (REQUIRED):** `athf research new --topic "..."` (creates R-XXXX.md with 5-skill methodology)
+3. **Generate hypothesis:** `athf agent run hypothesis-generator --threat-intel "..."`
+4. **Create hunt file:** `athf hunt new --research R-XXXX --non-interactive ...` (link to research)
+5. **Load context:** `athf context --hunt H-XXXX --format json`
+6. **Present hypothesis to user** - ABLE scoping table + threat context
+7. **Execute queries** - Use appropriate data source tools (ClickHouse CLI, SIEM interface, etc.)
+8. **STOP after each query** - Wait for user feedback before next query
+9. **Document findings** - Update hunt file with results and conclusions
+
+---
+
+### Additional Commands
 
 ```bash
-athf --version
+# Agent management (NEW - AI-powered capabilities)
+athf agent list                       # List available agents
+athf agent info hypothesis-generator  # Get info about specific agent
+athf agent run hunt-researcher --topic "LSASS dumping"
+
+# Hunt management
+athf hunt coverage                    # ATT&CK coverage analysis
+athf hunt coverage --tactic credential-access
+athf hunt search "credential dumping" # Full-text search across hunts
+athf hunt validate H-0001             # Validate hunt file structure
+
+# Research management (NEW)
+athf research list                    # List research documents
+athf research view R-0001             # View specific research
+athf research search "credential access"  # Search research documents
+athf research stats                   # Show research metrics
+
+# Similarity search
+athf similar "LSASS dumping"          # Find similar hunts by query
+athf similar --hunt H-0001            # Find hunts similar to H-0001
 ```
 
-- **If succeeds** → Use CLI commands (faster, structured output)
-- **If fails** → Use grep/manual fallback
+---
 
-### When to Use CLI vs Manual
+### Research Commands (REQUIRED Pre-Hunt Investigation) - **NEW**
 
-**Use CLI when:**
-- Creating hunts (handles ID generation, template, YAML frontmatter)
-- Filtering by metadata (tactics, techniques, status, platform)
-- Calculating statistics (automatic TP/FP/success rate calculation)
-- Validating hunt structure (automatic checks)
-- Need structured output (JSON/YAML for parsing)
+```bash
+# Deep research before hunting (15-20 min, uses web search + LLM) - DEFAULT
+athf research new --topic "LSASS dumping" --technique T1003.001
 
-**Use Manual/Grep when:**
-- Reading hunt content (LOCK sections, lessons learned)
-- Editing existing hunt files
-- Custom filtering beyond CLI capabilities
-- CLI not installed
+# Quick research for urgent hunts (5 min)
+athf research new --topic "Pass-the-Hash" --depth basic
 
-**Full CLI documentation:** [docs/CLI_REFERENCE.md](athf/data/docs/CLI_REFERENCE.md)
+# Offline mode (no web search)
+athf research new --topic "Credential Access" --no-web-search
+
+# List and view research documents
+athf research list
+athf research list --status completed
+athf research view R-0001
+athf research search "kerberos"
+
+# Statistics
+athf research stats
+
+# Link research to hunt during creation (REQUIRED)
+athf hunt new --research R-0001 --non-interactive
+```
+
+**Research is now REQUIRED for all hunts** to ensure:
+
+- Deep understanding of system internals before hunting (Skill 1: System Research)
+- Adversary tradecraft is mapped to available telemetry (Skill 2: Adversary Tradecraft via web search)
+- Telemetry gaps identified early (Skill 3: OCSF Field Mapping)
+- Past hunts are reviewed to avoid duplication (Skill 4: Related Work)
+- Hunt hypotheses are informed by structured research (Skill 5: Synthesis)
+
+**5-Skill Research Methodology:**
+
+1. **System Research** - How does this technology normally work?
+2. **Adversary Tradecraft** - Attack techniques (web search via Tavily)
+3. **Telemetry Mapping** - OCSF field availability analysis
+4. **Related Work** - Past hunt correlation via semantic search
+5. **Research Synthesis** - Key findings, gaps, recommended hypothesis
+
+**Time investment:**
+
+- Advanced (default): 15-20 minutes - thorough 5-skill methodology
+- Basic (urgent): 5 minutes - rapid research for time-sensitive hunts
+
+**Environment:**
+
+- Requires `TAVILY_API_KEY` for web search (get from <https://tavily.com>)
+- Configure via `.env` file: `AWS_PROFILE=default` or AWS credentials
+
+---
 
 ### AI-Friendly Hunt Creation (One-Liner Support)
 
-**NEW:** `athf hunt new` now supports rich content flags for fully-populated hunt files without manual editing.
+**NEW:** `athf hunt new` supports rich content flags for fully-populated hunt files without manual editing.
 
 **Basic Usage:**
 ```bash
@@ -408,11 +464,114 @@ athf hunt new \
 - `--evidence` - Evidence description (for ABLE framework)
 - `--hunter` - Hunter name (default: "AI Assistant")
 
-### AI Context Export & Semantic Search
+---
+
+### Common Mistakes
+
+| ❌ Wrong | ✅ Correct |
+|---------|-----------|
+| Write tool → hunt file | `athf hunt new --non-interactive` |
+| Skip duplicate check | `athf similar "keywords"` first |
+| Skip research | `athf research new --topic "..."` (REQUIRED) |
+| Manual hypothesis | `athf agent run hypothesis-generator` |
+| Multiple Read operations | `athf context --hunt H-XXXX` |
+
+**Full CLI Reference:** [docs/CLI_REFERENCE.md](athf/data/docs/CLI_REFERENCE.md)
+
+---
+
+## Domain-Specific Knowledge
+
+ATHF includes bundled hunting knowledge files to inform hunt hypotheses and query generation.
+
+**Example domain-specific knowledge files organizations can add:**
+
+| Domain | Example File Path | Use Case |
+|--------|-------------------|----------|
+| **MITRE ATT&CK** | `knowledge/mitre-attack.md` | TTP mapping, coverage analysis, prioritization |
+| **Endpoint Security** | `knowledge/domains/endpoint-security.md` | Process execution, LOTL, credential access, persistence |
+| **IAM Security** | `knowledge/domains/iam-security.md` | Password spraying, MFA fatigue, impossible travel |
+| **Insider Threat** | `knowledge/domains/insider-threat.md` | Data exfiltration, bulk file access, sabotage |
+| **Cloud Security** | `knowledge/domains/cloud-security.md` | AWS/Azure/GCP, CloudTrail, IAM manipulation |
+
+**Note:** These are example paths. Organizations should create custom domain knowledge files in their workspace `knowledge/` directory as needed.
+
+---
+
+## Hunt Idea Generation
+
+**When user requests hunt ideas:**
+
+1. **Analyze coverage gaps:** `athf hunt coverage --tactic all` or `athf context --tactic all --format json`
+2. **Validate data sources:** Check user's environment.md for available telemetry
+3. **Present Top 3 ranked options** with MITRE technique, data source, priority reason
+4. **Wait for user selection** before creating hunt
+
+**Full workflow:** [prompts/ai-workflow.md](athf/data/prompts/ai-workflow.md)
+
+---
+
+## Priority TTPs
+
+**How to Define Organizational Priorities:**
+
+1. Review threat model (ransomware, insider threat, nation-state, supply chain, etc.)
+2. Map high-risk TTPs from MITRE ATT&CK framework
+3. Prioritize based on detection coverage gaps and business impact
+4. Document priorities in your workspace environment.md
+
+**Example Priorities (Customize for Your Organization):**
+- TA0006 - Credential Access
+- TA0004 - Privilege Escalation
+- TA0008 - Lateral Movement
+- TA0003 - Persistence
+- TA0010 - Exfiltration
+
+**AI Note:** Prioritize hunt suggestions based on org's threat model and TTPs documented in environment.md. High-priority TTPs should guide coverage gap analysis.
+
+---
+
+## Memory and Search
+
+**Maturity Level:** Level 4 (Agentic) - AI assistants can autonomously execute hunt workflows using CLI tools
+
+**AI capabilities:**
+
+- Execute queries via data source integrations
+- Semantic similarity search (`athf similar`)
+- **Pre-hunt research with web search** (`athf research new`) - 5-skill methodology - **NEW**
+- **LLM-powered agents** (`athf agent run`) - Hypothesis generation, hunt research - **NEW**
+- Automated hypothesis generation (`athf agent run hypothesis-generator`) - **NEW**
+- Automated hunt research (`athf agent run hunt-researcher`) - **NEW**
+- ATT&CK coverage analysis (`athf hunt coverage`)
+- Context loading optimization (`athf context`)
+- Session tracking (`athf session`)
+- MCP integrations (Notion, GitHub, custom tools)
+
+**Data sources AI can access:**
+- `hunts/` folder and past hunt files
+- `research/` folder (R-XXXX.md documents) - **NEW**
+- Data sources via integrations (Splunk, etc. - via CLI or MCP)
+- Web search via Tavily API (`athf research new`) - **NEW**
+- User's environment.md
+
+**Agent Infrastructure (NEW):**
+
+- **LLM Agents:** AI-powered agents
+- **Agent Types:**
+  - `hypothesis-generator` - Generates creative hunt hypotheses from threat intel
+  - `hunt-researcher` - Conducts thorough 5-skill pre-hunt research
+- **Execution Modes:** Interactive (default, step-by-step) or Autonomous (--auto flag)
+
+**MCP Server Integration:** Organizations can extend AI capabilities by installing MCP servers. See [integrations/MCP_CATALOG.md](athf/data/integrations/MCP_CATALOG.md) for available integrations.
+
+---
+
+## CLI Context Export & Semantic Search
 
 **Purpose:** Two commands designed specifically for AI assistants to reduce token usage and avoid duplicate hunts.
 
-#### `athf context` - AI-Optimized Context Loading
+### `athf context` - AI-Optimized Context Loading
 
 **Why this helps AI:**
 - **Reduces context-loading from ~5 tool calls to 1** - Single command replaces multiple Read operations
@@ -439,7 +598,7 @@ athf context --full --format json
 ```
 
 **What's included:**
-- `docs/environment.md` - Tech stack, data sources
+- User's environment.md - Tech stack, data sources
 - Past hunts - Filtered by hunt ID, tactic, platform, or combinations
 - Domain knowledge - Relevant domain files based on tactic
 
@@ -449,7 +608,7 @@ athf context --full --format json
 - **When user asks about specific hunt** - Load hunt content + context
 - **When exploring tactics** - Get all hunts for a specific tactic
 
-#### `athf similar` - Semantic Hunt Search
+### `athf similar` - Semantic Hunt Search
 
 **Why this helps AI:**
 - **Find similar hunts even with different terminology** - Semantic search, not keyword matching
@@ -507,14 +666,42 @@ AI: 1. athf similar "kerberoasting" --format json
 
 ---
 
+## Hypothesis Generation Workflow
+
+**Core Process:**
+
+1. **Consult Hunting Brain** - Read [knowledge/hunting-knowledge.md](athf/data/knowledge/hunting-knowledge.md) Section 1 (Hypothesis Generation) and Section 5 (Pyramid of Pain)
+2. **Search Memory First** - **REQUIRED: Use `athf similar "your hypothesis keywords"` to check for duplicate hunts** (saves time, avoids redundant work)
+3. **Validate Environment** - Read user's environment.md to confirm data sources exist
+4. **Generate LOCK Hypothesis** - Create testable hypothesis following [templates/HUNT_LOCK.md](athf/data/templates/HUNT_LOCK.md)
+5. **Apply Quality Criteria** - Use quality checklist (Falsifiable, Scoped, Observable, Actionable, Contextual)
+6. **Suggest Next Steps** - Offer to create hunt file or draft query
+
+**Key Requirements:**
+
+- **Focus on behaviors/TTPs (top of Pyramid of Pain)** - Never build hypothesis around hashes or IPs alone
+- Match hypothesis format: "Adversaries use [behavior] to [goal] on [target]"
+- Reference past hunts by ID (e.g., "Building on H-0022 lessons...")
+- Specify data sources from user's environment.md
+- Include bounded time range with justification
+- Consider false positives from similar past hunts
+- Apply hypothesis quality rubric from hunting-knowledge.md
+
+**Output Must Follow:** [templates/HUNT_LOCK.md](athf/data/templates/HUNT_LOCK.md) structure
+
+**Complete workflow details:** [prompts/ai-workflow.md](athf/data/prompts/ai-workflow.md)
+
+---
+
 ## Maintenance
 
 **Review this file when:**
-- Adding new data sources (update "Data Sources" section)
-- Changing priority TTPs (update "Priority TTPs")
-- Discovering AI generates incorrect assumptions (add to "Guardrails")
-- Team practices change
-- New integrations or hunt templates added (update "Repository Structure")
+- Adding new data sources (update "Data Sources" section or user's environment.md)
+- Changing priority TTPs (update "Priority TTPs" section or user's environment.md)
+- Discovering AI generates incorrect assumptions (add to "Guardrails" or "Common Mistakes")
+- New integrations or MCP servers added (update "Memory and Search")
+- Team practices change (update CLI workflow or hunt execution steps)
 
-**Last Updated:** 2025-12-17
+**Last Updated:** 2026-01-12
 **Maintained By:** ATHF Framework Team
+

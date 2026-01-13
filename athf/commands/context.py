@@ -120,7 +120,7 @@ def context(
 
     # Write to file or stdout
     if output:
-        Path(output).write_text(formatted_output, encoding='utf-8')
+        Path(output).write_text(formatted_output, encoding="utf-8")
         console.print(f"[green]✅ Context exported to: {output}[/green]")
     else:
         # Use plain print() for JSON/YAML to avoid Rich formatting issues
@@ -130,7 +130,7 @@ def context(
             console.print(formatted_output)
 
 
-def _build_context(
+def _build_context(  # noqa: C901
     hunt: Optional[str] = None,
     tactic: Optional[str] = None,
     platform: Optional[str] = None,
@@ -211,14 +211,11 @@ def _build_context(
 
 def _read_and_optimize(file_path: Path) -> str:
     """Read file and optimize for token efficiency."""
-    content = file_path.read_text(encoding='utf-8')
+    content = file_path.read_text(encoding="utf-8")
 
     # First pass: Remove all control characters except tabs and newlines
     # Control characters are U+0000 through U+001F (0-31), except tab (9), LF (10), CR (13)
-    cleaned_content = "".join(
-        char for char in content
-        if ord(char) >= 32 or char in "\t\n\r"
-    )
+    cleaned_content = "".join(char for char in content if ord(char) >= 32 or char in "\t\n\r")
 
     # Token optimization:
     # 1. Strip excessive whitespace (but preserve single newlines)
@@ -248,7 +245,7 @@ def _find_hunts_by_tactic(tactic: str) -> List[Path]:
     normalized_tactic = tactic.replace("-", " ").lower()
 
     for hunt_file in hunts_dir.glob("H-*.md"):
-        content = hunt_file.read_text(encoding='utf-8')
+        content = hunt_file.read_text(encoding="utf-8")
 
         # Check YAML frontmatter for tactics field
         if content.startswith("---"):
@@ -277,7 +274,7 @@ def _find_hunts_by_platform(platform: str) -> List[Path]:
     normalized_platform = platform.lower()
 
     for hunt_file in hunts_dir.glob("H-*.md"):
-        content = hunt_file.read_text(encoding='utf-8')
+        content = hunt_file.read_text(encoding="utf-8")
 
         # Check YAML frontmatter for platform field
         if content.startswith("---"):
