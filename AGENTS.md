@@ -10,12 +10,63 @@ This repository contains threat hunting investigations using the LOCK pattern (L
 
 **AI assistants should:**
 
-- **Start with [docs/getting-started.md](athf/data/docs/getting-started.md)** - Entry point for framework adoption
+- **🔧 ALWAYS activate the virtual environment FIRST** - Run `source .venv/bin/activate` before any `athf` commands (verify with `which athf`)
 - **Read [knowledge/hunting-knowledge.md](athf/data/knowledge/hunting-knowledge.md)** - Expert hunting frameworks and analytical methods
 - **Browse past hunts** - Search hunt history before suggesting new hypotheses
 - Reference lessons learned when generating queries
 - Use [docs/environment.md](athf/data/docs/environment.md) template to understand available data sources
 - **Focus on behaviors and TTPs (top of Pyramid of Pain), not indicators**
+
+---
+
+## 🚨 MANDATORY: Use ATHF CLI Commands & Agents
+
+**CRITICAL REQUIREMENT:** AI assistants MUST use `athf` CLI commands or `athf agent run` for ALL tasks that have corresponding CLI functionality. Direct file manipulation is prohibited for framework-managed operations.
+
+### ✅ ALWAYS Use CLI For
+
+| Task Category | CLI Command | ❌ Never Use |
+|---------------|-------------|-------------- |
+| **Hunt creation** | `athf hunt new --non-interactive` | Write tool, Edit tool |
+| **Investigation creation** | `athf investigate new --non-interactive` | Write tool, Edit tool |
+| **Research execution** | `athf research new --topic "..."` | Manual web search, Write tool |
+| **Hypothesis generation** | `athf agent run hypothesis-generator` | Manual hypothesis drafting |
+| **Duplicate checking** | `athf similar "keywords"` | Grep, manual search |
+| **Context loading** | `athf context --hunt H-XXXX` | Multiple Read operations |
+| **Coverage analysis** | `athf hunt coverage` | Manual ATT&CK counting |
+| **Hunt validation** | `athf hunt validate H-XXXX` | Manual YAML parsing |
+| **Hunt search** | `athf hunt search "keyword"` | Grep, manual file search |
+
+### 🎯 CLI-First Policy
+
+**Why this matters:**
+
+- ✅ CLI provides proper validation and error checking
+- ✅ Auto-generates correct YAML frontmatter and LOCK structure
+- ✅ Maintains hunt ID sequences and file naming conventions
+- ✅ Ensures consistency across all hunt documents
+- ✅ Reduces token costs (single command vs. multiple tool calls)
+- ✅ Prevents malformed hunt files that break CI/CD pipelines
+
+**Enforcement:**
+
+- ❌ NEVER use Write/Edit tools to create hunt or investigation files
+- ❌ NEVER manually construct YAML frontmatter
+- ❌ NEVER bypass CLI for hunt management operations
+- ✅ ALWAYS verify virtual environment is activated (`which athf`)
+- ✅ ALWAYS use CLI for file generation and validation
+
+### 📋 When Manual Tools Are Acceptable
+
+You MAY use Read, Edit, Grep, Glob tools for:
+
+- Reading existing hunt/investigation/research files
+- Editing hunt file content AFTER creation (query results, findings, lessons learned)
+- Searching file contents (complement to `athf hunt search`)
+- Exploring codebase structure
+- Reading environment.md and knowledge files
+
+**Rule of thumb:** If `athf` has a command for it, use the command. Manual tools are for content, not structure.
 
 ---
 
@@ -462,6 +513,7 @@ athf hunt new \
 - `--behavior` - Behavior description (for ABLE framework)
 - `--location` - Location/scope (for ABLE framework)
 - `--evidence` - Evidence description (for ABLE framework)
+- `--research` - Research document ID (e.g., R-0001) to link to hunt
 - `--hunter` - Hunter name (default: "AI Assistant")
 
 ---

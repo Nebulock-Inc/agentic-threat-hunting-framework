@@ -169,7 +169,7 @@ The AI automatically searches your hunts directory, references past investigatio
 4. Open your repo in Claude Code or similar AI assistant
 5. Start asking questions about your hunts
 
-**CLI Commands at Level 2 (v0.3.0+):**
+**CLI Commands at Level 2:**
 At this level, you still run commands manually, but AI helps you decide what to run:
 ```bash
 # AI suggests: "Let me search for related hunts first"
@@ -180,12 +180,6 @@ athf hunt coverage
 
 # AI suggests: "Let's see your success rates"
 athf hunt stats
-
-# AI suggests: "Let's do pre-hunt research first"
-athf research new --topic "LSASS dumping" --technique T1003.001
-
-# AI suggests: "Use the hypothesis generator agent"
-athf agent run hypothesis-generator --threat-intel "APT29 credential theft"
 ```
 
 The AI reads your hunt files and provides context-aware suggestions, but you execute the commands.
@@ -256,45 +250,23 @@ Should I create a Jira ticket for investigation?"
 
 **The difference:** Claude executes queries, enriches data, and creates tickets - not just suggests them.
 
-### CLI Integration at Level 3 (v0.3.0+)
+### CLI Integration at Level 3
 
 At Level 3, AI uses CLI commands directly as part of workflows:
 
-**Example: AI-Driven Hunt Creation with Research**
+**Example: AI-Driven Hunt Creation**
 ```
-You: "Research and create a hunt for SSH brute force"
+You: "Search for SSH brute force and create a hunt"
 
-AI: [Uses: athf research new --topic "SSH brute force" --depth basic]
-    "Research complete. Key findings:
-    - SSH brute force typically targets default accounts
-    - Failed auth patterns indicate automated tools
-    - Successful login after failures is high-confidence indicator"
-
-    [Uses: athf agent run hypothesis-generator --threat-intel "SSH brute force campaign"]
-    "Generated hypothesis focusing on failed auth clustering"
-
-    [Executes Splunk query via MCP]
+AI: [Executes Splunk query via MCP]
     [Gets results: 3 high-volume IPs]
-    [Uses: athf hunt new --technique T1110.001 --research R-0023]
+    [Uses: athf hunt new --technique T1110.001 --title "SSH Brute Force Detection"]
     [Documents findings in hunt file]
     [Uses: athf hunt validate to check structure]
-    "Created H-0087.md with research link. Review?"
+    "Created H-0087.md documenting SSH brute force activity. Review?"
 ```
 
-**Example: Orchestrated Hunt Execution (v0.3.0+)**
-```
-You: "Execute hunt H-0042 end-to-end"
-
-AI: [Uses: athf hunt execute H-0042 --dry-run]
-    "Dry run validates all queries and data sources"
-    [Uses: athf hunt execute H-0042]
-    "Executing hunt with agent orchestration:
-    - Context loaded via context-loader agent
-    - Queries validated via query-validator agent
-    - Results analyzed, 2 suspicious findings flagged"
-```
-
-**The difference:** You direct the workflow, AI executes both MCP tools (Splunk) and CLI commands (athf), including research and agent orchestration.
+**The difference:** You direct the workflow, AI executes both MCP tools (Splunk) and CLI commands (athf).
 
 ### Getting Started at Level 3
 
@@ -357,7 +329,7 @@ At Level 4, multiple specialized agents work together:
 **You wake up to:**
 > "3 new draft hunts created overnight based on recent CTI. Ready for your review."
 
-### CLI Commands in Autonomous Workflows (v0.3.0+)
+### CLI Commands in Autonomous Workflows
 
 At Level 4, agents use CLI commands without your intervention:
 
@@ -365,42 +337,28 @@ At Level 4, agents use CLI commands without your intervention:
 ```bash
 # CTI Monitor Agent (runs every 6 hours)
 athf hunt search "T1059.003"  # Check for existing hunts
-athf agent run similarity-scorer --query "Qakbot JavaScript"  # Find related hunts
 # No matches found
 
-# Research Agent (triggered if new TTP)
-athf research new \
-  --topic "Qakbot JavaScript dropper" \
-  --technique T1059.003 \
-  --depth basic  # Quick research for autonomous workflows
-
 # Hypothesis Generator Agent (triggered by CTI Monitor)
-athf agent run hypothesis-generator \
-  --threat-intel "Qakbot campaign using T1059.003 for initial access" \
-  --technique T1059.003
-
-# Create hunt file with generated hypothesis and research link
 athf hunt new \
   --technique T1059.003 \
   --title "Qakbot JavaScript Dropper Detection" \
-  --research R-0042 \
   --platform windows \
   --non-interactive
 
 # Validator Agent (triggered by Generator)
-athf agent run query-validator --sql "[generated query]"
 athf hunt validate H-0156  # Ensure structure is correct
-athf agent run coverage-analyzer --tactic initial-access  # Update coverage metrics
+athf hunt coverage  # Update coverage metrics
 
 # Notifier Agent (triggered by Validator)
-# Posts to Slack: "H-0156 ready for review (research: R-0042)"
+# Posts to Slack: "H-0156 ready for review"
 ```
 
 **The progression:**
 - **Level 1:** You run `athf hunt new` manually
-- **Level 2:** AI suggests when to run `athf hunt new` and `athf agent run`
-- **Level 3:** AI runs `athf hunt new`, `athf agent run`, and `athf research new` when you ask
-- **Level 4:** Agents run all commands autonomously based on objectives
+- **Level 2:** AI suggests when to run `athf hunt new`
+- **Level 3:** AI runs `athf hunt new` when you ask
+- **Level 4:** Agents run `athf hunt new` autonomously based on objectives
 
 ### The Maturity Progression
 

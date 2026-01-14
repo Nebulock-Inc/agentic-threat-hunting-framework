@@ -124,21 +124,16 @@ At Level 4, multiple specialized agents work together, coordinating through your
 
 ```
 [Triggered by CTI Monitor]
-- Runs: athf agent run similarity-scorer --query "cmd.exe process execution" --limit 5
 - Reviews similar hunts: H-0042 (PowerShell), H-0089 (Process Execution)
-- Runs: athf research new --topic "Qakbot cmd.exe execution" --technique T1059.003 --depth basic
 - Extracts lessons: "Include parent-child process chains", "Filter System32 parents"
-- Runs: athf agent run hypothesis-generator --threat-intel "Qakbot T1059.003 campaign" --technique T1059.003
 - Generates LOCK hypothesis:
 
-  Learn: Qakbot campaign using T1059.003 detected in CTI. Research document R-0042 created.
+  Learn: Qakbot campaign using T1059.003 detected in CTI
   Observe: Adversaries spawn cmd.exe from suspicious parents (Office, browsers)
   Check: [Generated Splunk query with bounds and limits]
   Keep: [Placeholder for execution results]
 
-- Runs: athf hunt new --technique T1059.003 --title "Qakbot cmd.exe Detection" --research R-0042 --non-interactive
 - Creates: hunts/H-0156.md
-- Runs: athf agent run query-validator --sql "[generated query]"
 - Validates query syntax
 - Decision: Draft ready, trigger Validator
 ```
@@ -147,15 +142,12 @@ At Level 4, multiple specialized agents work together, coordinating through your
 
 ```
 [Triggered by Hypothesis Generator]
-- Runs: athf hunt validate H-0156
 - Reads AGENTS.md for data source availability
 - Checks: index=sysmon exists ✓
 - Checks: EventCode=1 available ✓
 - Validates: MITRE technique T1059.003 format ✓
-- Runs: athf agent run query-validator --sql "[generated query from H-0156]"
 - Reviews: Query has time bounds ✓
 - Reviews: Query has result limits ✓
-- Runs: athf agent run coverage-analyzer --tactic initial-access
 - Decision: Hunt validated, trigger Notifier
 ```
 

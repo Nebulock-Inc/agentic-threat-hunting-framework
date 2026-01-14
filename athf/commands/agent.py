@@ -125,6 +125,7 @@ def info(agent_name: str) -> None:
 
         console.print("\n[bold]Usage:[/bold]")
         console.print('  athf agent run hypothesis-generator --threat-intel "APT29 targeting SaaS"')
+        console.print('  athf agent run hypothesis-generator --threat-intel "..." --research R-0001')
         console.print()
 
     elif agent_name == "hunt-researcher":
@@ -170,6 +171,7 @@ def info(agent_name: str) -> None:
 @agent.command()
 @click.argument("agent_name")
 @click.option("--threat-intel", help="Threat intelligence context (for hypothesis-generator)")
+@click.option("--research", help="Research document ID (e.g., R-0001) to load context from")
 @click.option("--topic", help="Research topic (for hunt-researcher)")
 @click.option("--technique", help="MITRE ATT&CK technique (for hunt-researcher)")
 @click.option(
@@ -191,6 +193,7 @@ def info(agent_name: str) -> None:
 def run(  # noqa: C901
     agent_name: str,
     threat_intel: Optional[str],
+    research: Optional[str],
     topic: Optional[str],
     technique: Optional[str],
     depth: str,
@@ -208,6 +211,7 @@ def run(  # noqa: C901
       # Hypothesis Generator
       athf agent run hypothesis-generator --threat-intel "APT29 targeting SaaS applications"
       athf agent run hypothesis-generator --threat-intel "Insider threat data exfiltration" --tactic collection
+      athf agent run hypothesis-generator --threat-intel "Credential dumping" --research R-0001
 
       # Hunt Researcher
       athf agent run hunt-researcher --topic "LSASS dumping"
@@ -232,6 +236,32 @@ def run(  # noqa: C901
             # Try to load past hunts and environment data if available
             past_hunts: List[dict[str, Any]] = []
             environment = {}
+            research_context = None
+
+            # Load research document if provided
+            if research:
+                try:
+                    from pathlib import Path
+
+                    from athf.core.research_manager import ResearchManager
+
+                    research_mgr = ResearchManager(Path.cwd())
+                    research_doc = research_mgr.get_research(research)
+
+                    if research_doc:
+                        # Extract relevant research context
+                        research_context = {
+                            "research_id": research_doc.get("metadata", {}).get("research_id"),
+                            "topic": research_doc.get("metadata", {}).get("topic"),
+                            "recommended_hypothesis": research_doc.get("synthesis", {}).get("recommended_hypothesis"),
+                            "gaps": research_doc.get("synthesis", {}).get("gaps_identified", []),
+                            "key_findings": research_doc.get("synthesis", {}).get("key_findings", []),
+                        }
+                        console.print(f"[green]✓ Loaded research context from {research}[/green]\n")
+                    else:
+                        console.print(f"[yellow]⚠ Research document {research} not found[/yellow]\n")
+                except Exception as e:
+                    console.print(f"[yellow]⚠ Could not load research document: {e}[/yellow]\n")
 
             # Try to load environment.md if it exists
             try:
@@ -252,10 +282,22 @@ def run(  # noqa: C901
                     "platforms": ["Windows", "macOS", "Linux"],
                 }
 
+            # If research context is provided, append it to threat intel
+            threat_intel_with_research = threat_intel
+            if research_context:
+                threat_intel_with_research = (
+                    f"{threat_intel}\n\n"
+                    f"Research Context from {research_context['research_id']}:\n"
+                    f"- Topic: {research_context['topic']}\n"
+                    f"- Recommended Hypothesis: {research_context.get('recommended_hypothesis', 'N/A')}\n"
+                )
+                if research_context.get("gaps"):
+                    threat_intel_with_research += f"- Gaps: {', '.join(research_context['gaps'][:3])}\n"
+
             # Execute agent
             hypothesis_result = hypothesis_agent.execute(
                 HypothesisGenerationInput(
-                    threat_intel=threat_intel,
+                    threat_intel=threat_intel_with_research,
                     past_hunts=past_hunts,
                     environment=environment,
                 )

@@ -98,7 +98,7 @@ class LLMAgent(Agent[InputT, OutputT]):
             duration_ms: Call duration in milliseconds
         """
         try:
-            from athf.core.metrics_tracker import MetricsTracker
+            from athf.core.metrics_tracker import MetricsTracker  # type: ignore[import-not-found]
 
             MetricsTracker.get_instance().log_bedrock_call(
                 agent=agent_name,
@@ -125,7 +125,7 @@ class LLMAgent(Agent[InputT, OutputT]):
             return None
 
         try:
-            import boto3
+            import boto3  # type: ignore[import-untyped]
 
             # Get AWS region from environment or use default
             region = os.getenv("AWS_REGION", os.getenv("AWS_DEFAULT_REGION", "us-east-1"))

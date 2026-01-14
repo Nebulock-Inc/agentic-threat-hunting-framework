@@ -16,7 +16,8 @@ tactics: {{ tactics }}
 techniques: {{ techniques }}
 data_sources: {{ data_sources }}
 related_hunts: []
-findings_count: 0
+{% if spawned_from %}spawned_from: {{ spawned_from }}
+{% endif %}findings_count: 0
 true_positives: 0
 false_positives: 0
 customer_deliverables: []
@@ -57,6 +58,8 @@ tags: {{ tags }}
 
 - **MITRE ATT&CK Techniques:** {{ ', '.join(techniques) if techniques else '[List relevant techniques]' }}
 - **CTI Sources & References:** [Links to reports, blogs, etc.]
+{% if spawned_from %}- **Research Document:** See [{{ spawned_from }}](../research/{{ spawned_from }}.md) for detailed pre-hunt research
+{% endif %}
 
 ### Related Tickets
 
@@ -172,6 +175,7 @@ def render_hunt_template(
     behavior: Optional[str] = None,
     location: Optional[str] = None,
     evidence: Optional[str] = None,
+    spawned_from: Optional[str] = None,
 ) -> str:
     """Render a hunt template with provided metadata.
 
@@ -189,6 +193,7 @@ def render_hunt_template(
         behavior: Behavior description (for ABLE)
         location: Location/scope (for ABLE)
         evidence: Evidence description (for ABLE)
+        spawned_from: Research document ID (e.g., R-0001) that this hunt is based on
 
     Returns:
         Rendered hunt markdown content
@@ -221,4 +226,5 @@ def render_hunt_template(
         behavior=behavior,
         location=location,
         evidence=evidence,
+        spawned_from=spawned_from,
     )

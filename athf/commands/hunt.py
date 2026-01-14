@@ -40,6 +40,9 @@ Examples:
   # Non-interactive with all options
   athf hunt new --technique T1003.001 --title "LSASS Dumping" --non-interactive
 
+  # Link research document to hunt
+  athf hunt new --research R-0001 --title "Hunt Title" --non-interactive
+
   # List hunts with filters
   athf hunt list --status completed --tactic credential-access
 
@@ -51,6 +54,9 @@ Examples:
 
   # Show coverage gaps
   athf hunt coverage
+
+  # Filter coverage by tactic
+  athf hunt coverage --tactic credential-access
 
   # Validate hunt structure
   athf hunt validate H-0042
@@ -96,6 +102,7 @@ def hunt() -> None:
 @click.option("--location", help="Location/scope (for ABLE framework)")
 @click.option("--evidence", help="Evidence description (for ABLE framework)")
 @click.option("--hunter", help="Hunter name", default="AI Assistant")
+@click.option("--research", help="Research document ID (e.g., R-0001) this hunt is based on")
 def new(
     technique: Optional[str],
     title: Optional[str],
@@ -110,6 +117,7 @@ def new(
     location: Optional[str],
     evidence: Optional[str],
     hunter: Optional[str],
+    research: Optional[str],
 ) -> None:
     """Create a new hunt hypothesis with LOCK structure.
 
@@ -119,6 +127,7 @@ def new(
     • YAML frontmatter with metadata
     • LOCK pattern sections (Learn, Observe, Check, Keep)
     • MITRE ATT&CK mapping
+    • Optional link to research document
 
     \b
     Interactive mode (default):
@@ -130,6 +139,11 @@ def new(
       Provide all details via options for scripting.
       Example: athf hunt new --technique T1003.001 --title "LSASS Dumping" \\
                --tactic credential-access --platform Windows --non-interactive
+
+    \b
+    With research document:
+      Link a pre-hunt research document to the hunt.
+      Example: athf hunt new --research R-0001 --title "Hunt Title" --non-interactive
 
     \b
     After creation:
@@ -154,6 +168,13 @@ def new(
     hunt_id = manager.get_next_hunt_id(prefix=hunt_prefix)
 
     console.print(f"[bold]Hunt ID:[/bold] {hunt_id}")
+
+    # Validate research document if provided
+    if research:
+        research_file = Path("research") / f"{research}.md"
+        if not research_file.exists():
+            console.print(f"[yellow]Warning: Research document {research} not found at {research_file}[/yellow]")
+            console.print("[yellow]Hunt will still be created, but research link may be broken.[/yellow]\n")
 
     # Gather hunt details
     if non_interactive:
@@ -209,6 +230,7 @@ def new(
         behavior=behavior,
         location=location,
         evidence=evidence,
+        spawned_from=research,
     )
 
     # Write hunt file
@@ -529,8 +551,9 @@ def _render_progress_bar(covered: int, total: int, width: int = 20) -> str:
 
 
 @hunt.command()
+@click.option("--tactic", help="Filter by specific tactic (or 'all' for all tactics)")
 @click.option("--detailed", is_flag=True, help="Show detailed technique coverage with hunt references")
-def coverage(detailed: bool) -> None:
+def coverage(tactic: Optional[str], detailed: bool) -> None:
     """Show MITRE ATT&CK technique coverage across hunts.
 
     \b
@@ -542,11 +565,17 @@ def coverage(detailed: bool) -> None:
 
     \b
     Examples:
-      # Show coverage overview
+      # Show coverage overview for all tactics
       athf hunt coverage
 
-      # Show detailed technique mapping
-      athf hunt coverage --detailed
+      # Show all tactics explicitly
+      athf hunt coverage --tactic all
+
+      # Show coverage for a specific tactic
+      athf hunt coverage --tactic credential-access
+
+      # Show detailed technique mapping for execution tactic
+      athf hunt coverage --tactic execution --detailed
 
     \b
     Note on technique counts:
@@ -578,12 +607,31 @@ def coverage(detailed: bool) -> None:
     summary = coverage["summary"]
     by_tactic = coverage["by_tactic"]
 
+    # Determine which tactics to display
+    tactics_to_display = []
+    if tactic and tactic.lower() != "all":
+        # Validate tactic exists
+        if tactic not in ATTACK_TACTICS:
+            console.print(f"[red]Error: Unknown tactic '{tactic}'[/red]")
+            console.print("\n[bold]Valid tactics:[/bold]")
+            for tactic_key in get_sorted_tactics():
+                console.print(f"  • {tactic_key}")
+            return
+        tactics_to_display = [tactic]
+    else:
+        # Show all tactics
+        tactics_to_display = get_sorted_tactics()
+
     # Display title
-    console.print("\n[bold]MITRE ATT&CK Coverage[/bold]")
+    if tactic and tactic.lower() != "all":
+        tactic_display_name = ATTACK_TACTICS[tactic]["name"]
+        console.print(f"\n[bold]MITRE ATT&CK Coverage - {tactic_display_name}[/bold]")
+    else:
+        console.print("\n[bold]MITRE ATT&CK Coverage[/bold]")
     console.print("─" * 60 + "\n")
 
-    # Display all tactics in ATT&CK order with hunt counts
-    for tactic_key in get_sorted_tactics():
+    # Display selected tactics in ATT&CK order with hunt counts
+    for tactic_key in tactics_to_display:
         data = by_tactic.get(tactic_key, {})
         tactic_name = ATTACK_TACTICS[tactic_key]["name"]
 
@@ -596,16 +644,19 @@ def coverage(detailed: bool) -> None:
         else:
             console.print(f"{tactic_name:<24} [dim]no coverage[/dim]")
 
-    # Display overall coverage
-    console.print(
-        f"\n[bold]Overall: {summary['unique_techniques']}/{summary['total_techniques']} techniques ({summary['overall_coverage_pct']:.0f}%)[/bold]\n"
-    )
+    # Display overall coverage only if showing all tactics
+    if not tactic or tactic.lower() == "all":
+        console.print(
+            f"\n[bold]Overall: {summary['unique_techniques']}/{summary['total_techniques']} techniques ({summary['overall_coverage_pct']:.0f}%)[/bold]\n"
+        )
+    else:
+        console.print()
 
     # Display detailed technique coverage if requested
     if detailed:
         console.print("\n[bold cyan]🔍 Detailed Technique Coverage[/bold cyan]\n")
 
-        for tactic_key in get_sorted_tactics():
+        for tactic_key in tactics_to_display:
             data = by_tactic.get(tactic_key, {})
             if data.get("hunt_count", 0) == 0:
                 continue  # Skip tactics with no hunts in detailed view

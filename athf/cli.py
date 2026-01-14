@@ -3,11 +3,15 @@
 import random
 
 import click
+from dotenv import load_dotenv
 from rich.console import Console
 
-from athf.__version__ import __version__
-from athf.commands import context, env, hunt, init, investigate, research, similar
-from athf.commands.agent import agent
+# Load .env file from current directory (if it exists)
+load_dotenv()
+
+from athf.__version__ import __version__  # noqa: E402
+from athf.commands import context, env, hunt, init, investigate, research, similar, splunk  # noqa: E402
+from athf.commands.agent import agent  # noqa: E402
 
 console = Console()
 
@@ -78,18 +82,21 @@ def cli() -> None:
 
 
 # Register command groups
-cli.add_command(init.init)
-cli.add_command(hunt.hunt)
-cli.add_command(investigate.investigate)
-cli.add_command(research.research)
+cli.add_command(init)
+cli.add_command(hunt)
+cli.add_command(investigate)
+cli.add_command(research)
 
 # Phase 1 commands (env, context, similar)
-cli.add_command(env.env)
-cli.add_command(context.context)
-cli.add_command(similar.similar)
+cli.add_command(env)
+cli.add_command(context)
+cli.add_command(similar)
 
 # Agent commands
 cli.add_command(agent)
+
+# Integration commands
+cli.add_command(splunk)
 
 
 @cli.command(hidden=True)
