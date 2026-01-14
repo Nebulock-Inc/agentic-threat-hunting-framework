@@ -84,7 +84,7 @@ class TavilySearchClient:
         """Get or create Tavily client instance."""
         if self._client is None:
             try:
-                from tavily import TavilyClient  # type: ignore[import-not-found]
+                from tavily import TavilyClient
 
                 self._client = TavilyClient(api_key=self.api_key)
             except ImportError:

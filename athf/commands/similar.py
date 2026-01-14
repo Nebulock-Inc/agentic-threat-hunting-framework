@@ -132,8 +132,8 @@ def _find_similar_hunts(
 ) -> List[Dict[str, Any]]:
     """Find similar hunts using TF-IDF similarity."""
     try:
-        from sklearn.feature_extraction.text import TfidfVectorizer  # type: ignore[import-untyped]
-        from sklearn.metrics.pairwise import cosine_similarity  # type: ignore[import-untyped]
+        from sklearn.feature_extraction.text import TfidfVectorizer
+        from sklearn.metrics.pairwise import cosine_similarity
     except ImportError:
         console.print("[red]Error: scikit-learn not installed[/red]")
         console.print("[dim]Install with: pip install scikit-learn[/dim]")

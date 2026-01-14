@@ -149,6 +149,20 @@ strict_equality = true
 module = "tests.*"
 disallow_untyped_defs = false
 
+# Ignore missing imports for optional dependencies
+[[tool.mypy.overrides]]
+module = [
+    "boto3",
+    "boto3.*",
+    "tavily",
+    "tavily.*",
+    "sklearn.*",
+    "requests",
+    "requests.*",
+    "athf.core.metrics_tracker"
+]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]

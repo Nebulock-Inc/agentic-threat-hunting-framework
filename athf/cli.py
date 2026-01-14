@@ -95,8 +95,9 @@ cli.add_command(similar)
 # Agent commands
 cli.add_command(agent)
 
-# Integration commands
-cli.add_command(splunk)
+# Integration commands (optional, requires additional dependencies)
+if splunk is not None:
+    cli.add_command(splunk)
 
 
 @cli.command(hidden=True)
