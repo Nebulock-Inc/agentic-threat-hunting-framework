@@ -12,6 +12,7 @@ load_dotenv()
 from athf.__version__ import __version__  # noqa: E402
 from athf.commands import context, env, hunt, init, investigate, research, similar, splunk  # noqa: E402
 from athf.commands.agent import agent  # noqa: E402
+from athf.plugin_system import PluginRegistry  # noqa: E402
 
 console = Console()
 
@@ -100,8 +101,6 @@ if splunk is not None:
     cli.add_command(splunk)
 
 # Load and register plugins
-from athf.plugin_system import PluginRegistry
-
 PluginRegistry.load_plugins()
 for name, cmd in PluginRegistry._commands.items():
     cli.add_command(cmd, name=name)
