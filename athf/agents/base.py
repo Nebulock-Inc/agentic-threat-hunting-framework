@@ -1,4 +1,4 @@
-"""Base classes for hunt-vault agents."""
+"""Base classes for ATHF agents."""
 
 import os
 from abc import ABC, abstractmethod
