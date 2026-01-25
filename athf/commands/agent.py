@@ -41,9 +41,8 @@ def agent() -> None:
     LLM agents use Claude API for creative and analytical tasks.
 
     \b
-    Agent Execution Modes:
+    Agent Execution Mode:
     • INTERACTIVE (default): Step-by-step execution with user approval
-    • AUTONOMOUS (--auto): Runs all steps without check-ins
     """
     pass
 

@@ -30,7 +30,7 @@ This repository contains threat hunting investigations using the LOCK pattern (L
 | **Hunt creation** | `athf hunt new --non-interactive` | Write tool, Edit tool |
 | **Investigation creation** | `athf investigate new --non-interactive` | Write tool, Edit tool |
 | **Research execution** | `athf research new --topic "..."` | Manual web search, Write tool |
-| **Hypothesis generation** | `athf agent run hypothesis-generator` | Manual hypothesis drafting |
+| **Hypothesis generation** | `athf agent run hypothesis-generator --threat-intel "..."` | Manual hypothesis drafting |
 | **Duplicate checking** | `athf similar "keywords"` | Grep, manual search |
 | **Context loading** | `athf context --hunt H-XXXX` | Multiple Read operations |
 | **Coverage analysis** | `athf hunt coverage` | Manual ATT&CK counting |
@@ -525,7 +525,7 @@ athf hunt new \
 | Write tool → hunt file | `athf hunt new --non-interactive` |
 | Skip duplicate check | `athf similar "keywords"` first |
 | Skip research | `athf research new --topic "..."` (REQUIRED) |
-| Manual hypothesis | `athf agent run hypothesis-generator` |
+| Manual hypothesis | `athf agent run hypothesis-generator --threat-intel "..."` |
 | Multiple Read operations | `athf context --hunt H-XXXX` |
 
 **Full CLI Reference:** [docs/CLI_REFERENCE.md](athf/data/docs/CLI_REFERENCE.md)
@@ -613,7 +613,7 @@ ATHF includes bundled hunting knowledge files to inform hunt hypotheses and quer
 - **Agent Types:**
   - `hypothesis-generator` - Generates creative hunt hypotheses from threat intel
   - `hunt-researcher` - Conducts thorough 5-skill pre-hunt research
-- **Execution Modes:** Interactive (default, step-by-step) or Autonomous (--auto flag)
+- **Execution Modes:** Interactive (default, step-by-step execution with user approval)
 
 **MCP Server Integration:** Organizations can extend AI capabilities by installing MCP servers. See [integrations/MCP_CATALOG.md](athf/data/integrations/MCP_CATALOG.md) for available integrations.
 
