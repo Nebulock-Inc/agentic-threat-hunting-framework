@@ -99,6 +99,13 @@ cli.add_command(agent)
 if splunk is not None:
     cli.add_command(splunk)
 
+# Load and register plugins
+from athf.plugin_system import PluginRegistry
+
+PluginRegistry.load_plugins()
+for name, cmd in PluginRegistry._commands.items():
+    cli.add_command(cmd, name=name)
+
 
 @cli.command(hidden=True)
 def wisdom() -> None:
