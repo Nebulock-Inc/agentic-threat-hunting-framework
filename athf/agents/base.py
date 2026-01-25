@@ -89,6 +89,8 @@ class LLMAgent(Agent[InputT, OutputT]):
     ) -> None:
         """Log LLM call metrics to centralized tracker.
 
+        Override this method in subclasses or plugins to implement custom metrics tracking.
+
         Args:
             agent_name: Name of the agent (e.g., "hypothesis-generator")
             model_id: Bedrock model ID
@@ -97,19 +99,8 @@ class LLMAgent(Agent[InputT, OutputT]):
             cost_usd: Estimated cost in USD
             duration_ms: Call duration in milliseconds
         """
-        try:
-            from athf.core.metrics_tracker import MetricsTracker
-
-            MetricsTracker.get_instance().log_bedrock_call(
-                agent=agent_name,
-                model_id=model_id,
-                input_tokens=input_tokens,
-                output_tokens=output_tokens,
-                cost_usd=cost_usd,
-                duration_ms=duration_ms,
-            )
-        except Exception:
-            pass  # Never fail agent execution due to metrics logging
+        # No-op by default. Override in plugins for custom metrics tracking.
+        pass
 
     def _get_llm_client(self) -> Any:
         """Get AWS Bedrock runtime client for Claude models.
