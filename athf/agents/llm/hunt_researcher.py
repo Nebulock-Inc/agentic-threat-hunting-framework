@@ -13,7 +13,7 @@ import os
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from athf.agents.base import AgentResult, LLMAgent
 
@@ -457,7 +457,7 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
         topic: str,
         sources: List[Dict[str, str]],
         search_results: Optional[Any],
-    ) -> tuple[str, List[str]]:
+    ) -> Tuple[str, List[str]]:
         """Use LLM to summarize system research findings."""
         try:
             client = self._get_llm_client()
@@ -502,7 +502,7 @@ Return JSON format:
         technique: Optional[str],
         sources: List[Dict[str, str]],
         search_results: Optional[Any],
-    ) -> tuple[str, List[str]]:
+    ) -> Tuple[str, List[str]]:
         """Use LLM to summarize adversary tradecraft findings."""
         try:
             client = self._get_llm_client()
@@ -549,7 +549,7 @@ Return JSON format:
         technique: Optional[str],
         ocsf_schema: str,
         environment_data: str,
-    ) -> tuple[str, List[str]]:
+    ) -> Tuple[str, List[str]]:
         """Use LLM to map topic to OCSF telemetry fields."""
         try:
             client = self._get_llm_client()
@@ -590,7 +590,7 @@ Return JSON format:
         topic: str,
         technique: Optional[str],
         skills: List[ResearchSkillOutput],
-    ) -> tuple[str, List[str]]:
+    ) -> Tuple[str, List[str]]:
         """Use LLM to synthesize all research findings."""
         try:
             client = self._get_llm_client()
