@@ -13,6 +13,7 @@ from rich.prompt import Prompt
 from rich.table import Table
 
 from athf.core.investigation_parser import get_all_investigations, get_next_investigation_id, validate_investigation_file
+from athf.utils.validation import validate_hunt_id, validate_investigation_id
 
 console = Console()
 
@@ -182,6 +183,15 @@ def new(
 
     # Write investigation file
     investigation_file = investigations_dir / f"{investigation_id}.md"
+
+    # Validate path is within investigations directory
+    try:
+        if not investigation_file.resolve().is_relative_to(investigations_dir.resolve()):
+            console.print(f"[red]Error: Invalid investigation file path[/red]")
+            return
+    except (ValueError, OSError):
+        console.print(f"[red]Error: Invalid investigation file path[/red]")
+        return
 
     with open(investigation_file, "w", encoding="utf-8") as f:
         f.write(investigation_content)
@@ -542,8 +552,23 @@ def validate(investigation_id: str) -> None:
       # Validate after editing
       athf investigate validate I-0001
     """
+    # Validate investigation ID format
+    if not validate_investigation_id(investigation_id):
+        console.print(f"[red]Error: Invalid investigation ID format: {investigation_id}[/red]")
+        console.print("[yellow]Expected format: I-0001[/yellow]")
+        return
+
     investigations_dir = Path("investigations")
     investigation_file = investigations_dir / f"{investigation_id}.md"
+
+    # Validate path is within investigations directory
+    try:
+        if not investigation_file.resolve().is_relative_to(investigations_dir.resolve()):
+            console.print(f"[red]Error: Invalid investigation file path[/red]")
+            return
+    except (ValueError, OSError):
+        console.print(f"[red]Error: Invalid investigation file path[/red]")
+        return
 
     if not investigation_file.exists():
         console.print(f"[red]Error: Investigation file not found: {investigation_file}[/red]")
@@ -606,9 +631,24 @@ def promote(
 
     console.print("\n[bold cyan]🔄 Promoting investigation to hunt[/bold cyan]\n")
 
+    # Validate investigation ID format
+    if not validate_investigation_id(investigation_id):
+        console.print(f"[red]Error: Invalid investigation ID format: {investigation_id}[/red]")
+        console.print("[yellow]Expected format: I-0001[/yellow]")
+        return
+
     # Check investigation file exists
     investigations_dir = Path("investigations")
     investigation_file = investigations_dir / f"{investigation_id}.md"
+
+    # Validate path is within investigations directory
+    try:
+        if not investigation_file.resolve().is_relative_to(investigations_dir.resolve()):
+            console.print(f"[red]Error: Invalid investigation file path[/red]")
+            return
+    except (ValueError, OSError):
+        console.print(f"[red]Error: Invalid investigation file path[/red]")
+        return
 
     if not investigation_file.exists():
         console.print(f"[red]Error: Investigation file not found: {investigation_file}[/red]")
@@ -724,18 +764,60 @@ def promote(
     hunts_dir.mkdir(exist_ok=True)
     hunt_file = hunts_dir / f"{hunt_id}.md"
 
+    # Validate path is within hunts directory
+    try:
+        if not hunt_file.resolve().is_relative_to(hunts_dir.resolve()):
+            console.print(f"[red]Error: Invalid hunt file path[/red]")
+            return
+    except (ValueError, OSError):
+        console.print(f"[red]Error: Invalid hunt file path[/red]")
+        return
+
     with open(hunt_file, "w", encoding="utf-8") as f:
         f.write(hunt_content)
 
     console.print(f"\n[bold green]✅ Promoted {investigation_id} to {hunt_id}[/bold green]")
 
-    # Update investigation with promotion note
+    # Update investigation's related_hunts field in frontmatter
+    try:
+        # Read the investigation file
+        with open(investigation_file, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        # Split frontmatter and body
+        parts = content.split("---")
+        if len(parts) >= 3:
+            frontmatter_yaml = parts[1]
+            body = "---".join(parts[2:])
+
+            # Parse and update frontmatter
+            frontmatter = yaml.safe_load(frontmatter_yaml)
+            if "related_hunts" not in frontmatter or frontmatter["related_hunts"] is None:
+                frontmatter["related_hunts"] = []
+
+            # Add new hunt ID if not already present
+            if hunt_id not in frontmatter["related_hunts"]:
+                frontmatter["related_hunts"].append(hunt_id)
+
+            # Rebuild file with updated frontmatter
+            updated_yaml = yaml.dump(frontmatter, default_flow_style=False, sort_keys=False)
+            updated_content = f"---\n{updated_yaml}---{body}"
+
+            # Write back to file
+            with open(investigation_file, "w", encoding="utf-8") as f:
+                f.write(updated_content)
+
+            console.print(f"[dim]Updated {investigation_file} with hunt reference in related_hunts[/dim]")
+    except Exception as e:
+        console.print(f"[yellow]Warning: Could not update investigation frontmatter: {e}[/yellow]")
+
+    # Add promotion note to the end of the document
     promotion_note = f"\n\n---\n\n**Promoted to Hunt:** {hunt_id} on {today}\n"
 
     with open(investigation_file, "a", encoding="utf-8") as f:
         f.write(promotion_note)
 
-    console.print(f"[dim]Updated {investigation_file} with promotion note[/dim]")
+    console.print(f"[dim]Added promotion note to {investigation_file}[/dim]")
 
     console.print("\n[bold]Next steps:[/bold]")
     console.print(f"  1. Edit [cyan]{hunt_file}[/cyan] to refine hunt hypothesis")

@@ -25,6 +25,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - None
 
+## [0.6.0] - 2026-01-27
+
+### Added
+- **Investigation Auto-Linking** - Automatic investigation frontmatter update when promoting to hunt ([#7](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/issues/7))
+  - `athf investigate promote` now automatically adds hunt ID to investigation's `related_hunts` field
+  - Provides visibility into which investigations have been promoted
+  - Prevents duplicate hunt IDs with duplicate check logic
+  - Graceful error handling with warning messages if frontmatter update fails
+- **Path Validation** - Enhanced security for file operations
+  - Added path traversal protection in investigation commands (new, validate, promote)
+  - Validates all file paths are within expected directories before operations
+
+### Fixed
+- **Version Reporting** - Corrected version display ([#6](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/issues/6))
+  - Fixed `athf --version` showing 0.4.0 instead of current release version
+  - Updated `athf/__version__.py` to accurately reflect release version
+
+## [0.5.2] - 2026-01-XX
+
+### Fixed
+- Documentation corrections for CLI parameters
+
 ## [0.4.0] - 2026-01-14
 
 ### Added
