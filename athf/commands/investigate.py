@@ -13,7 +13,7 @@ from rich.prompt import Prompt
 from rich.table import Table
 
 from athf.core.investigation_parser import get_all_investigations, get_next_investigation_id, validate_investigation_file
-from athf.utils.validation import validate_hunt_id, validate_investigation_id
+from athf.utils.validation import validate_investigation_id
 
 console = Console()
 
@@ -187,10 +187,10 @@ def new(
     # Validate path is within investigations directory
     try:
         if not investigation_file.resolve().is_relative_to(investigations_dir.resolve()):
-            console.print(f"[red]Error: Invalid investigation file path[/red]")
+            console.print("[red]Error: Invalid investigation file path[/red]")
             return
     except (ValueError, OSError):
-        console.print(f"[red]Error: Invalid investigation file path[/red]")
+        console.print("[red]Error: Invalid investigation file path[/red]")
         return
 
     with open(investigation_file, "w", encoding="utf-8") as f:
@@ -564,10 +564,10 @@ def validate(investigation_id: str) -> None:
     # Validate path is within investigations directory
     try:
         if not investigation_file.resolve().is_relative_to(investigations_dir.resolve()):
-            console.print(f"[red]Error: Invalid investigation file path[/red]")
+            console.print("[red]Error: Invalid investigation file path[/red]")
             return
     except (ValueError, OSError):
-        console.print(f"[red]Error: Invalid investigation file path[/red]")
+        console.print("[red]Error: Invalid investigation file path[/red]")
         return
 
     if not investigation_file.exists():
@@ -644,10 +644,10 @@ def promote(
     # Validate path is within investigations directory
     try:
         if not investigation_file.resolve().is_relative_to(investigations_dir.resolve()):
-            console.print(f"[red]Error: Invalid investigation file path[/red]")
+            console.print("[red]Error: Invalid investigation file path[/red]")
             return
     except (ValueError, OSError):
-        console.print(f"[red]Error: Invalid investigation file path[/red]")
+        console.print("[red]Error: Invalid investigation file path[/red]")
         return
 
     if not investigation_file.exists():
@@ -767,10 +767,10 @@ def promote(
     # Validate path is within hunts directory
     try:
         if not hunt_file.resolve().is_relative_to(hunts_dir.resolve()):
-            console.print(f"[red]Error: Invalid hunt file path[/red]")
+            console.print("[red]Error: Invalid hunt file path[/red]")
             return
     except (ValueError, OSError):
-        console.print(f"[red]Error: Invalid hunt file path[/red]")
+        console.print("[red]Error: Invalid hunt file path[/red]")
         return
 
     with open(hunt_file, "w", encoding="utf-8") as f:
