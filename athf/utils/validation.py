@@ -118,8 +118,10 @@ def validate_file_path(file_path: Path, base_dir: Path) -> bool:
         resolved_file = file_path.resolve()
         resolved_base = base_dir.resolve()
 
-        # Check if file is relative to base directory
-        return resolved_file.is_relative_to(resolved_base)
+        # Check if file is relative to base directory (Python 3.8 compatible)
+        # If relative_to() succeeds, the path is within the base
+        resolved_file.relative_to(resolved_base)
+        return True
     except (ValueError, OSError):
         return False
 
