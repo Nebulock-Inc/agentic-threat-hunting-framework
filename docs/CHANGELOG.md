@@ -218,4 +218,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ATHF is a framework to internalize, not a platform to extend. However, if you've adapted ATHF in interesting ways or have feedback, we'd love to hear about it in [GitHub Discussions](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/discussions).
 
-For more on the philosophy, see [USING_ATHF.md](../../../USING_ATHF.md).
+For more on the philosophy, see [USING_ATHF.md](../USING_ATHF.md).

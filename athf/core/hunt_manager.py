@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional, Set
 
 from athf.core.attack_matrix import ATTACK_TACTICS, TOTAL_TECHNIQUES, get_sorted_tactics
 from athf.core.hunt_parser import parse_hunt_file
+from athf.utils.validation import validate_hunt_id
 
 
 class HuntManager:
@@ -42,8 +43,8 @@ class HuntManager:
         """
         hunts = []
 
-        # Find all hunt files
-        hunt_files = sorted(self.hunts_dir.glob("*.md"))
+        # Find all hunt files recursively (supports both flat and hierarchical structure)
+        hunt_files = sorted(self.hunts_dir.rglob("*.md"))
 
         for hunt_file in hunt_files:
             try:
@@ -102,9 +103,26 @@ class HuntManager:
         Returns:
             Hunt data dict or None if not found
         """
+        # Validate hunt ID format and prevent path traversal
+        if not validate_hunt_id(hunt_id):
+            return None
+
+        # First try flat structure for backward compatibility
         hunt_file = self.hunts_dir / f"{hunt_id}.md"
 
+        # If not found in flat structure, search recursively
         if not hunt_file.exists():
+            # Search recursively for the hunt file
+            matching_files = list(self.hunts_dir.rglob(f"{hunt_id}.md"))
+            if not matching_files:
+                return None
+            hunt_file = matching_files[0]  # Use first match
+
+        # Validate path is within hunts directory
+        try:
+            if not hunt_file.resolve().is_relative_to(self.hunts_dir.resolve()):
+                return None
+        except (ValueError, OSError):
             return None
 
         return parse_hunt_file(hunt_file)
@@ -157,7 +175,7 @@ class HuntManager:
         # Exclude documentation files
         exclude_files = {"README.md", "FORMAT_GUIDELINES.md"}
 
-        for hunt_file in self.hunts_dir.glob("*.md"):
+        for hunt_file in self.hunts_dir.rglob("*.md"):
             # Skip documentation files
             if hunt_file.name in exclude_files:
                 continue

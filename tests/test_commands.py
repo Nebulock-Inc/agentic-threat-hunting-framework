@@ -133,9 +133,10 @@ class TestHuntNewCommand:
         assert match, f"Could not find hunt ID in output: {result.output}"
         hunt_id = match.group(1)
 
-        # Check hunt file was created
-        hunt_file = temp_workspace / "hunts" / f"{hunt_id}.md"
-        assert hunt_file.exists()
+        # Check hunt file was created (search recursively for hierarchical structure)
+        hunt_files = list((temp_workspace / "hunts").rglob(f"{hunt_id}.md"))
+        assert len(hunt_files) == 1, f"Expected 1 hunt file, found {len(hunt_files)}"
+        hunt_file = hunt_files[0]
 
         content = hunt_file.read_text()
         assert f"hunt_id: {hunt_id}" in content
@@ -201,7 +202,10 @@ class TestHuntNewCommand:
         assert match, f"Could not find hunt ID in output: {result.output}"
         hunt_id = match.group(1)
 
-        hunt_file = temp_workspace / "hunts" / f"{hunt_id}.md"
+        # Search recursively for hunt file in hierarchical structure
+        hunt_files = list((temp_workspace / "hunts").rglob(f"{hunt_id}.md"))
+        assert len(hunt_files) == 1, f"Expected 1 hunt file, found {len(hunt_files)}"
+        hunt_file = hunt_files[0]
         content = hunt_file.read_text()
         assert "persistence" in content
         assert "privilege-escalation" in content
@@ -250,7 +254,10 @@ class TestHuntNewCommand:
         assert match, f"Could not find hunt ID in output: {result.output}"
         hunt_id = match.group(1)
 
-        hunt_file = temp_workspace / "hunts" / f"{hunt_id}.md"
+        # Search recursively for hunt file in hierarchical structure
+        hunt_files = list((temp_workspace / "hunts").rglob(f"{hunt_id}.md"))
+        assert len(hunt_files) == 1, f"Expected 1 hunt file, found {len(hunt_files)}"
+        hunt_file = hunt_files[0]
         content = hunt_file.read_text()
 
         # Verify YAML frontmatter

@@ -11,7 +11,7 @@ Real hunts from our [hunts/](athf/data/hunts/) directory demonstrating how the L
 
 ## Hunt #1: macOS Information Stealer Detection
 
-**[View full hunt: H-0001.md →](athf/data/hunts/H-0001.md)**
+**[View full hunt: H-0001.md →](athf/data/hunts/production/2026/Q1/H-0001.md)**
 
 **Hunt ID:** H-0001 | **ATT&CK:** T1005, T1059.002 | **Platform:** macOS | **Status:** ✅ Completed
 
@@ -93,7 +93,7 @@ index=mac_edr process_signature_status!=valid
 
 ## Hunt #2: Linux Crontab Persistence Detection
 
-**[View full hunt: H-0002.md →](athf/data/hunts/H-0002.md)**
+**[View full hunt: H-0002.md →](athf/data/hunts/production/2026/Q1/H-0002.md)**
 
 **Hunt ID:** H-0002 | **ATT&CK:** T1053.003 | **Platform:** Linux | **Status:** ✅ Completed
 
@@ -165,7 +165,7 @@ file_path IN crontab locations, action IN modified/created
 
 ## Hunt #3: AWS Lambda Persistence Detection
 
-**[View full hunt: H-0003.md →](athf/data/hunts/H-0003.md)**
+**[View full hunt: H-0003.md →](athf/data/hunts/production/2026/Q1/H-0003.md)**
 
 **Hunt ID:** H-0003 | **ATT&CK:** T1546.004, T1098 | **Platform:** AWS | **Status:** ✅ Completed
 

@@ -7,6 +7,8 @@ from typing import Any, Dict, List, Optional
 
 import yaml
 
+from athf.utils.validation import validate_research_id
+
 
 class ResearchParser:
     """Parser for research files (YAML frontmatter + markdown)."""
@@ -240,15 +242,34 @@ class ResearchManager:
         Returns:
             Research data dict or None if not found
         """
+        # Validate research ID format and prevent path traversal
+        if not validate_research_id(research_id):
+            return None
+
         # Try direct file
         research_file = self.research_dir / f"{research_id}.md"
+
+        # Validate path is within research directory
+        try:
+            if not research_file.resolve().is_relative_to(self.research_dir.resolve()):
+                return None
+        except (ValueError, OSError):
+            return None
+
         if research_file.exists():
             return parse_research_file(research_file)
 
         # Try nested search
         research_files = list(self.research_dir.rglob(f"{research_id}.md"))
         if research_files:
-            return parse_research_file(research_files[0])
+            # Validate nested file is also within research directory
+            nested_file = research_files[0]
+            try:
+                if not nested_file.resolve().is_relative_to(self.research_dir.resolve()):
+                    return None
+            except (ValueError, OSError):
+                return None
+            return parse_research_file(nested_file)
 
         return None
 
@@ -368,6 +389,14 @@ class ResearchManager:
 
         # Write file
         file_path = self.research_dir / f"{research_id}.md"
+
+        # Validate path is within research directory
+        try:
+            if not file_path.resolve().is_relative_to(self.research_dir.resolve()):
+                raise ValueError("Invalid research file path")
+        except (ValueError, OSError) as e:
+            raise ValueError(f"Invalid research file path: {e}") from e
+
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(file_content)
 

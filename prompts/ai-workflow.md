@@ -575,7 +575,7 @@ Before finalizing any AI-generated content:
 
 - **Basic Prompts:** [basic-prompts.md](basic-prompts.md) for Level 0-1
 - **Hunt Template:** [../templates/HUNT_LOCK.md](../templates/HUNT_LOCK.md)
-- **Real Examples:** [../hunts/H-0001.md](../hunts/H-0001.md), [../hunts/H-0002.md](../hunts/H-0002.md)
-- **Repository Context:** [AGENTS.md](../../../AGENTS.md)
+- **Real Examples:** [../hunts/H-0001.md](../hunts/production/2026/Q1/H-0001.md), [../hunts/H-0002.md](../hunts/production/2026/Q1/H-0002.md)
+- **Repository Context:** [AGENTS.md](../AGENTS.md)
 
 **Remember: AI augments, doesn't replace. Always validate, always learn, always improve.**

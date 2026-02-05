@@ -1,6 +1,8 @@
 """Plugin system for ATHF extensions."""
-from typing import Any, Dict, Optional, Type
+
 import sys
+from typing import Any, Dict, Optional, Type
+
 from click import Command
 
 # Handle importlib.metadata API changes across Python versions
@@ -46,9 +48,9 @@ class PluginRegistry:
         try:
             # Python 3.10+ uses group= parameter, 3.8-3.9 uses dict-like access
             if sys.version_info >= (3, 10):
-                eps = entry_points(group='athf.commands')
+                eps = entry_points(group="athf.commands")
             else:
-                eps = entry_points().get('athf.commands', [])
+                eps = entry_points().get("athf.commands", [])
 
             for ep in eps:
                 command = ep.load()
@@ -59,9 +61,9 @@ class PluginRegistry:
         try:
             # Python 3.10+ uses group= parameter, 3.8-3.9 uses dict-like access
             if sys.version_info >= (3, 10):
-                eps = entry_points(group='athf.agents')
+                eps = entry_points(group="athf.agents")
             else:
-                eps = entry_points().get('athf.agents', [])
+                eps = entry_points().get("athf.agents", [])
 
             for ep in eps:
                 agent = ep.load()

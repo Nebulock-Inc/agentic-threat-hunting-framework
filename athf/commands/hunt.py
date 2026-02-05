@@ -15,8 +15,27 @@ from rich.table import Table
 from athf.core.hunt_manager import HuntManager
 from athf.core.hunt_parser import validate_hunt_file
 from athf.core.template_engine import render_hunt_template
+from athf.utils.validation import validate_hunt_id, validate_research_id
 
 console = Console()
+
+
+def get_hunt_directory(is_test: bool = False) -> Path:
+    """Calculate hunt directory based on current date.
+
+    Args:
+        is_test: If True, creates in test/ directory, otherwise production/
+
+    Returns:
+        Path to hunt directory (hunts/{environment}/{YYYY}/{QX}/)
+    """
+    now = datetime.now()
+    year = now.year
+    quarter = f"Q{(now.month - 1) // 3 + 1}"
+
+    environment = "test" if is_test else "production"
+
+    return Path("hunts") / environment / str(year) / quarter
 
 
 def get_config_path() -> Path:
@@ -94,6 +113,7 @@ def hunt() -> None:
 @click.option("--tactic", multiple=True, help="MITRE tactics (can specify multiple)")
 @click.option("--platform", multiple=True, help="Target platforms (can specify multiple)")
 @click.option("--data-source", multiple=True, help="Data sources (can specify multiple)")
+@click.option("--test", is_flag=True, help="Create as test hunt (hunts/test/...) instead of production")
 @click.option("--non-interactive", is_flag=True, help="Skip interactive prompts")
 @click.option("--hypothesis", help="Full hypothesis statement")
 @click.option("--threat-context", help="Threat intel or context motivating the hunt")
@@ -109,6 +129,7 @@ def new(
     tactic: Tuple[str, ...],
     platform: Tuple[str, ...],
     data_source: Tuple[str, ...],
+    test: bool,
     non_interactive: bool,
     hypothesis: Optional[str],
     threat_context: Optional[str],
@@ -171,7 +192,23 @@ def new(
 
     # Validate research document if provided
     if research:
+        # Validate research ID format
+        if not validate_research_id(research):
+            console.print(f"[red]Error: Invalid research ID format: {research}[/red]")
+            console.print("[yellow]Expected format: R-0001[/yellow]")
+            return
+
         research_file = Path("research") / f"{research}.md"
+
+        # Validate path is within research directory
+        try:
+            if not research_file.resolve().is_relative_to(Path("research").resolve()):
+                console.print("[red]Error: Invalid research path[/red]")
+                return
+        except (ValueError, OSError):
+            console.print("[red]Error: Invalid research path[/red]")
+            return
+
         if not research_file.exists():
             console.print(f"[yellow]Warning: Research document {research} not found at {research_file}[/yellow]")
             console.print("[yellow]Hunt will still be created, but research link may be broken.[/yellow]\n")
@@ -233,9 +270,19 @@ def new(
         spawned_from=research,
     )
 
-    # Write hunt file
-    hunt_file = Path("hunts") / f"{hunt_id}.md"
-    hunt_file.parent.mkdir(exist_ok=True)
+    # Write hunt file using hierarchical directory structure
+    hunt_dir = get_hunt_directory(is_test=test)
+    hunt_dir.mkdir(parents=True, exist_ok=True)
+    hunt_file = hunt_dir / f"{hunt_id}.md"
+
+    # Validate path is within hunts directory
+    try:
+        if not hunt_file.resolve().is_relative_to(Path("hunts").resolve()):
+            console.print("[red]Error: Invalid hunt file path[/red]")
+            return
+    except (ValueError, OSError):
+        console.print("[red]Error: Invalid hunt file path[/red]")
+        return
 
     with open(hunt_file, "w", encoding="utf-8") as f:
         f.write(hunt_content)
@@ -370,10 +417,31 @@ def validate(hunt_id: str) -> None:
     • Verify hunt files are AI-assistant readable
     """
     if hunt_id:
-        # Validate specific hunt
-        hunt_file = Path("hunts") / f"{hunt_id}.md"
+        # Validate hunt ID format
+        if not validate_hunt_id(hunt_id):
+            console.print(f"[red]Error: Invalid hunt ID format: {hunt_id}[/red]")
+            console.print("[yellow]Expected format: H-0001[/yellow]")
+            return
+
+        # Validate specific hunt - search recursively for backward compatibility
+        hunts_dir = Path("hunts")
+        hunt_file = hunts_dir / f"{hunt_id}.md"
+
+        # If not found in flat structure, search recursively
         if not hunt_file.exists():
-            console.print(f"[red]Hunt not found: {hunt_id}[/red]")
+            matching_files = list(hunts_dir.rglob(f"{hunt_id}.md"))
+            if not matching_files:
+                console.print(f"[red]Hunt not found: {hunt_id}[/red]")
+                return
+            hunt_file = matching_files[0]  # Use first match
+
+        # Validate path is within hunts directory
+        try:
+            if not hunt_file.resolve().is_relative_to(hunts_dir.resolve()):
+                console.print("[red]Error: Invalid hunt file path[/red]")
+                return
+        except (ValueError, OSError):
+            console.print("[red]Error: Invalid hunt file path[/red]")
             return
 
         _validate_single_hunt(hunt_file)
@@ -386,7 +454,7 @@ def validate(hunt_id: str) -> None:
             console.print("[yellow]No hunts directory found.[/yellow]")
             return
 
-        hunt_files = list(hunts_dir.glob("*.md"))
+        hunt_files = list(hunts_dir.rglob("*.md"))
 
         if not hunt_files:
             console.print("[yellow]No hunt files found.[/yellow]")

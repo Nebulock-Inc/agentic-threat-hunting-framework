@@ -504,4 +504,4 @@ The result is a condensed, practical template that guides hunters from hypothesi
 
 ## Example Reference
 
-See [H-0001.md](H-0001.md), [H-0002.md](H-0002.md), and [H-0003.md](H-0003.md) for complete hunt examples.
+See [H-0001.md](production/2026/Q1/H-0001.md), [H-0002.md](production/2026/Q1/H-0002.md), and [H-0003.md](production/2026/Q1/H-0003.md) for complete hunt examples.

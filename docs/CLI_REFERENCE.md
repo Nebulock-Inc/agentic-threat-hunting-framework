@@ -511,7 +511,7 @@ Found 3 similar hunts
 Score  Hunt ID    Title                Status       Tactics
 ─────────────────────────────────────────────────────────────
 0.421  H-0014     Password Spraying    📋 planning  credential-access
-0.318  H-0008     Brute Force Login    ✅ completed credential-access
+0.318  H-0015     Brute Force Login    ✅ completed credential-access
 0.251  H-0022     Account Takeover     🔄 in-progress initial-access
 
 Similarity Score Legend:
@@ -1073,7 +1073,7 @@ H-0002: Kerberoasting Detection via Unusual TGS Requests
   Match in LEARN section:
     "...technique to detect kerberoasting attacks by identifying unusual..."
 
-H-0008: Service Account Reconnaissance
+H-0015: Service Account Reconnaissance
   Match in OBSERVE section:
     "...similar patterns to kerberoasting but focuses on enumeration..."
 

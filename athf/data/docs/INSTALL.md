@@ -572,7 +572,7 @@ After installation:
 2. **Read the getting started guide**: [getting-started.md](getting-started.md)
 3. **Review the CLI reference**: [CLI_REFERENCE.md](CLI_REFERENCE.md)
 4. **Create your first hunt**: `athf hunt new`
-5. **Explore example hunts**: [../hunts/H-0001.md](../hunts/H-0001.md)
+5. **Explore example hunts**: [../hunts/production/2026/Q1/H-0001.md](../hunts/production/2026/Q1/H-0001.md)
 
 ---
 

@@ -225,7 +225,7 @@ Claude:
 
 ## Example Hunts
 
-- [H-0001.md](H-0001.md) - macOS Data Collection via AppleScript Detection (T1005, T1059.002, T1555.003)
-- [H-0002.md](H-0002.md) - Linux Crontab Persistence Detection (T1053.003)
-- [H-0003.md](H-0003.md) - AWS Lambda Persistence Detection (T1546.004, T1098)
+- [H-0001.md](production/2026/Q1/H-0001.md) - macOS Data Collection via AppleScript Detection (T1005, T1059.002, T1555.003)
+- [H-0002.md](production/2026/Q1/H-0002.md) - Linux Crontab Persistence Detection (T1053.003)
+- [H-0003.md](production/2026/Q1/H-0003.md) - AWS Lambda Persistence Detection (T1546.004, T1098)
 - [FORMAT_GUIDELINES.md](FORMAT_GUIDELINES.md) - Template structure reference

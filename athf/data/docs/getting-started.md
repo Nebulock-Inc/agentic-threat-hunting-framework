@@ -120,7 +120,7 @@ athf hunt list
 
 ### Example Structure
 
-See [hunts/H-0001.md](../hunts/H-0001.md) for a complete example. Here's a simplified structure:
+See [hunts/H-0001.md](../hunts/production/2026/Q1/H-0001.md) for a complete example. Here's a simplified structure:
 
 ```markdown
 # H-0001: SSH Brute Force Detection

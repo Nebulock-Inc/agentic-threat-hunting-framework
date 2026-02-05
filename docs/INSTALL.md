@@ -215,7 +215,7 @@ pytest tests/ -v --cov=athf --cov-report=term-missing
 pytest tests/test_commands.py::TestInitCommand::test_init_creates_structure_non_interactive -v
 ```
 
-Tests use Click's `CliRunner` to test actual CLI commands rather than mocks. See [tests/test_commands.py](../../../tests/test_commands.py) for examples.
+Tests use Click's `CliRunner` to test actual CLI commands rather than mocks. See [tests/test_commands.py](../tests/test_commands.py) for examples.
 
 **Documentation**: Keep your fork's documentation current:
 - **AGENTS.md** - Update with your environment details, data sources, team context
@@ -302,7 +302,7 @@ athf hunt list --status completed --output json | \
 
 ### CI/CD Integration
 
-ATHF includes a GitHub Actions workflow ([.github/workflows/tests.yml](../../../.github/workflows/tests.yml)) that runs:
+ATHF includes a GitHub Actions workflow ([.github/workflows/tests.yml](../.github/workflows/tests.yml)) that runs:
 
 - Tests across Python 3.8-3.12 on Ubuntu, macOS, Windows
 - Linting with flake8
@@ -322,7 +322,7 @@ All tools are configured in `pyproject.toml`:
 - **pytest**: Test discovery, coverage reporting
 - **bandit**: Security checks with test exclusions
 
-See [pyproject.toml](../../../pyproject.toml) for full configuration.
+See [pyproject.toml](../pyproject.toml) for full configuration.
 
 ---
 
@@ -572,7 +572,7 @@ After installation:
 2. **Read the getting started guide**: [getting-started.md](getting-started.md)
 3. **Review the CLI reference**: [CLI_REFERENCE.md](CLI_REFERENCE.md)
 4. **Create your first hunt**: `athf hunt new`
-5. **Explore example hunts**: [../hunts/H-0001.md](../hunts/H-0001.md)
+5. **Explore example hunts**: [../hunts/production/2026/Q1/H-0001.md](../hunts/production/2026/Q1/H-0001.md)
 
 ---
 
