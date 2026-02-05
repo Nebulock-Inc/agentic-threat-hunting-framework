@@ -251,8 +251,7 @@ class ResearchManager:
 
         # Validate path is within research directory
         try:
-            if not research_file.resolve().is_relative_to(self.research_dir.resolve()):
-                return None
+            research_file.resolve().relative_to(self.research_dir.resolve())
         except (ValueError, OSError):
             return None
 
@@ -262,11 +261,10 @@ class ResearchManager:
         # Try nested search
         research_files = list(self.research_dir.rglob(f"{research_id}.md"))
         if research_files:
-            # Validate nested file is also within research directory
+            # Validate nested file is also within research directory (Python 3.8 compatible)
             nested_file = research_files[0]
             try:
-                if not nested_file.resolve().is_relative_to(self.research_dir.resolve()):
-                    return None
+                nested_file.resolve().relative_to(self.research_dir.resolve())
             except (ValueError, OSError):
                 return None
             return parse_research_file(nested_file)
@@ -390,10 +388,9 @@ class ResearchManager:
         # Write file
         file_path = self.research_dir / f"{research_id}.md"
 
-        # Validate path is within research directory
+        # Validate path is within research directory (Python 3.8 compatible)
         try:
-            if not file_path.resolve().is_relative_to(self.research_dir.resolve()):
-                raise ValueError("Invalid research file path")
+            file_path.resolve().relative_to(self.research_dir.resolve())
         except (ValueError, OSError) as e:
             raise ValueError(f"Invalid research file path: {e}") from e
 

@@ -118,10 +118,9 @@ class HuntManager:
                 return None
             hunt_file = matching_files[0]  # Use first match
 
-        # Validate path is within hunts directory
+        # Validate path is within hunts directory (Python 3.8 compatible)
         try:
-            if not hunt_file.resolve().is_relative_to(self.hunts_dir.resolve()):
-                return None
+            hunt_file.resolve().relative_to(self.hunts_dir.resolve())
         except (ValueError, OSError):
             return None
 

@@ -200,11 +200,9 @@ def new(
 
         research_file = Path("research") / f"{research}.md"
 
-        # Validate path is within research directory
+        # Validate path is within research directory (Python 3.8 compatible)
         try:
-            if not research_file.resolve().is_relative_to(Path("research").resolve()):
-                console.print("[red]Error: Invalid research path[/red]")
-                return
+            research_file.resolve().relative_to(Path("research").resolve())
         except (ValueError, OSError):
             console.print("[red]Error: Invalid research path[/red]")
             return
@@ -275,11 +273,9 @@ def new(
     hunt_dir.mkdir(parents=True, exist_ok=True)
     hunt_file = hunt_dir / f"{hunt_id}.md"
 
-    # Validate path is within hunts directory
+    # Validate path is within hunts directory (Python 3.8 compatible)
     try:
-        if not hunt_file.resolve().is_relative_to(Path("hunts").resolve()):
-            console.print("[red]Error: Invalid hunt file path[/red]")
-            return
+        hunt_file.resolve().relative_to(Path("hunts").resolve())
     except (ValueError, OSError):
         console.print("[red]Error: Invalid hunt file path[/red]")
         return
@@ -437,9 +433,7 @@ def validate(hunt_id: str) -> None:
 
         # Validate path is within hunts directory
         try:
-            if not hunt_file.resolve().is_relative_to(hunts_dir.resolve()):
-                console.print("[red]Error: Invalid hunt file path[/red]")
-                return
+            hunt_file.resolve().relative_to(hunts_dir.resolve())
         except (ValueError, OSError):
             console.print("[red]Error: Invalid hunt file path[/red]")
             return

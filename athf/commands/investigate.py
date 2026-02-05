@@ -184,11 +184,9 @@ def new(
     # Write investigation file
     investigation_file = investigations_dir / f"{investigation_id}.md"
 
-    # Validate path is within investigations directory
+    # Validate path is within investigations directory (Python 3.8 compatible)
     try:
-        if not investigation_file.resolve().is_relative_to(investigations_dir.resolve()):
-            console.print("[red]Error: Invalid investigation file path[/red]")
-            return
+        investigation_file.resolve().relative_to(investigations_dir.resolve())
     except (ValueError, OSError):
         console.print("[red]Error: Invalid investigation file path[/red]")
         return
@@ -561,11 +559,9 @@ def validate(investigation_id: str) -> None:
     investigations_dir = Path("investigations")
     investigation_file = investigations_dir / f"{investigation_id}.md"
 
-    # Validate path is within investigations directory
+    # Validate path is within investigations directory (Python 3.8 compatible)
     try:
-        if not investigation_file.resolve().is_relative_to(investigations_dir.resolve()):
-            console.print("[red]Error: Invalid investigation file path[/red]")
-            return
+        investigation_file.resolve().relative_to(investigations_dir.resolve())
     except (ValueError, OSError):
         console.print("[red]Error: Invalid investigation file path[/red]")
         return
@@ -641,11 +637,9 @@ def promote(
     investigations_dir = Path("investigations")
     investigation_file = investigations_dir / f"{investigation_id}.md"
 
-    # Validate path is within investigations directory
+    # Validate path is within investigations directory (Python 3.8 compatible)
     try:
-        if not investigation_file.resolve().is_relative_to(investigations_dir.resolve()):
-            console.print("[red]Error: Invalid investigation file path[/red]")
-            return
+        investigation_file.resolve().relative_to(investigations_dir.resolve())
     except (ValueError, OSError):
         console.print("[red]Error: Invalid investigation file path[/red]")
         return
@@ -764,11 +758,9 @@ def promote(
     hunts_dir.mkdir(exist_ok=True)
     hunt_file = hunts_dir / f"{hunt_id}.md"
 
-    # Validate path is within hunts directory
+    # Validate path is within hunts directory (Python 3.8 compatible)
     try:
-        if not hunt_file.resolve().is_relative_to(hunts_dir.resolve()):
-            console.print("[red]Error: Invalid hunt file path[/red]")
-            return
+        hunt_file.resolve().relative_to(hunts_dir.resolve())
     except (ValueError, OSError):
         console.print("[red]Error: Invalid hunt file path[/red]")
         return
