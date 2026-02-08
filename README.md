@@ -168,8 +168,10 @@ athf hunt new \
 ```bash
 athf hunt list                      # Show all hunts
 athf hunt list --status completed   # Filter by status
+athf hunt list --directory test     # Filter by environment (test/production)
 athf hunt list --output json        # JSON output
 athf hunt search "kerberoasting"    # Full-text search
+athf hunt search "credential" --directory production  # Search with directory filter
 athf research search "credential"   # Search research docs
 ```
 

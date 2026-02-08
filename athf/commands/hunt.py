@@ -303,14 +303,16 @@ def new(
 @click.option("--tactic", help="Filter by MITRE tactic")
 @click.option("--technique", help="Filter by MITRE technique (e.g., T1003.001)")
 @click.option("--platform", help="Filter by platform")
+@click.option("--directory", type=click.Choice(["test", "production"]), help="Filter by environment directory")
 @click.option("--output", type=click.Choice(["table", "json", "yaml"]), default="table", help="Output format")
-def list_hunts(status: str, tactic: str, technique: str, platform: str, output: str) -> None:
+def list_hunts(status: str, tactic: str, technique: str, platform: str, directory: str, output: str) -> None:
     """List all hunts with filtering and formatting options.
 
     \b
     Displays hunt catalog with:
     • Hunt ID and title
     • Current status
+    • Environment directory (test/production)
     • MITRE ATT&CK techniques
     • True/False positive counts
 
@@ -325,8 +327,11 @@ def list_hunts(status: str, tactic: str, technique: str, platform: str, output: 
       # Filter by tactic
       athf hunt list --tactic credential-access
 
+      # Filter by environment directory
+      athf hunt list --directory test
+
       # Combine filters
-      athf hunt list --tactic persistence --platform Linux
+      athf hunt list --tactic persistence --platform Linux --directory production
 
       # JSON output for scripting
       athf hunt list --output json
@@ -340,7 +345,7 @@ def list_hunts(status: str, tactic: str, technique: str, platform: str, output: 
     Note: Use --output instead of --format for specifying output format.
     """
     manager = HuntManager()
-    hunts = manager.list_hunts(status=status, tactic=tactic, technique=technique, platform=platform)
+    hunts = manager.list_hunts(status=status, tactic=tactic, technique=technique, platform=platform, directory=directory)
 
     if not hunts:
         console.print("[yellow]No hunts found.[/yellow]")
@@ -364,6 +369,7 @@ def list_hunts(status: str, tactic: str, technique: str, platform: str, output: 
     table.add_column("Hunt ID", style="cyan", no_wrap=True)
     table.add_column("Title", style="white")
     table.add_column("Status", style="yellow")
+    table.add_column("Env", style="blue", no_wrap=True)
     table.add_column("Technique", style="magenta")
     table.add_column("Findings", style="green")
 
@@ -372,6 +378,8 @@ def list_hunts(status: str, tactic: str, technique: str, platform: str, output: 
         title_full = hunt.get("title") or ""
         title = title_full[:30] + ("..." if len(title_full) > 30 else "")
         status_val = hunt.get("status", "")
+        environment = hunt.get("environment", "-")
+        env_display = environment if environment else "-"
         techniques = hunt.get("techniques", [])
         technique_str = techniques[0] if techniques else "-"
 
@@ -379,7 +387,7 @@ def list_hunts(status: str, tactic: str, technique: str, platform: str, output: 
         fp = hunt.get("false_positives", 0)
         findings_str = f"{tp + fp} ({tp} TP)" if (tp + fp) > 0 else "-"
 
-        table.add_row(hunt_id, title, status_val, technique_str, findings_str)
+        table.add_row(hunt_id, title, status_val, env_display, technique_str, findings_str)
 
     console.print(table)
     console.print()
@@ -539,7 +547,8 @@ def stats() -> None:
 
 @hunt.command()
 @click.argument("query")
-def search(query: str) -> None:
+@click.option("--directory", type=click.Choice(["test", "production"]), help="Filter by environment directory")
+def search(query: str, directory: str) -> None:
     """Full-text search across all hunt files.
 
     \b
@@ -564,6 +573,9 @@ def search(query: str) -> None:
       # Search for data source
       athf hunt search "sysmon"
 
+      # Filter by environment directory
+      athf hunt search "credential" --directory test
+
     \b
     Use this to:
     • Avoid duplicate hunts
@@ -572,7 +584,7 @@ def search(query: str) -> None:
     • Check if a TTP has been hunted before
     """
     manager = HuntManager()
-    results = manager.search_hunts(query)
+    results = manager.search_hunts(query, directory=directory)
 
     if not results:
         console.print(f"[yellow]No hunts found matching '{query}'[/yellow]")
@@ -581,8 +593,10 @@ def search(query: str) -> None:
     console.print(f"\n[bold]🔍 Search results for '{query}' ({len(results)} found)[/bold]\n")
 
     for result in results:
+        environment = result.get("environment", "-")
+        env_display = f" | Env: {environment}" if environment else ""
         console.print(f"[cyan]{result['hunt_id']}[/cyan]: {result['title']}")
-        console.print(f"  Status: {result['status']} | File: {result['file_path']}")
+        console.print(f"  Status: {result['status']}{env_display} | File: {result['file_path']}")
         console.print()
 
 

@@ -11,10 +11,10 @@ This repository contains threat hunting investigations using the LOCK pattern (L
 **AI assistants should:**
 
 - **🔧 ALWAYS activate the virtual environment FIRST** - Run `source .venv/bin/activate` before any `athf` commands (verify with `which athf`)
-- **Read [knowledge/hunting-knowledge.md](athf/data/knowledge/hunting-knowledge.md)** - Expert hunting frameworks and analytical methods
+- **Read [knowledge/hunting-knowledge.md](knowledge/hunting-knowledge.md)** - Expert hunting frameworks and analytical methods
 - **Browse past hunts** - Search hunt history before suggesting new hypotheses
 - Reference lessons learned when generating queries
-- Use [docs/environment.md](athf/data/docs/environment.md) template to understand available data sources
+- Use [docs/environment.md](docs/environment.md) template to understand available data sources
 - **Focus on behaviors and TTPs (top of Pyramid of Pain), not indicators**
 
 ---
@@ -145,7 +145,7 @@ athf/                           # CLI source code
 │   ├── hunting-knowledge.md   # Core hunting knowledge
 │   ├── mitre-attack.md        # ATT&CK framework methodology
 │   └── domains/               # (EXAMPLE) Domain-specific knowledge
-│       ├── endpoint-security.md 
+│       ├── endpoint-security.md
 │       ├── iam-security.md
 │       ├── insider-threat.md
 │       └── cloud-security.md
@@ -180,7 +180,7 @@ This repository can use nested AGENTS.md files for specialized context. The clos
 
 ### knowledge/hunting-knowledge.md
 
-The file [knowledge/hunting-knowledge.md](athf/data/knowledge/hunting-knowledge.md) contains expert threat hunting knowledge that AI should apply when generating hypotheses:
+The file [knowledge/hunting-knowledge.md](knowledge/hunting-knowledge.md) contains expert threat hunting knowledge that AI should apply when generating hypotheses:
 
 **Core Sections:**
 1. **Hypothesis Generation** - Pattern-based generation, quality criteria, examples
@@ -200,7 +200,7 @@ The file [knowledge/hunting-knowledge.md](athf/data/knowledge/hunting-knowledge.
 
 ## Data Sources
 
-See [docs/environment.md](athf/data/docs/environment.md) template for documenting your organization's data sources:
+See [docs/environment.md](docs/environment.md) template for documenting your organization's data sources:
 
 - SIEM/log aggregation platforms
 - EDR/endpoint telemetry coverage
@@ -229,7 +229,7 @@ This repository follows the **LOCK pattern**:
 4. **Keep** - Record decision and lessons learned
 
 **AI assistants should:**
-- Generate hypotheses in LOCK format (see [templates/HUNT_LOCK.md](athf/data/templates/HUNT_LOCK.md))
+- Generate hypotheses in LOCK format (see [templates/HUNT_LOCK.md](templates/HUNT_LOCK.md))
 - Ensure queries are bounded by time, scope, and impact
 - Document lessons learned after hunt execution
 - Reference past hunts when suggesting new ones
@@ -528,7 +528,7 @@ athf hunt new \
 | Manual hypothesis | `athf agent run hypothesis-generator --threat-intel "..."` |
 | Multiple Read operations | `athf context --hunt H-XXXX` |
 
-**Full CLI Reference:** [docs/CLI_REFERENCE.md](athf/data/docs/CLI_REFERENCE.md)
+**Full CLI Reference:** [docs/CLI_REFERENCE.md](docs/CLI_REFERENCE.md)
 
 ---
 
@@ -559,7 +559,7 @@ ATHF includes bundled hunting knowledge files to inform hunt hypotheses and quer
 3. **Present Top 3 ranked options** with MITRE technique, data source, priority reason
 4. **Wait for user selection** before creating hunt
 
-**Full workflow:** [prompts/ai-workflow.md](athf/data/prompts/ai-workflow.md)
+**Full workflow:** [prompts/ai-workflow.md](prompts/ai-workflow.md)
 
 ---
 
@@ -615,7 +615,7 @@ ATHF includes bundled hunting knowledge files to inform hunt hypotheses and quer
   - `hunt-researcher` - Conducts thorough 5-skill pre-hunt research
 - **Execution Modes:** Interactive (default, step-by-step execution with user approval)
 
-**MCP Server Integration:** Organizations can extend AI capabilities by installing MCP servers. See [integrations/MCP_CATALOG.md](athf/data/integrations/MCP_CATALOG.md) for available integrations.
+**MCP Server Integration:** Organizations can extend AI capabilities by installing MCP servers. See [integrations/MCP_CATALOG.md](integrations/MCP_CATALOG.md) for available integrations.
 
 ---
 
@@ -722,10 +722,10 @@ AI: 1. athf similar "kerberoasting" --format json
 
 **Core Process:**
 
-1. **Consult Hunting Brain** - Read [knowledge/hunting-knowledge.md](athf/data/knowledge/hunting-knowledge.md) Section 1 (Hypothesis Generation) and Section 5 (Pyramid of Pain)
+1. **Consult Hunting Brain** - Read [knowledge/hunting-knowledge.md](knowledge/hunting-knowledge.md) Section 1 (Hypothesis Generation) and Section 5 (Pyramid of Pain)
 2. **Search Memory First** - **REQUIRED: Use `athf similar "your hypothesis keywords"` to check for duplicate hunts** (saves time, avoids redundant work)
 3. **Validate Environment** - Read user's environment.md to confirm data sources exist
-4. **Generate LOCK Hypothesis** - Create testable hypothesis following [templates/HUNT_LOCK.md](athf/data/templates/HUNT_LOCK.md)
+4. **Generate LOCK Hypothesis** - Create testable hypothesis following [templates/HUNT_LOCK.md](templates/HUNT_LOCK.md)
 5. **Apply Quality Criteria** - Use quality checklist (Falsifiable, Scoped, Observable, Actionable, Contextual)
 6. **Suggest Next Steps** - Offer to create hunt file or draft query
 
@@ -739,9 +739,9 @@ AI: 1. athf similar "kerberoasting" --format json
 - Consider false positives from similar past hunts
 - Apply hypothesis quality rubric from hunting-knowledge.md
 
-**Output Must Follow:** [templates/HUNT_LOCK.md](athf/data/templates/HUNT_LOCK.md) structure
+**Output Must Follow:** [templates/HUNT_LOCK.md](templates/HUNT_LOCK.md) structure
 
-**Complete workflow details:** [prompts/ai-workflow.md](athf/data/prompts/ai-workflow.md)
+**Complete workflow details:** [prompts/ai-workflow.md](prompts/ai-workflow.md)
 
 ---
 

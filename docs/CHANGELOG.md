@@ -25,6 +25,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - None
 
+## [0.7.1] - 2026-02-06
+
+### Fixed
+- **Documentation Links** - Fixed invalid `athf/data/` path prefixes in AGENTS.md ([#9](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/issues/9))
+  - Removed 11 incorrect path references
+  - All documentation links now point to correct repository structure
+- **Environment Directory Filtering** - Added directory filtering for hunt management ([#8](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/issues/8))
+  - `athf hunt list` now displays environment column (test/production)
+  - Added `--directory` filter option to `athf hunt list` command
+  - Added `--directory` filter option to `athf hunt search` command
+  - Updated CLI documentation in CLI_REFERENCE.md and README.md
+
 ## [0.6.0] - 2026-01-27
 
 ### Added

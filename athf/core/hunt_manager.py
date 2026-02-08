@@ -29,6 +29,7 @@ class HuntManager:
         tactic: Optional[str] = None,
         technique: Optional[str] = None,
         platform: Optional[str] = None,
+        directory: Optional[str] = None,
     ) -> List[Dict]:
         """List all hunts with optional filters.
 
@@ -37,6 +38,7 @@ class HuntManager:
             tactic: Filter by MITRE tactic
             technique: Filter by MITRE technique (e.g., T1003.001)
             platform: Filter by platform (Windows, Linux, macOS, Cloud)
+            directory: Filter by environment directory (test or production)
 
         Returns:
             List of hunt metadata dicts
@@ -51,6 +53,14 @@ class HuntManager:
                 hunt_data = parse_hunt_file(hunt_file)
                 frontmatter = hunt_data.get("frontmatter", {})
 
+                # Determine environment from file path
+                hunt_file_parts = hunt_file.parts
+                environment = None
+                if "test" in hunt_file_parts:
+                    environment = "test"
+                elif "production" in hunt_file_parts:
+                    environment = "production"
+
                 # Apply filters
                 if status and frontmatter.get("status") != status:
                     continue
@@ -62,6 +72,9 @@ class HuntManager:
                     continue
 
                 if platform and platform not in frontmatter.get("platform", []):
+                    continue
+
+                if directory and environment != directory:
                     continue
 
                 # Extract summary info
@@ -85,6 +98,7 @@ class HuntManager:
                         "true_positives": frontmatter.get("true_positives", 0),
                         "false_positives": frontmatter.get("false_positives", 0),
                         "file_path": str(hunt_file),
+                        "environment": environment,
                     }
                 )
 
@@ -159,11 +173,12 @@ class HuntManager:
         next_num = max(numbers) + 1
         return f"{prefix}{next_num:04d}"
 
-    def search_hunts(self, query: str) -> List[Dict]:
+    def search_hunts(self, query: str, directory: Optional[str] = None) -> List[Dict]:
         """Full-text search across all hunt files.
 
         Args:
             query: Search query string
+            directory: Filter by environment directory (test or production)
 
         Returns:
             List of matching hunts
@@ -177,6 +192,18 @@ class HuntManager:
         for hunt_file in self.hunts_dir.rglob("*.md"):
             # Skip documentation files
             if hunt_file.name in exclude_files:
+                continue
+
+            # Determine environment from file path
+            hunt_file_parts = hunt_file.parts
+            environment = None
+            if "test" in hunt_file_parts:
+                environment = "test"
+            elif "production" in hunt_file_parts:
+                environment = "production"
+
+            # Apply directory filter
+            if directory and environment != directory:
                 continue
 
             try:
@@ -194,6 +221,7 @@ class HuntManager:
                             "title": frontmatter.get("title"),
                             "status": frontmatter.get("status"),
                             "file_path": str(hunt_file),
+                            "environment": environment,
                         }
                     )
 

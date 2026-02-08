@@ -764,6 +764,7 @@ Display all hunts in a formatted table. Supports filtering by status, tactic, te
 | `--tactic` | String | - | Filter by MITRE ATT&CK tactic |
 | `--technique` | String | - | Filter by technique (e.g., T1003.001) |
 | `--platform` | String | - | Filter by platform |
+| `--directory` | Choice | - | Filter by environment directory: `test`, `production` |
 | `--output` | Choice | table | Output format: `table`, `json`, `yaml` |
 
 ### Examples
@@ -802,10 +803,18 @@ athf hunt list --tactic credential-access
 athf hunt list --technique T1003.001
 ```
 
+**Filter by environment directory**:
+
+```bash
+athf hunt list --directory test
+athf hunt list --directory production
+```
+
 **Multiple filters**:
 
 ```bash
 athf hunt list --status completed --platform windows
+athf hunt list --directory production --tactic credential-access
 ```
 
 **JSON output** (for scripts/automation):
@@ -1053,6 +1062,7 @@ Search hunt content (including frontmatter, LOCK sections, queries, and findings
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
+| `--directory` | Choice | - | Filter by environment directory: `test`, `production` |
 | `--case-sensitive` | Flag | False | Enable case-sensitive search |
 | `--regex` | Flag | False | Treat query as regex pattern |
 | `--output` | Choice | table | Output format: `table`, `json`, `yaml` |
@@ -1080,6 +1090,13 @@ H-0015: Service Account Reconnaissance
 H-0012: Golden Ticket Detection
   Match in title:
     "Kerberoasting and Golden Ticket Detection"
+```
+
+**Filter by environment directory**:
+
+```bash
+athf hunt search "credential" --directory test
+athf hunt search "kerberoasting" --directory production
 ```
 
 **Search for technique ID**:
