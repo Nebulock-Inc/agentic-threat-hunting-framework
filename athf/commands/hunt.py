@@ -456,7 +456,12 @@ def validate(hunt_id: str) -> None:
             console.print("[yellow]No hunts directory found.[/yellow]")
             return
 
+        # Exclude documentation files (at any level)
+        exclude_files = {"README.md", "FORMAT_GUIDELINES.md", "INDEX.md", "AGENTS.md", "WEEKLY_SUMMARY_TEMPLATE.md"}
+
         hunt_files = list(hunts_dir.rglob("*.md"))
+        # Filter out documentation files (at any level in the tree)
+        hunt_files = [f for f in hunt_files if f.name not in exclude_files]
 
         if not hunt_files:
             console.print("[yellow]No hunt files found.[/yellow]")

@@ -45,10 +45,17 @@ class HuntManager:
         """
         hunts = []
 
+        # Exclude documentation files (at any level)
+        exclude_files = {"README.md", "FORMAT_GUIDELINES.md", "INDEX.md", "AGENTS.md", "WEEKLY_SUMMARY_TEMPLATE.md"}
+
         # Find all hunt files recursively (supports both flat and hierarchical structure)
         hunt_files = sorted(self.hunts_dir.rglob("*.md"))
 
         for hunt_file in hunt_files:
+            # Skip documentation files (at any level in the tree)
+            if hunt_file.name in exclude_files:
+                continue
+
             try:
                 hunt_data = parse_hunt_file(hunt_file)
                 frontmatter = hunt_data.get("frontmatter", {})
@@ -186,11 +193,11 @@ class HuntManager:
         results = []
         query_lower = query.lower()
 
-        # Exclude documentation files
-        exclude_files = {"README.md", "FORMAT_GUIDELINES.md"}
+        # Exclude documentation files (at any level)
+        exclude_files = {"README.md", "FORMAT_GUIDELINES.md", "INDEX.md", "AGENTS.md", "WEEKLY_SUMMARY_TEMPLATE.md"}
 
         for hunt_file in self.hunts_dir.rglob("*.md"):
-            # Skip documentation files
+            # Skip documentation files (at any level in the tree)
             if hunt_file.name in exclude_files:
                 continue
 
