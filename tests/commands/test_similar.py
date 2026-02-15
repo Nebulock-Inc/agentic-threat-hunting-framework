@@ -6,7 +6,7 @@ import pytest
 import yaml
 from click.testing import CliRunner
 
-from athf.commands.similar import similar
+from athf.commands.similar import _extract_session_text, similar
 
 
 class TestSimilarCommand:
@@ -133,3 +133,96 @@ class TestSimilarCommand:
 
         if result.exit_code == 0:
             assert "No similar hunts found" in result.output or "Found 0" in result.output
+
+
+class TestExtractSessionText:
+    """Tests for _extract_session_text function."""
+
+    def test_extracts_decisions_and_rationales(self, tmp_path):
+        """Decision text and rationales are extracted."""
+        session_dir = tmp_path / "H-0001-2026-01-15"
+        session_dir.mkdir()
+        (session_dir / "decisions.yaml").write_text(
+            "decisions:\n"
+            "- timestamp: '2026-01-15T10:00:00Z'\n"
+            "  phase: analysis\n"
+            "  decision: svchost spawning PowerShell is Windows Update\n"
+            "  rationale: Scheduled task triggers PowerShell for update check\n"
+            "  alternatives: null\n"
+        )
+        result = _extract_session_text(session_dir)
+        assert "svchost spawning PowerShell is Windows Update" in result
+        assert "Scheduled task triggers PowerShell" in result
+
+    def test_extracts_summary_lessons(self, tmp_path):
+        """Summary key decisions and lessons sections are extracted."""
+        session_dir = tmp_path / "H-0001-2026-01-15"
+        session_dir.mkdir()
+        (session_dir / "summary.md").write_text(
+            "# Session: H-0001 (2026-01-15)\n\n"
+            "**Duration:** 30m | **Queries:** 5 | **Findings:** 0 TP, 0 FP\n\n"
+            "## Final Query\n\n```sql\nSELECT 1\n```\n\n"
+            "## Key Decisions\n\n"
+            "- **Analysis:** Found legitimate automation pattern\n\n"
+            "## Lessons\n\n"
+            "- Automation patterns common in enterprise\n"
+        )
+        result = _extract_session_text(session_dir)
+        assert "legitimate automation pattern" in result
+        assert "Automation patterns common in enterprise" in result
+
+    def test_combines_decisions_and_summary(self, tmp_path):
+        """Both decisions.yaml and summary.md content combined."""
+        session_dir = tmp_path / "H-0001-2026-01-15"
+        session_dir.mkdir()
+        (session_dir / "decisions.yaml").write_text(
+            "decisions:\n"
+            "- timestamp: '2026-01-15T10:00:00Z'\n"
+            "  phase: analysis\n"
+            "  decision: Telegram bot is known activity\n"
+            "  rationale: Already reported to customer\n"
+            "  alternatives: null\n"
+        )
+        (session_dir / "summary.md").write_text(
+            "# Session\n\n## Key Decisions\n\n"
+            "- Known bot activity\n\n"
+            "## Lessons\n\n- Check with customer first\n"
+        )
+        result = _extract_session_text(session_dir)
+        assert "Telegram bot is known activity" in result
+        assert "Check with customer first" in result
+
+    def test_empty_session_dir(self, tmp_path):
+        """Returns empty string when no session files exist."""
+        session_dir = tmp_path / "H-0001-2026-01-15"
+        session_dir.mkdir()
+        result = _extract_session_text(session_dir)
+        assert result == ""
+
+    def test_malformed_decisions_yaml(self, tmp_path):
+        """Gracefully handles malformed YAML."""
+        session_dir = tmp_path / "H-0001-2026-01-15"
+        session_dir.mkdir()
+        (session_dir / "decisions.yaml").write_text("not: valid: yaml: [[[")
+        result = _extract_session_text(session_dir)
+        assert isinstance(result, str)
+
+    def test_nonexistent_dir(self, tmp_path):
+        """Returns empty string for nonexistent directory."""
+        session_dir = tmp_path / "does-not-exist"
+        result = _extract_session_text(session_dir)
+        assert result == ""
+
+    def test_skips_queries_yaml(self, tmp_path):
+        """SQL from queries.yaml is NOT included."""
+        session_dir = tmp_path / "H-0001-2026-01-15"
+        session_dir.mkdir()
+        (session_dir / "queries.yaml").write_text(
+            "queries:\n"
+            "- id: q001\n"
+            "  sql: SELECT process.name FROM nocsf_unified_events\n"
+            "  result_count: 100\n"
+        )
+        result = _extract_session_text(session_dir)
+        assert "SELECT" not in result
+        assert "nocsf_unified_events" not in result

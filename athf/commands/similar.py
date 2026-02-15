@@ -307,6 +307,50 @@ def _extract_section(content: str, heading: str) -> str:
     return " ".join(section_lines).strip()
 
 
+def _extract_session_text(session_dir: Path) -> str:
+    """Extract searchable text from a session's decisions and summary.
+
+    Reads decisions.yaml (decision + rationale fields) and summary.md
+    (Key Decisions + Lessons sections). Skips queries.yaml (SQL noise)
+    and session.yaml (metadata only).
+    """
+    if not session_dir.exists():
+        return ""
+
+    parts = []
+
+    # Extract from decisions.yaml
+    decisions_file = session_dir / "decisions.yaml"
+    if decisions_file.exists():
+        try:
+            data = yaml.safe_load(decisions_file.read_text(encoding="utf-8"))
+            if data and isinstance(data.get("decisions"), list):
+                for decision in data["decisions"]:
+                    if isinstance(decision, dict):
+                        text = decision.get("decision", "")
+                        if text:
+                            parts.append(str(text))
+                        rationale = decision.get("rationale", "")
+                        if rationale:
+                            parts.append(str(rationale))
+        except (yaml.YAMLError, OSError):
+            pass
+
+    # Extract from summary.md (Key Decisions + Lessons sections)
+    summary_file = session_dir / "summary.md"
+    if summary_file.exists():
+        try:
+            content = summary_file.read_text(encoding="utf-8")
+            for heading in ["## Key Decisions", "## Lessons"]:
+                section = _extract_section(content, heading)
+                if section:
+                    parts.append(section)
+        except OSError:
+            pass
+
+    return " ".join(parts).strip()
+
+
 def _display_results_table(
     results: List[Dict[str, Any]],
     query_text: str,
