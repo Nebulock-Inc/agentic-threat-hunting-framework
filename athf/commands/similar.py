@@ -129,8 +129,14 @@ def _find_similar_hunts(
     limit: int = 10,
     threshold: float = 0.1,
     exclude_hunt: Optional[str] = None,
+    include_sessions: bool = False,
 ) -> List[Dict[str, Any]]:
-    """Find similar hunts using TF-IDF similarity."""
+    """Find similar hunts using TF-IDF similarity.
+
+    Sessions are always folded into their parent hunt's searchable text
+    at 0.75x weight. When include_sessions=True, sessions are also added
+    as separate documents in the corpus.
+    """
     try:
         from sklearn.feature_extraction.text import TfidfVectorizer
         from sklearn.metrics.pairwise import cosine_similarity
@@ -144,76 +150,106 @@ def _find_similar_hunts(
     hunt_files = list(hunts_dir.glob("H-*.md"))
 
     if not hunt_files:
-        # Don't print warning - let the output format handle empty results
         return []
 
-    # Extract hunt content and metadata
+    sessions_dir = Path("sessions")
+
+    # Extract hunt content and metadata, fold sessions in
     hunt_data = []
+    session_data = []
     for hunt_file in hunt_files:
         hunt_id = hunt_file.stem
 
-        # Skip excluded hunt
         if exclude_hunt and hunt_id == exclude_hunt:
             continue
 
         content = hunt_file.read_text(encoding="utf-8")
         metadata = _extract_hunt_metadata(content)
-
-        # Extract searchable text (weighted semantic sections)
         searchable_text = _extract_searchable_text(content, metadata)
 
-        hunt_data.append(
-            {
-                "hunt_id": hunt_id,
-                "content": content,
-                "searchable_text": searchable_text,
-                "metadata": metadata,
-            }
-        )
+        # Load sessions for this hunt
+        hunt_sessions = _load_session_data(sessions_dir, hunt_id)
+
+        # Fold session text into hunt (0.75x weight)
+        if hunt_sessions:
+            session_texts = " ".join(s["searchable_text"] for s in hunt_sessions)
+            # 0.75x weight: add 75% of the text
+            truncated = session_texts[: int(len(session_texts) * 0.75)]
+            searchable_text = f"{searchable_text} {truncated}"
+
+        hunt_data.append({
+            "hunt_id": hunt_id,
+            "searchable_text": searchable_text,
+            "metadata": metadata,
+            "source": "hunt",
+            "session_count": len(hunt_sessions),
+        })
+
+        # If --sessions, also add sessions as separate documents
+        if include_sessions:
+            for sess in hunt_sessions:
+                session_data.append(sess)
 
     if not hunt_data:
-        # Don't print warning - let the output format handle empty results
         return []
 
-    # Build TF-IDF vectors using searchable text (weighted semantic sections)
-    documents = [query_text] + [h["searchable_text"] for h in hunt_data]
+    # Build document list: query + hunts + (optionally) sessions
+    all_docs = hunt_data + session_data
+    documents = [query_text] + [d["searchable_text"] for d in all_docs]
 
     vectorizer = TfidfVectorizer(
         max_features=1000,
         stop_words="english",
-        ngram_range=(1, 2),  # Unigrams and bigrams
+        ngram_range=(1, 2),
     )
 
     tfidf_matrix = vectorizer.fit_transform(documents)
 
-    # Calculate similarity scores
     query_vector = tfidf_matrix[0:1]
-    hunt_vectors = tfidf_matrix[1:]
+    doc_vectors = tfidf_matrix[1:]
 
-    similarities = cosine_similarity(query_vector, hunt_vectors)[0]
+    similarities = cosine_similarity(query_vector, doc_vectors)[0]
 
-    # Combine results with metadata
+    # Build results
     results = []
-    for i, hunt_info in enumerate(hunt_data):
+    for i, doc_info in enumerate(all_docs):
         score = float(similarities[i])
+        if score < threshold:
+            continue
 
-        if score >= threshold:
-            metadata = hunt_info["metadata"]  # type: ignore[assignment]
-            results.append(
-                {
-                    "hunt_id": hunt_info["hunt_id"],
-                    "similarity_score": round(score, 4),
-                    "title": metadata.get("title", "Unknown"),
-                    "status": metadata.get("status", "unknown"),
-                    "tactics": metadata.get("tactics", []),
-                    "techniques": metadata.get("techniques", []),
-                    "platform": metadata.get("platform", []),
-                }
-            )
+        if "session_id" not in doc_info:
+            # Hunt result
+            metadata = doc_info["metadata"]
+            results.append({
+                "source": "hunt",
+                "hunt_id": doc_info["hunt_id"],
+                "similarity_score": round(score, 4),
+                "title": metadata.get("title", "Unknown"),
+                "status": metadata.get("status", "unknown"),
+                "tactics": metadata.get("tactics", []),
+                "techniques": metadata.get("techniques", []),
+                "platform": metadata.get("platform", []),
+                "session_count": doc_info.get("session_count", 0),
+            })
+        else:
+            # Session result
+            sess_meta = doc_info.get("metadata", {})
+            # Auto-generate title from first 60 chars of decision text
+            title = doc_info["searchable_text"][:60]
+            if len(doc_info["searchable_text"]) > 60:
+                title = title.rsplit(" ", 1)[0] + "..."
 
-    # Sort by similarity score (descending)
+            results.append({
+                "source": "session",
+                "session_id": doc_info["session_id"],
+                "hunt_id": doc_info["hunt_id"],
+                "similarity_score": round(score, 4),
+                "title": title,
+                "decision_count": len(sess_meta.get("decisions", [])) if isinstance(sess_meta.get("decisions"), list) else 0,
+                "query_count": sess_meta.get("query_count", 0),
+            })
+
     results.sort(key=lambda x: x["similarity_score"], reverse=True)
-
     return results[:limit]
 
 
@@ -349,6 +385,44 @@ def _extract_session_text(session_dir: Path) -> str:
             pass
 
     return " ".join(parts).strip()
+
+
+def _load_session_data(sessions_dir: Path, hunt_id: str) -> List[Dict[str, Any]]:
+    """Load session data for a given hunt ID.
+
+    Returns list of dicts with session_id, hunt_id, searchable_text,
+    and metadata from session.yaml.
+    """
+    if not sessions_dir.exists():
+        return []
+
+    sessions = []
+    for session_dir in sorted(sessions_dir.glob(f"{hunt_id}-*")):
+        if not session_dir.is_dir():
+            continue
+
+        session_id = session_dir.name
+        searchable_text = _extract_session_text(session_dir)
+        if not searchable_text:
+            continue
+
+        # Load session metadata
+        metadata: Dict[str, Any] = {}
+        session_yaml = session_dir / "session.yaml"
+        if session_yaml.exists():
+            try:
+                metadata = yaml.safe_load(session_yaml.read_text(encoding="utf-8")) or {}
+            except (yaml.YAMLError, OSError):
+                pass
+
+        sessions.append({
+            "session_id": session_id,
+            "hunt_id": hunt_id,
+            "searchable_text": searchable_text,
+            "metadata": metadata,
+        })
+
+    return sessions
 
 
 def _display_results_table(

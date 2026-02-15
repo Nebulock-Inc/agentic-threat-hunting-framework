@@ -6,7 +6,7 @@ import pytest
 import yaml
 from click.testing import CliRunner
 
-from athf.commands.similar import _extract_session_text, similar
+from athf.commands.similar import _extract_session_text, _load_session_data, similar
 
 
 class TestSimilarCommand:
@@ -226,3 +226,102 @@ class TestExtractSessionText:
         result = _extract_session_text(session_dir)
         assert "SELECT" not in result
         assert "nocsf_unified_events" not in result
+
+
+class TestLoadSessionData:
+    """Tests for _load_session_data helper."""
+
+    def test_finds_sessions_for_hunt(self, tmp_path):
+        """Discovers session directories matching hunt ID."""
+        sessions_dir = tmp_path / "sessions"
+        sessions_dir.mkdir()
+        s1 = sessions_dir / "H-0001-2026-01-15"
+        s1.mkdir()
+        (s1 / "decisions.yaml").write_text(
+            "decisions:\n"
+            "- decision: Found credential dumping\n"
+            "  rationale: Mimikatz signature detected\n"
+        )
+        (s1 / "session.yaml").write_text(
+            "hunt_id: H-0001\nsession_id: H-0001-2026-01-15\n"
+            "query_count: 5\nfinding_count: 1\n"
+        )
+        result = _load_session_data(sessions_dir, "H-0001")
+        assert len(result) == 1
+        assert result[0]["session_id"] == "H-0001-2026-01-15"
+        assert "credential dumping" in result[0]["searchable_text"]
+
+    def test_finds_multiple_sessions(self, tmp_path):
+        """Finds multiple sessions for same hunt."""
+        sessions_dir = tmp_path / "sessions"
+        sessions_dir.mkdir()
+        for suffix in ["2026-01-15", "2026-01-16", "2026-01-16-2"]:
+            s = sessions_dir / f"H-0001-{suffix}"
+            s.mkdir()
+            (s / "decisions.yaml").write_text(
+                f"decisions:\n- decision: Session {suffix}\n  rationale: test\n"
+            )
+            (s / "session.yaml").write_text(
+                f"hunt_id: H-0001\nsession_id: H-0001-{suffix}\n"
+                "query_count: 3\nfinding_count: 0\n"
+            )
+        result = _load_session_data(sessions_dir, "H-0001")
+        assert len(result) == 3
+
+    def test_no_sessions_dir(self, tmp_path):
+        """Returns empty list when sessions dir doesn't exist."""
+        result = _load_session_data(tmp_path / "sessions", "H-0001")
+        assert result == []
+
+    def test_no_matching_sessions(self, tmp_path):
+        """Returns empty list when no sessions match hunt ID."""
+        sessions_dir = tmp_path / "sessions"
+        sessions_dir.mkdir()
+        s = sessions_dir / "H-0099-2026-01-15"
+        s.mkdir()
+        (s / "decisions.yaml").write_text("decisions:\n- decision: other\n  rationale: x\n")
+        result = _load_session_data(sessions_dir, "H-0001")
+        assert result == []
+
+
+class TestSessionFoldIntoHunts:
+    """Tests that sessions fold into hunt searchable text by default."""
+
+    def test_session_text_appended_to_hunt(self, tmp_path):
+        """Session decision text boosts hunt similarity score."""
+        # Create hunt
+        hunts_dir = tmp_path / "hunts"
+        hunts_dir.mkdir()
+        (hunts_dir / "H-0001.md").write_text(
+            "---\nhunt_id: H-0001\ntitle: LSASS Dumping\n"
+            "status: completed\ntactics: [credential-access]\n"
+            "techniques: [T1003.001]\nplatform: [Windows]\n---\n\n"
+            "## Hypothesis\n\nAdversaries dump LSASS memory\n"
+        )
+        # Create session
+        sessions_dir = tmp_path / "sessions"
+        sessions_dir.mkdir()
+        s = sessions_dir / "H-0001-2026-01-15"
+        s.mkdir()
+        (s / "decisions.yaml").write_text(
+            "decisions:\n"
+            "- decision: Mimikatz detected on DESKTOP-001\n"
+            "  rationale: Process hash matches known Mimikatz variant\n"
+        )
+        (s / "session.yaml").write_text(
+            "hunt_id: H-0001\nsession_id: H-0001-2026-01-15\n"
+            "query_count: 5\nfinding_count: 1\n"
+        )
+
+        import os
+        original_cwd = os.getcwd()
+        try:
+            os.chdir(tmp_path)
+            from athf.commands.similar import _find_similar_hunts
+            results = _find_similar_hunts("Mimikatz process hash", threshold=0.0)
+        finally:
+            os.chdir(original_cwd)
+
+        assert len(results) > 0
+        assert results[0]["hunt_id"] == "H-0001"
+        assert results[0]["source"] == "hunt"
