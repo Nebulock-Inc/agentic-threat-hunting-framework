@@ -48,12 +48,14 @@ Why This Helps AI:
     help="Output format (default: table)",
 )
 @click.option("--threshold", default=0.1, type=float, help="Minimum similarity score (0-1, default: 0.1)")
+@click.option("--sessions", is_flag=True, default=False, help="Include session logs as separate results")
 def similar(
     query: Optional[str],
     hunt: Optional[str],
     limit: int,
     output_format: str,
     threshold: float,
+    sessions: bool,
 ) -> None:
     """Find hunts similar to a query or hunt ID.
 
@@ -103,7 +105,7 @@ def similar(
         query_text = query or ""  # Should never be None due to validation above
 
     # Find similar hunts
-    results = _find_similar_hunts(query_text, limit=limit, threshold=threshold, exclude_hunt=hunt)
+    results = _find_similar_hunts(query_text, limit=limit, threshold=threshold, exclude_hunt=hunt, include_sessions=sessions)
 
     # Format and display results
     if output_format == "json":
@@ -113,7 +115,7 @@ def similar(
         output = yaml.dump(results, default_flow_style=False, sort_keys=False)
         console.print(output)
     else:  # table
-        _display_results_table(results, query_text=query_text, reference_hunt=hunt)
+        _display_results_table(results, query_text=query_text, reference_hunt=hunt, include_sessions=sessions)
 
 
 def _get_hunt_text(hunt_id: str) -> Optional[str]:
@@ -429,6 +431,7 @@ def _display_results_table(
     results: List[Dict[str, Any]],
     query_text: str,
     reference_hunt: Optional[str] = None,
+    include_sessions: bool = False,
 ) -> None:
     """Display results in rich table format."""
     # Header (always show, even if no results)
@@ -442,27 +445,44 @@ def _display_results_table(
         console.print("[yellow]No similar hunts found[/yellow]")
         return
 
-    console.print(f"[dim]Found {len(results)} similar hunts[/dim]\n")
+    # Count sources
+    hunt_count = sum(1 for r in results if r.get("source") == "hunt")
+    session_count = sum(1 for r in results if r.get("source") == "session")
+    if include_sessions and session_count > 0:
+        console.print(f"[dim]Found {hunt_count} hunts and {session_count} sessions[/dim]\n")
+    else:
+        console.print(f"[dim]Found {len(results)} similar hunts[/dim]\n")
 
     # Table
     table = Table(show_header=True, header_style="bold cyan")
     table.add_column("Score", style="green", no_wrap=True, width=6)
-    table.add_column("Hunt ID", style="cyan", no_wrap=True, width=10)
+    if include_sessions:
+        table.add_column("Source", style="magenta", no_wrap=True, width=8)
+    table.add_column("ID", style="cyan", no_wrap=True, width=22 if include_sessions else 10)
     table.add_column("Title", style="white")
     table.add_column("Status", style="yellow", no_wrap=True, width=12)
     table.add_column("Tactics", style="dim", width=20)
 
     for result in results:
         score = result["similarity_score"]
-        hunt_id = result["hunt_id"]
-        title = result["title"]
-        status = result["status"]
+        source = result.get("source", "hunt")
 
-        # Format tactics (abbreviate if too long)
-        tactics = result.get("tactics", [])
-        tactics_str = ", ".join(tactics[:2])
-        if len(tactics) > 2:
-            tactics_str += f" +{len(tactics) - 2}"
+        if source == "session":
+            result_id = result.get("session_id", "")
+            title = result.get("title", "")
+            status_display = "[dim]\u2014[/dim]"
+            tactics_str = "[dim]\u2014[/dim]"
+        else:
+            result_id = result.get("hunt_id", "")
+            title = result.get("title", "Unknown")
+            status = result.get("status", "unknown")
+            status_map = {"completed": "\u2705", "in-progress": "\U0001f504", "planning": "\U0001f4cb"}
+            status_emoji = status_map.get(status, "\u2753")
+            status_display = f"{status_emoji} {status}"
+            tactics = result.get("tactics", [])
+            tactics_str = ", ".join(tactics[:2])
+            if len(tactics) > 2:
+                tactics_str += f" +{len(tactics) - 2}"
 
         # Color-code score
         if score >= 0.5:
@@ -474,21 +494,16 @@ def _display_results_table(
         else:
             score_str = f"[dim]{score:.3f}[/dim]"
 
-        # Status emoji
-        status_map = {
-            "completed": "✅",
-            "in-progress": "🔄",
-            "planning": "📋",
-        }
-        status_emoji = status_map.get(status, "❓")
-        status_display = f"{status_emoji} {status}"
-
-        table.add_row(score_str, hunt_id, title, status_display, tactics_str)
+        if include_sessions:
+            source_str = f"[magenta]{source}[/magenta]" if source == "session" else source
+            table.add_row(score_str, source_str, result_id, title, status_display, tactics_str)
+        else:
+            table.add_row(score_str, result_id, title, status_display, tactics_str)
 
     console.print(table)
 
     # Legend
     console.print("\n[dim]Similarity Score Legend:[/dim]")
     console.print(
-        "[dim]  ≥0.50 = Very similar  |  0.30-0.49 = Similar  |  0.15-0.29 = Somewhat similar  |  <0.15 = Low similarity[/dim]\n"
+        "[dim]  \u22650.50 = Very similar  |  0.30-0.49 = Similar  |  0.15-0.29 = Somewhat similar  |  <0.15 = Low similarity[/dim]\n"
     )

@@ -6,7 +6,7 @@ import pytest
 import yaml
 from click.testing import CliRunner
 
-from athf.commands.similar import _extract_session_text, _load_session_data, similar
+from athf.commands.similar import _extract_session_text, _find_similar_hunts, _load_session_data, similar
 
 
 class TestSimilarCommand:
@@ -325,3 +325,87 @@ class TestSessionFoldIntoHunts:
         assert len(results) > 0
         assert results[0]["hunt_id"] == "H-0001"
         assert results[0]["source"] == "hunt"
+
+
+class TestSessionsFlag:
+    """Tests for --sessions CLI flag."""
+
+    @pytest.fixture
+    def runner(self):
+        return CliRunner()
+
+    def test_sessions_flag_accepted(self, runner):
+        """--sessions flag is accepted without error."""
+        result = runner.invoke(similar, ["test query", "--sessions", "--format", "json"])
+        # Should not fail with "no such option"
+        assert "no such option" not in result.output
+
+    def test_sessions_flag_shows_session_results(self, tmp_path):
+        """With --sessions, session entries appear as separate rows."""
+        # Create hunt
+        hunts_dir = tmp_path / "hunts"
+        hunts_dir.mkdir()
+        (hunts_dir / "H-0001.md").write_text(
+            "---\nhunt_id: H-0001\ntitle: DNS Tunneling\n"
+            "status: completed\ntactics: [exfiltration]\n"
+            "techniques: [T1048]\nplatform: [Windows]\n---\n\n"
+            "## Hypothesis\n\nDNS tunneling for data exfiltration\n"
+        )
+        # Create session with searchable content
+        sessions_dir = tmp_path / "sessions"
+        sessions_dir.mkdir()
+        s = sessions_dir / "H-0001-2026-01-20"
+        s.mkdir()
+        (s / "decisions.yaml").write_text(
+            "decisions:\n"
+            "- decision: iodine DNS tunnel tool detected\n"
+            "  rationale: Base64 encoded DNS queries to suspicious domain\n"
+        )
+        (s / "session.yaml").write_text(
+            "hunt_id: H-0001\nsession_id: H-0001-2026-01-20\n"
+            "query_count: 8\nfinding_count: 1\n"
+        )
+
+        import os
+        original_cwd = os.getcwd()
+        try:
+            os.chdir(tmp_path)
+            results = _find_similar_hunts(
+                "iodine DNS tunnel Base64", include_sessions=True, threshold=0.0
+            )
+        finally:
+            os.chdir(original_cwd)
+
+        sources = [r["source"] for r in results]
+        assert "session" in sources
+
+    def test_without_sessions_no_session_rows(self, tmp_path):
+        """Without --sessions, no session entries in results."""
+        hunts_dir = tmp_path / "hunts"
+        hunts_dir.mkdir()
+        (hunts_dir / "H-0001.md").write_text(
+            "---\nhunt_id: H-0001\ntitle: DNS Tunneling\n"
+            "status: completed\ntactics: [exfiltration]\n"
+            "techniques: [T1048]\nplatform: [Windows]\n---\n\n"
+            "## Hypothesis\n\nDNS tunneling\n"
+        )
+        sessions_dir = tmp_path / "sessions"
+        sessions_dir.mkdir()
+        s = sessions_dir / "H-0001-2026-01-20"
+        s.mkdir()
+        (s / "decisions.yaml").write_text(
+            "decisions:\n- decision: iodine detected\n  rationale: test\n"
+        )
+
+        import os
+        original_cwd = os.getcwd()
+        try:
+            os.chdir(tmp_path)
+            results = _find_similar_hunts(
+                "iodine DNS tunnel", include_sessions=False, threshold=0.0
+            )
+        finally:
+            os.chdir(original_cwd)
+
+        sources = [r["source"] for r in results]
+        assert "session" not in sources
