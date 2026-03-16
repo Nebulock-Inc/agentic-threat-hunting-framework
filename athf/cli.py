@@ -10,7 +10,7 @@ from rich.console import Console
 load_dotenv()
 
 from athf.__version__ import __version__  # noqa: E402
-from athf.commands import context, env, hunt, init, investigate, research, similar, splunk  # noqa: E402
+from athf.commands import attack, context, env, hunt, init, investigate, research, similar, splunk  # noqa: E402
 from athf.commands.agent import agent  # noqa: E402
 from athf.commands.mcp import mcp  # noqa: E402
 from athf.plugin_system import PluginRegistry  # noqa: E402
@@ -88,6 +88,7 @@ cli.add_command(init)
 cli.add_command(hunt)
 cli.add_command(investigate)
 cli.add_command(research)
+cli.add_command(attack)
 
 # Phase 1 commands (env, context, similar)
 cli.add_command(env)

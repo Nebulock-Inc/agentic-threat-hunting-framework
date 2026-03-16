@@ -91,6 +91,9 @@ bedrock = [
 ollama = [
     "ollama>=0.3.0",
 ]
+attack = [
+    "mitreattack-python>=5.0.0",
+]
 # Convenience: all LLM providers via LiteLLM
 llm = [
     "litellm>=1.30.0",
@@ -105,6 +108,7 @@ all = [
     "requests>=2.25.0",
     "tavily-python>=0.3.0",
     "mcp[cli]>=1.0.0",
+    "mitreattack-python>=5.0.0",
 ]
 
 [project.urls]
@@ -199,6 +203,10 @@ module = [
     "ollama.*",
     "anthropic",
     "anthropic.*",
+    "mitreattack",
+    "mitreattack.*",
+    "stix2",
+    "stix2.*",
     "athf.core.metrics_tracker",
     "mcp",
     "mcp.*",
