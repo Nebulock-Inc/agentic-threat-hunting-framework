@@ -185,6 +185,28 @@ athf hunt coverage                  # MITRE ATT&CK coverage
 athf research stats                 # Research metrics
 ```
 
+### MCP Server (NEW in v0.11.0)
+
+```bash
+# Install MCP dependencies
+pip install 'athf[mcp]'
+
+# Start MCP server (for Claude Code, Copilot, Cursor, etc.)
+athf mcp serve --workspace /path/to/hunts
+```
+
+Configure in `~/.claude/mcp-servers.json`:
+```json
+{
+  "athf": {
+    "command": "athf-mcp",
+    "args": ["--workspace", "/path/to/hunts"]
+  }
+}
+```
+
+Exposes 14 tools: hunt management, semantic search, ATT&CK coverage, research, and AI-powered hypothesis generation — all accessible directly from your AI coding assistant.
+
 **Full documentation:** [CLI Reference](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/blob/main/docs/CLI_REFERENCE.md)
 
 ## 📺 See It In Action

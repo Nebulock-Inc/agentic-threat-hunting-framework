@@ -5,25 +5,62 @@ All notable changes to the Agentic Threat Hunting Framework (ATHF) will be docum
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.11.0] - Unreleased
 
 ### Added
-- None
+- **MCP Server** — Expose ATHF operations as MCP tools for AI assistants (Claude Code, Copilot, Cursor)
+  - 14 tools: hunt list/search/get/stats/coverage/validate/new, similar, context, research list/view/search/stats, investigate list/search, agent hypothesis/researcher
+  - `athf mcp serve` CLI command and `athf-mcp` standalone entry point
+  - Auto-detect workspace from cwd or `ATHF_WORKSPACE` env var
+  - Install with: `pip install 'athf[mcp]'`
+
+## [0.10.0] - 2026-03-16
+
+### Added
+- **Model-agnostic LLM provider abstraction** — Replace hardcoded AWS Bedrock with support for Claude, GPT, Gemini, Ollama, and any OpenAI-compatible endpoint
+  - `athf/core/llm_provider.py` with 4 providers (LiteLLM, Bedrock, Ollama, OpenAI-compatible)
+  - Auto-detection from environment variables with layered config resolution
+  - Cost tracker with fuzzy model name matching (`athf/core/cost_tracker.py`)
+  - Validation-retry loop for agent self-correction on malformed LLM output
+- **Parallel research** — Skills 1-4 run concurrently via ThreadPoolExecutor (~4x faster)
 
 ### Changed
-- None
+- Updated docs (CLI_REFERENCE, DOCKER.md, docker-compose.yml) for multi-provider support
+- All agent code now uses provider abstraction instead of direct Bedrock calls
 
-### Deprecated
-- None
-
-### Removed
-- None
+## [0.7.1] - 2026-02-06
 
 ### Fixed
-- None
+- **Documentation Links** - Fixed invalid `athf/data/` path prefixes in AGENTS.md ([#9](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/issues/9))
+  - Removed 11 incorrect path references
+  - All documentation links now point to correct repository structure
+- **Environment Directory Filtering** - Added directory filtering for hunt management ([#8](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/issues/8))
+  - `athf hunt list` now displays environment column (test/production)
+  - Added `--directory` filter option to `athf hunt list` command
+  - Added `--directory` filter option to `athf hunt search` command
+  - Updated CLI documentation in CLI_REFERENCE.md and README.md
 
-### Security
-- None
+## [0.6.0] - 2026-01-27
+
+### Added
+- **Investigation Auto-Linking** - Automatic investigation frontmatter update when promoting to hunt ([#7](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/issues/7))
+  - `athf investigate promote` now automatically adds hunt ID to investigation's `related_hunts` field
+  - Provides visibility into which investigations have been promoted
+  - Prevents duplicate hunt IDs with duplicate check logic
+  - Graceful error handling with warning messages if frontmatter update fails
+- **Path Validation** - Enhanced security for file operations
+  - Added path traversal protection in investigation commands (new, validate, promote)
+  - Validates all file paths are within expected directories before operations
+
+### Fixed
+- **Version Reporting** - Corrected version display ([#6](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/issues/6))
+  - Fixed `athf --version` showing 0.4.0 instead of current release version
+  - Updated `athf/__version__.py` to accurately reflect release version
+
+## [0.5.2] - 2026-01-XX
+
+### Fixed
+- Documentation corrections for CLI parameters
 
 ## [0.4.0] - 2026-01-14
 
@@ -196,4 +233,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ATHF is a framework to internalize, not a platform to extend. However, if you've adapted ATHF in interesting ways or have feedback, we'd love to hear about it in [GitHub Discussions](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/discussions).
 
-For more on the philosophy, see [USING_ATHF.md](../../../USING_ATHF.md).
+For more on the philosophy, see [USING_ATHF.md](../USING_ATHF.md).

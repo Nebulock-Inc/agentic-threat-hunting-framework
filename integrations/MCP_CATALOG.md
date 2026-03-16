@@ -1,6 +1,53 @@
 # MCP Catalog for Threat Hunting
 
-You'll need to **do your own research** to find MCP servers for your organization's security tools. This catalog walks through **Splunk as an example** to demonstrate the process of integrating an MCP server with Claude Code for threat hunting workflows.
+## ATHF MCP Server (Built-in)
+
+ATHF includes its own MCP server that exposes hunting operations as tools for any AI assistant.
+
+**Install:**
+```bash
+pip install 'athf[mcp]'
+```
+
+**Configure for Claude Code** (`~/.claude/mcp-servers.json`):
+```json
+{
+  "athf": {
+    "command": "athf-mcp",
+    "args": ["--workspace", "/path/to/your/hunts"]
+  }
+}
+```
+
+**Available tools (14):**
+
+| Tool | Description |
+|------|-------------|
+| `athf_hunt_list` | List/filter hunts by status, tactic, technique, platform |
+| `athf_hunt_search` | Full-text search across hunt files |
+| `athf_hunt_get` | Get full details of a specific hunt |
+| `athf_hunt_stats` | Hunt metrics (total, TP/FP, success rate) |
+| `athf_hunt_coverage` | MITRE ATT&CK coverage analysis |
+| `athf_hunt_validate` | Validate hunt file structure |
+| `athf_hunt_new` | Create a new hunt with LOCK structure |
+| `athf_similar` | Semantic similarity search (TF-IDF) |
+| `athf_context` | AI-optimized context bundle (environment + hunts + knowledge) |
+| `athf_research_list` | List research documents |
+| `athf_research_view` | View specific research document |
+| `athf_research_search` | Search research documents |
+| `athf_research_stats` | Research metrics |
+| `athf_investigate_list` | List investigations |
+| `athf_investigate_search` | Search investigations |
+| `athf_agent_run_hypothesis` | Generate hypothesis from threat intel (LLM-powered) |
+| `athf_agent_run_researcher` | Deep 5-skill pre-hunt research (LLM-powered) |
+
+**Works with:** Claude Code, GitHub Copilot, Cursor, Windsurf, or any MCP-compatible client.
+
+---
+
+## External MCP Servers
+
+You'll need to **do your own research** to find MCP servers for your organization's security tools. The section below walks through **Splunk as an example** to demonstrate the process of integrating an external MCP server with Claude Code for threat hunting workflows.
 
 ## Splunk Integration Walkthrough
 
