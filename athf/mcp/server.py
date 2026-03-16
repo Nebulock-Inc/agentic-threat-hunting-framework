@@ -11,10 +11,6 @@ import logging
 from pathlib import Path
 from typing import Any, Optional
 
-from mcp.server.fastmcp import FastMCP
-
-from athf.mcp.utils import find_workspace, load_workspace_config
-
 logger = logging.getLogger(__name__)
 
 # Global workspace path — set during server startup
@@ -33,7 +29,7 @@ def _json_result(data: Any) -> str:
     return json.dumps(data, indent=2, default=str)
 
 
-def create_server(workspace_path: Optional[str] = None) -> FastMCP:
+def create_server(workspace_path: Optional[str] = None) -> "FastMCP":  # type: ignore[name-defined]  # noqa: F821
     """Create and configure the ATHF MCP server.
 
     Args:
@@ -42,6 +38,15 @@ def create_server(workspace_path: Optional[str] = None) -> FastMCP:
     Returns:
         Configured FastMCP server instance.
     """
+    try:
+        from mcp.server.fastmcp import FastMCP
+    except ImportError:
+        raise ImportError(
+            "MCP dependencies not installed. Install with: pip install 'athf[mcp]'"
+        ) from None
+
+    from athf.mcp.utils import find_workspace, load_workspace_config
+
     global _workspace
     _workspace = find_workspace(workspace_path)
     load_workspace_config(_workspace)
@@ -52,7 +57,7 @@ def create_server(workspace_path: Optional[str] = None) -> FastMCP:
             "ATHF (Agentic Threat Hunting Framework) server. "
             "Provides threat hunting operations: search hunts, check ATT&CK coverage, "
             "find similar hunts, create new hunts, run AI-powered research, and more. "
-            "Workspace: {}".format(_workspace)
+            f"Workspace: {_workspace}"
         ),
     )
 
@@ -71,6 +76,12 @@ def create_server(workspace_path: Optional[str] = None) -> FastMCP:
 
     logger.info("ATHF MCP server initialized with workspace: %s", _workspace)
     return mcp
+
+
+def reset_server() -> None:
+    """Reset global server state (for testing)."""
+    global _workspace
+    _workspace = None
 
 
 def main(workspace_path: Optional[str] = None) -> None:

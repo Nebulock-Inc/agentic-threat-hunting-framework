@@ -221,12 +221,14 @@ Configure in `~/.claude/mcp-servers.json`:
 {
   "athf": {
     "command": "athf-mcp",
-    "args": ["--workspace", "/path/to/hunts"]
+    "env": { "ATHF_WORKSPACE": "/path/to/your/hunts" }
   }
 }
 ```
 
-Exposes 14 tools: hunt management, semantic search, ATT&CK coverage, research, and AI-powered hypothesis generation — all accessible directly from your AI coding assistant.
+The standalone `athf-mcp` entry point auto-detects your workspace from cwd or `ATHF_WORKSPACE` env var. Use `athf mcp serve --workspace /path` for explicit paths.
+
+Exposes 17 tools: hunt management, semantic search, ATT&CK coverage, research, investigations, and AI-powered hypothesis generation — all accessible directly from your AI coding assistant.
 
 **Full documentation:** [CLI Reference](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/blob/main/docs/CLI_REFERENCE.md)
 

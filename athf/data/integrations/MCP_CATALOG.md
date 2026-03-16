@@ -14,12 +14,12 @@ pip install 'athf[mcp]'
 {
   "athf": {
     "command": "athf-mcp",
-    "args": ["--workspace", "/path/to/your/hunts"]
+    "env": { "ATHF_WORKSPACE": "/path/to/your/hunts" }
   }
 }
 ```
 
-**Available tools (14):**
+**Available tools (17):**
 
 | Tool | Description |
 |------|-------------|

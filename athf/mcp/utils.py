@@ -22,18 +22,20 @@ def find_workspace(explicit_path: Optional[str] = None) -> Path:
         Path to the workspace root.
 
     Raises:
-        FileNotFoundError: If no workspace can be found.
+        FileNotFoundError: If no workspace can be found or path lacks ATHF structure.
     """
     if explicit_path:
         p = Path(explicit_path)
-        if p.is_dir():
-            return p
-        raise FileNotFoundError("Workspace path does not exist: {}".format(explicit_path))
+        if not p.is_dir():
+            raise FileNotFoundError(f"Workspace path does not exist: {explicit_path}")
+        _validate_workspace(p)
+        return p
 
     env_path = os.environ.get("ATHF_WORKSPACE")
     if env_path:
         p = Path(env_path)
         if p.is_dir():
+            _validate_workspace(p)
             return p
 
     # Walk up from cwd
@@ -46,6 +48,21 @@ def find_workspace(explicit_path: Optional[str] = None) -> Path:
 
     raise FileNotFoundError(
         "No ATHF workspace found. Set ATHF_WORKSPACE or run from within an ATHF workspace."
+    )
+
+
+def _validate_workspace(path: Path) -> None:
+    """Validate that a directory looks like an ATHF workspace.
+
+    Raises FileNotFoundError if neither .athfconfig.yaml nor config/.athfconfig.yaml exists.
+    """
+    if (path / ".athfconfig.yaml").exists():
+        return
+    if (path / "config" / ".athfconfig.yaml").exists():
+        return
+    raise FileNotFoundError(
+        f"Not an ATHF workspace: {path} (missing .athfconfig.yaml). "
+        "Run 'athf init' to initialize."
     )
 
 

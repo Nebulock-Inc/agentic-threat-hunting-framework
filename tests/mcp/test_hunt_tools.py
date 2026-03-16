@@ -89,7 +89,7 @@ def _call_tool(server, tool_name, arguments=None):
         text = content_list[0].text if content_list else ""
         return json.loads(text)
 
-    return asyncio.get_event_loop().run_until_complete(_run())
+    return asyncio.run(_run())
 
 
 class TestHuntList:
@@ -139,11 +139,15 @@ class TestHuntStats:
 class TestHuntCoverage:
     def test_returns_coverage(self, server):
         result = _call_tool(server, "athf_hunt_coverage")
-        assert "by_tactic" in result or "total_techniques" in result
+        assert "by_tactic" in result
+        assert "summary" in result
+        assert result["summary"]["total_techniques"] > 0
+        assert len(result["by_tactic"]) == 14
 
     def test_filter_by_tactic(self, server):
         result = _call_tool(server, "athf_hunt_coverage", {"tactic": "credential-access"})
         assert "error" not in result
+        assert "total_techniques" in result
 
 
 class TestHuntValidate:

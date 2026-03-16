@@ -29,6 +29,6 @@ def serve(workspace: str) -> None:
         from athf.mcp.server import main as mcp_main
     except ImportError:
         click.echo("Error: MCP dependencies not installed. Install with: pip install 'athf[mcp]'", err=True)
-        raise SystemExit(1)
+        raise SystemExit(1) from None
 
     mcp_main(workspace_path=workspace)

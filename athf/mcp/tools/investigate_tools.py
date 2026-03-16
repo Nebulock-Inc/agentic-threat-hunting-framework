@@ -1,13 +1,14 @@
 """Investigation management MCP tools."""
 
+import logging
 from typing import Optional
-
-from mcp.server.fastmcp import FastMCP
 
 from athf.mcp.server import get_workspace, _json_result
 
+logger = logging.getLogger(__name__)
 
-def register_investigate_tools(mcp: FastMCP) -> None:
+
+def register_investigate_tools(mcp: "FastMCP") -> None:  # type: ignore[name-defined]  # noqa: F821
     """Register all investigation-related MCP tools."""
 
     @mcp.tool(
@@ -17,12 +18,12 @@ def register_investigate_tools(mcp: FastMCP) -> None:
     def investigate_list(
         investigation_type: Optional[str] = None,
     ) -> str:
+        from athf.core.investigation_parser import parse_investigation_file
+
         workspace = get_workspace()
         inv_dir = workspace / "investigations"
         if not inv_dir.exists():
             return _json_result({"count": 0, "investigations": []})
-
-        from athf.core.investigation_parser import parse_investigation_file
 
         results = []
         for f in sorted(inv_dir.rglob("*.md")):
@@ -40,7 +41,8 @@ def register_investigate_tools(mcp: FastMCP) -> None:
                     "status": fm.get("status", ""),
                     "tags": fm.get("tags", []),
                 })
-            except Exception:
+            except Exception as e:
+                logger.debug("Skipping %s: %s", f.name, e)
                 continue
 
         return _json_result({"count": len(results), "investigations": results})
@@ -50,6 +52,8 @@ def register_investigate_tools(mcp: FastMCP) -> None:
         description="Full-text search across investigation files.",
     )
     def investigate_search(query: str) -> str:
+        from athf.core.investigation_parser import parse_investigation_file
+
         workspace = get_workspace()
         inv_dir = workspace / "investigations"
         if not inv_dir.exists():
@@ -63,8 +67,6 @@ def register_investigate_tools(mcp: FastMCP) -> None:
             try:
                 content = f.read_text(encoding="utf-8")
                 if query_lower in content.lower():
-                    from athf.core.investigation_parser import parse_investigation_file
-
                     parsed = parse_investigation_file(f)
                     fm = parsed.get("frontmatter", {})
                     results.append({
@@ -73,7 +75,8 @@ def register_investigate_tools(mcp: FastMCP) -> None:
                         "type": fm.get("type", ""),
                         "status": fm.get("status", ""),
                     })
-            except Exception:
+            except Exception as e:
+                logger.debug("Skipping %s: %s", f.name, e)
                 continue
 
         return _json_result({"count": len(results), "results": results})

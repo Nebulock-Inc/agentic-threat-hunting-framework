@@ -13,6 +13,7 @@ from athf.mcp.utils import find_workspace, load_workspace_config
 
 class TestFindWorkspace:
     def test_explicit_path(self, tmp_path):
+        (tmp_path / ".athfconfig.yaml").write_text("workspace_name: test\n")
         result = find_workspace(str(tmp_path))
         assert result == tmp_path
 
@@ -21,9 +22,14 @@ class TestFindWorkspace:
             find_workspace("/nonexistent/path/12345")
 
     def test_env_var(self, tmp_path):
+        (tmp_path / ".athfconfig.yaml").write_text("workspace_name: test\n")
         with patch.dict(os.environ, {"ATHF_WORKSPACE": str(tmp_path)}):
             result = find_workspace()
             assert result == tmp_path
+
+    def test_explicit_path_no_config_raises(self, tmp_path):
+        with pytest.raises(FileNotFoundError, match="Not an ATHF workspace"):
+            find_workspace(str(tmp_path))
 
     def test_walk_up_finds_config(self, tmp_path):
         config = tmp_path / ".athfconfig.yaml"
@@ -99,7 +105,7 @@ class TestCreateServer:
         async def get_tools():
             return await server.list_tools()
 
-        tools = asyncio.get_event_loop().run_until_complete(get_tools())
+        tools = asyncio.run(get_tools())
         tool_names = [t.name for t in tools]
 
         # Verify key tools from each group are registered

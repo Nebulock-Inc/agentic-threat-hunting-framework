@@ -1,13 +1,14 @@
 """Search and context MCP tools (similar, context)."""
 
+import logging
 from typing import Any, Dict, Optional
-
-from mcp.server.fastmcp import FastMCP
 
 from athf.mcp.server import get_workspace, _json_result
 
+logger = logging.getLogger(__name__)
 
-def register_search_tools(mcp: FastMCP) -> None:
+
+def register_search_tools(mcp: "FastMCP") -> None:  # type: ignore[name-defined]  # noqa: F821
     """Register search-related MCP tools."""
 
     @mcp.tool(
@@ -65,7 +66,8 @@ def register_search_tools(mcp: FastMCP) -> None:
                     "technique": fm.get("technique", ""),
                     "status": fm.get("status", ""),
                 })
-            except Exception:
+            except Exception as e:
+                logger.debug("Skipping %s: %s", f.name, e)
                 continue
 
         if not corpus_texts:
@@ -75,7 +77,7 @@ def register_search_tools(mcp: FastMCP) -> None:
         if hunt_id:
             hunt = manager.get_hunt(hunt_id)
             if hunt is None:
-                return _json_result({"error": "Hunt not found: {}".format(hunt_id)})
+                return _json_result({"error": f"Hunt not found: {hunt_id}"})
             fm = hunt.get("frontmatter", {})
             query_text = " ".join([fm.get("title", ""), fm.get("technique", ""), hunt.get("content", "")])
         else:
@@ -135,7 +137,7 @@ def register_search_tools(mcp: FastMCP) -> None:
             if hunt:
                 result["hunt"] = hunt
             else:
-                result["hunt_error"] = "Hunt not found: {}".format(hunt_id)
+                result["hunt_error"] = f"Hunt not found: {hunt_id}"
         else:
             hunts = manager.list_hunts(tactic=tactic, platform=platform)
             result["hunts"] = hunts

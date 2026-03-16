@@ -2,12 +2,10 @@
 
 from typing import Optional
 
-from mcp.server.fastmcp import FastMCP
-
 from athf.mcp.server import get_workspace, _json_result
 
 
-def register_hunt_tools(mcp: FastMCP) -> None:
+def register_hunt_tools(mcp: "FastMCP") -> None:  # type: ignore[name-defined]  # noqa: F821
     """Register all hunt-related MCP tools."""
 
     @mcp.tool(
@@ -53,7 +51,7 @@ def register_hunt_tools(mcp: FastMCP) -> None:
         manager = HuntManager(hunts_dir=workspace / "hunts")
         hunt = manager.get_hunt(hunt_id)
         if hunt is None:
-            return _json_result({"error": "Hunt not found: {}".format(hunt_id)})
+            return _json_result({"error": f"Hunt not found: {hunt_id}"})
         return _json_result(hunt)
 
     @mcp.tool(
@@ -87,7 +85,7 @@ def register_hunt_tools(mcp: FastMCP) -> None:
             tactic_lower = tactic.lower().replace(" ", "-")
             tactic_data = coverage.get("by_tactic", {}).get(tactic_lower)
             if tactic_data is None:
-                return _json_result({"error": "Unknown tactic: {}".format(tactic)})
+                return _json_result({"error": f"Unknown tactic: {tactic}"})
             return _json_result({"tactic": tactic_lower, **tactic_data})
 
         return _json_result(coverage)
@@ -105,7 +103,7 @@ def register_hunt_tools(mcp: FastMCP) -> None:
         manager = HuntManager(hunts_dir=workspace / "hunts")
         hunt_file = manager.find_hunt_file(hunt_id)
         if hunt_file is None:
-            return _json_result({"valid": False, "error": "Hunt not found: {}".format(hunt_id)})
+            return _json_result({"valid": False, "error": f"Hunt not found: {hunt_id}"})
 
         is_valid, errors = validate_hunt_file(hunt_file)
         return _json_result({"valid": is_valid, "hunt_id": hunt_id, "errors": errors})
@@ -164,11 +162,17 @@ def register_hunt_tools(mcp: FastMCP) -> None:
         from datetime import datetime
 
         now = datetime.now()
-        quarter = "Q{}".format((now.month - 1) // 3 + 1)
+        quarter = f"Q{(now.month - 1) // 3 + 1}"
         hunt_dir = workspace / "hunts" / "production" / str(now.year) / quarter
         hunt_dir.mkdir(parents=True, exist_ok=True)
-        hunt_file = hunt_dir / "{}.md".format(hunt_id)
-        hunt_file.write_text(content, encoding="utf-8")
+        hunt_file = hunt_dir / f"{hunt_id}.md"
+
+        # Atomic exclusive create to prevent TOCTOU race
+        try:
+            with open(str(hunt_file), "x", encoding="utf-8") as fh:
+                fh.write(content)
+        except FileExistsError:
+            return _json_result({"error": f"Hunt file already exists: {hunt_file}"})
 
         return _json_result({
             "hunt_id": hunt_id,

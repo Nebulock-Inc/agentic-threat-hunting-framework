@@ -1,13 +1,14 @@
 """AI agent MCP tools (hypothesis generation, research)."""
 
+import logging
 from typing import Optional
-
-from mcp.server.fastmcp import FastMCP
 
 from athf.mcp.server import get_workspace, _json_result
 
+logger = logging.getLogger(__name__)
 
-def register_agent_tools(mcp: FastMCP) -> None:
+
+def register_agent_tools(mcp: "FastMCP") -> None:  # type: ignore[name-defined]  # noqa: F821
     """Register AI agent MCP tools."""
 
     @mcp.tool(
@@ -103,6 +104,7 @@ def register_agent_tools(mcp: FastMCP) -> None:
             topic=topic,
             mitre_technique=technique,
             depth=depth,
+            web_search_enabled=use_web_search,
         )
 
         result = agent.execute(input_data)
@@ -115,27 +117,27 @@ def register_agent_tools(mcp: FastMCP) -> None:
 
         # Build a report from the skill outputs
         report_parts = [
-            "# {topic} Research\n".format(topic=topic),
-            "## System Research\n{}\n".format(output.system_research.summary),
-            "## Adversary Tradecraft\n{}\n".format(output.adversary_tradecraft.summary),
-            "## Telemetry Mapping\n{}\n".format(output.telemetry_mapping.summary),
-            "## Related Work\n{}\n".format(output.related_work.summary),
-            "## Synthesis\n{}\n".format(output.synthesis.summary),
+            f"# {topic} Research\n",
+            f"## System Research\n{output.system_research.summary}\n",
+            f"## Adversary Tradecraft\n{output.adversary_tradecraft.summary}\n",
+            f"## Telemetry Mapping\n{output.telemetry_mapping.summary}\n",
+            f"## Related Work\n{output.related_work.summary}\n",
+            f"## Synthesis\n{output.synthesis.summary}\n",
         ]
         if output.recommended_hypothesis:
-            report_parts.append("## Recommended Hypothesis\n{}\n".format(output.recommended_hypothesis))
+            report_parts.append(f"## Recommended Hypothesis\n{output.recommended_hypothesis}\n")
 
         full_report = "\n".join(report_parts)
 
-        # Save research file
+        # Save research file — use agent's research_id if available, else generate
         from athf.core.research_manager import ResearchManager
 
         rm = ResearchManager(research_dir=workspace / "research")
-        rid = rm.get_next_research_id()
+        rid = getattr(output, "research_id", None) or rm.get_next_research_id()
 
         frontmatter = {
             "research_id": rid,
-            "title": "{} Research".format(topic),
+            "title": f"{topic} Research",
             "topic": topic,
             "technique": technique or "",
             "depth": depth,

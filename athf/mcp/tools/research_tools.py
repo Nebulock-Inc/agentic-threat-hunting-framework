@@ -2,12 +2,10 @@
 
 from typing import Optional
 
-from mcp.server.fastmcp import FastMCP
-
 from athf.mcp.server import get_workspace, _json_result
 
 
-def register_research_tools(mcp: FastMCP) -> None:
+def register_research_tools(mcp: "FastMCP") -> None:  # type: ignore[name-defined]  # noqa: F821
     """Register all research-related MCP tools."""
 
     @mcp.tool(
@@ -36,7 +34,7 @@ def register_research_tools(mcp: FastMCP) -> None:
         manager = ResearchManager(research_dir=workspace / "research")
         doc = manager.get_research(research_id)
         if doc is None:
-            return _json_result({"error": "Research not found: {}".format(research_id)})
+            return _json_result({"error": f"Research not found: {research_id}"})
         return _json_result(doc)
 
     @mcp.tool(

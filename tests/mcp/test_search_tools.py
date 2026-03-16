@@ -80,7 +80,7 @@ def _call_tool(server, tool_name, arguments=None):
         text = content_list[0].text if content_list else ""
         return json.loads(text)
 
-    return asyncio.get_event_loop().run_until_complete(_run())
+    return asyncio.run(_run())
 
 
 class TestSimilar:
