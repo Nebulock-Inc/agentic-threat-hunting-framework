@@ -21,6 +21,10 @@ Complete reference for all `athf` command-line interface commands.
 | [`athf hunt stats`](#athf-hunt-stats) | Hunt Management | Display hunt statistics and success metrics |
 | [`athf hunt search`](#athf-hunt-search) | Hunt Management | Full-text search across all hunts |
 | [`athf hunt coverage`](#athf-hunt-coverage) | Hunt Management | Display MITRE ATT&CK coverage heatmap |
+| [`athf attack update`](#athf-attack-update) | ATT&CK Data | Download/refresh STIX data from MITRE |
+| [`athf attack status`](#athf-attack-status) | ATT&CK Data | Show provider type, version, and cache info |
+| [`athf attack lookup`](#athf-attack-lookup) | ATT&CK Data | Look up technique metadata by ID |
+| [`athf attack techniques`](#athf-attack-techniques) | ATT&CK Data | List all techniques for a tactic |
 | [`athf hunt execute`](#athf-hunt-execute) | Hunt Management | Execute hunt workflow with agent orchestration |
 | [`athf investigate new`](#athf-investigate-new) | Investigation | Create new investigation file for exploratory work |
 | [`athf investigate list`](#athf-investigate-list) | Investigation | List all investigations with optional filtering |
@@ -2164,6 +2168,206 @@ athf hunt execute H-0013 --dry-run
 
 - `0`: Success
 - `1`: Execution failed
+
+---
+
+## athf attack update
+
+Download or refresh MITRE ATT&CK STIX data for enhanced technique metadata.
+
+### Synopsis
+
+```bash
+athf attack update [OPTIONS]
+```
+
+### Description
+
+Downloads the Enterprise ATT&CK STIX bundle from the official MITRE repository and caches it locally. Once downloaded, ATHF automatically switches from the hardcoded fallback data (14 tactics, approximate counts) to live STIX data (835+ techniques with full metadata including platforms, data sources, and sub-techniques).
+
+**Prerequisites:** Requires `mitreattack-python` — install with `pip install 'athf[attack]'`.
+
+**Cache locations (checked in order):**
+1. `ATHF_STIX_CACHE` environment variable
+2. `{workspace}/.athf/stix-data/` if `.athfconfig.yaml` exists in cwd
+3. `~/.athf/stix-data/` (global default)
+
+### Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--force` | Flag | False | Re-download even if cache already exists |
+
+### Examples
+
+```bash
+# Download STIX data (first time)
+athf attack update
+
+# Force re-download to get latest version
+athf attack update --force
+```
+
+### Exit Codes
+
+- `0`: Success
+- `1`: mitreattack-python not installed or download failed
+
+---
+
+## athf attack status
+
+Show ATT&CK data provider status and cache information.
+
+### Synopsis
+
+```bash
+athf attack status
+```
+
+### Description
+
+Displays the active data provider (STIX or fallback), ATT&CK version, tactic count, cache file location, size, and age. Useful for verifying that STIX data is loaded and current.
+
+### Examples
+
+```bash
+athf attack status
+```
+
+**Output (with STIX):**
+```
+ATT&CK Data Status
+
+  Provider:  STIX (mitreattack-python)
+  Version:   v16.1 (STIX)
+  Tactics:   14
+  Cache:     /Users/you/.athf/stix-data/enterprise-attack.json
+  Size:      12.3 MB
+  Age:       3 days
+  Library:   mitreattack-python installed
+```
+
+**Output (fallback):**
+```
+ATT&CK Data Status
+
+  Provider:  Fallback (hardcoded v14)
+  Version:   v14 (hardcoded fallback)
+  Tactics:   14
+  Cache:     Not found (/Users/you/.athf/stix-data/enterprise-attack.json)
+  Library:   mitreattack-python not installed
+```
+
+### Exit Codes
+
+- `0`: Success
+
+---
+
+## athf attack lookup
+
+Look up an ATT&CK technique by its ID and display metadata.
+
+### Synopsis
+
+```bash
+athf attack lookup TECHNIQUE_ID
+```
+
+### Description
+
+Shows technique metadata including name, platforms, data sources, tactics, type (technique vs sub-technique), parent technique, description, and sub-techniques. Requires STIX data — run `athf attack update` first.
+
+### Arguments
+
+| Argument | Type | Description |
+|----------|------|-------------|
+| `TECHNIQUE_ID` | String | ATT&CK technique ID (e.g., T1003, T1003.001) |
+
+### Examples
+
+```bash
+# Look up a parent technique
+athf attack lookup T1003
+
+# Look up a sub-technique
+athf attack lookup T1003.001
+```
+
+**Output:**
+```
+T1003.001 - LSASS Memory
+
+  URL:           https://attack.mitre.org/techniques/T1003/001
+  Platforms:     Windows
+  Tactics:       credential-access
+  Data Sources:  Process: OS API Execution, Process: Process Access, ...
+  Type:          Sub-technique
+  Parent:        T1003
+
+  Adversaries may attempt to access credential material stored in ...
+```
+
+### Exit Codes
+
+- `0`: Success (or technique not found with message)
+
+---
+
+## athf attack techniques
+
+List all techniques mapped to a specific ATT&CK tactic.
+
+### Synopsis
+
+```bash
+athf attack techniques TACTIC_KEY
+```
+
+### Description
+
+Displays a table of all techniques (including sub-techniques) for the given tactic, showing ID, name, sub-technique status, and platforms. Requires STIX data — run `athf attack update` first.
+
+### Arguments
+
+| Argument | Type | Description |
+|----------|------|-------------|
+| `TACTIC_KEY` | String | Tactic shortname (e.g., credential-access, lateral-movement) |
+
+### Examples
+
+```bash
+# List credential access techniques
+athf attack techniques credential-access
+
+# List lateral movement techniques
+athf attack techniques lateral-movement
+```
+
+**Output:**
+```
+Credential Access (17 techniques)
+
+┌──────────────┬──────────────────────────────┬──────┬───────────────────┐
+│ ID           │ Name                         │ Sub? │ Platforms         │
+├──────────────┼──────────────────────────────┼──────┼───────────────────┤
+│ T1003        │ OS Credential Dumping        │      │ Windows, Linux... │
+│ T1003.001    │ LSASS Memory                 │ Yes  │ Windows           │
+│ T1003.002    │ Security Account Manager     │ Yes  │ Windows           │
+│ ...          │ ...                          │ ...  │ ...               │
+└──────────────┴──────────────────────────────┴──────┴───────────────────┘
+```
+
+**Valid tactic names:**
+- `reconnaissance`, `resource-development`, `initial-access`, `execution`
+- `persistence`, `privilege-escalation`, `defense-evasion`, `credential-access`
+- `discovery`, `lateral-movement`, `collection`, `command-and-control`
+- `exfiltration`, `impact`
+
+### Exit Codes
+
+- `0`: Success (or no techniques found with message)
 
 ---
 

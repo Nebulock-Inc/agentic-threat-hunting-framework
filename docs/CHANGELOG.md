@@ -5,25 +5,36 @@ All notable changes to the Agentic Threat Hunting Framework (ATHF) will be docum
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.11.0] - Unreleased
 
 ### Added
-- None
+- **MCP Server** — Expose ATHF operations as MCP tools for AI assistants (Claude Code, Copilot, Cursor)
+  - 14 tools: hunt list/search/get/stats/coverage/validate/new, similar, context, research list/view/search/stats, investigate list/search, agent hypothesis/researcher
+  - `athf mcp serve` CLI command and `athf-mcp` standalone entry point
+  - Auto-detect workspace from cwd or `ATHF_WORKSPACE` env var
+  - Install with: `pip install 'athf[mcp]'`
+- **ATT&CK STIX Integration** — Replace hardcoded ATT&CK dictionary with live STIX data via `mitreattack-python`
+  - Provider abstraction: `StixProvider` (835+ techniques with full metadata) and `FallbackProvider` (hardcoded v14)
+  - Auto-selects STIX when `mitreattack-python` is installed and data is cached; graceful fallback otherwise
+  - New CLI commands: `athf attack update`, `athf attack status`, `athf attack lookup`, `athf attack techniques`
+  - Technique metadata: platforms, data sources, tactics, sub-techniques, descriptions, URLs
+  - STIX cache: configurable via `ATHF_STIX_CACHE` env var, workspace-local, or `~/.athf/stix-data/`
+  - Fully backward compatible — existing `ATTACK_TACTICS`, `TOTAL_TECHNIQUES`, and all functions work identically
+  - Install with: `pip install 'athf[attack]'`
+
+## [0.10.0] - 2026-03-16
+
+### Added
+- **Model-agnostic LLM provider abstraction** — Replace hardcoded AWS Bedrock with support for Claude, GPT, Gemini, Ollama, and any OpenAI-compatible endpoint
+  - `athf/core/llm_provider.py` with 4 providers (LiteLLM, Bedrock, Ollama, OpenAI-compatible)
+  - Auto-detection from environment variables with layered config resolution
+  - Cost tracker with fuzzy model name matching (`athf/core/cost_tracker.py`)
+  - Validation-retry loop for agent self-correction on malformed LLM output
+- **Parallel research** — Skills 1-4 run concurrently via ThreadPoolExecutor (~4x faster)
 
 ### Changed
-- None
-
-### Deprecated
-- None
-
-### Removed
-- None
-
-### Fixed
-- None
-
-### Security
-- None
+- Updated docs (CLI_REFERENCE, DOCKER.md, docker-compose.yml) for multi-provider support
+- All agent code now uses provider abstraction instead of direct Bedrock calls
 
 ## [0.7.1] - 2026-02-06
 

@@ -25,17 +25,17 @@ This repository contains threat hunting investigations using the LOCK pattern (L
 
 ### ✅ ALWAYS Use CLI For
 
-| Task Category | CLI Command | ❌ Never Use |
-|---------------|-------------|-------------- |
-| **Hunt creation** | `athf hunt new --non-interactive` | Write tool, Edit tool |
-| **Investigation creation** | `athf investigate new --non-interactive` | Write tool, Edit tool |
-| **Research execution** | `athf research new --topic "..."` | Manual web search, Write tool |
-| **Hypothesis generation** | `athf agent run hypothesis-generator --threat-intel "..."` | Manual hypothesis drafting |
-| **Duplicate checking** | `athf similar "keywords"` | Grep, manual search |
-| **Context loading** | `athf context --hunt H-XXXX` | Multiple Read operations |
-| **Coverage analysis** | `athf hunt coverage` | Manual ATT&CK counting |
-| **Hunt validation** | `athf hunt validate H-XXXX` | Manual YAML parsing |
-| **Hunt search** | `athf hunt search "keyword"` | Grep, manual file search |
+| Task Category              | CLI Command                                                | ❌ Never Use                   |
+| -------------------------- | ---------------------------------------------------------- | ----------------------------- |
+| **Hunt creation**          | `athf hunt new --non-interactive`                          | Write tool, Edit tool         |
+| **Investigation creation** | `athf investigate new --non-interactive`                   | Write tool, Edit tool         |
+| **Research execution**     | `athf research new --topic "..."`                          | Manual web search, Write tool |
+| **Hypothesis generation**  | `athf agent run hypothesis-generator --threat-intel "..."` | Manual hypothesis drafting    |
+| **Duplicate checking**     | `athf similar "keywords"`                                  | Grep, manual search           |
+| **Context loading**        | `athf context --hunt H-XXXX`                               | Multiple Read operations      |
+| **Coverage analysis**      | `athf hunt coverage`                                       | Manual ATT&CK counting        |
+| **Hunt validation**        | `athf hunt validate H-XXXX`                                | Manual YAML parsing           |
+| **Hunt search**            | `athf hunt search "keyword"`                               | Grep, manual file search      |
 
 ### 🎯 CLI-First Policy
 
@@ -98,6 +98,7 @@ athf/                           # CLI source code
 │       └── hunt_researcher.py       # Pre-hunt research agent
 ├── commands/                   # CLI commands
 │   ├── agent.py                # Agent management
+│   ├── attack.py               # ATT&CK data management (STIX)
 │   ├── context.py              # Context export for AI
 │   ├── env.py                  # Virtual environment setup
 │   ├── hunt.py                 # Hunt management commands
@@ -106,7 +107,7 @@ athf/                           # CLI source code
 │   ├── research.py             # Research management
 │   └── similar.py              # Semantic search
 ├── core/                       # Core functionality
-│   ├── attack_matrix.py        # MITRE ATT&CK coverage
+│   ├── attack_matrix.py        # MITRE ATT&CK coverage (STIX provider + fallback)
 │   ├── hunt_manager.py         # Hunt lifecycle management
 │   ├── hunt_parser.py          # Hunt file parser
 │   ├── investigation_parser.py # Investigation parser
@@ -413,6 +414,12 @@ athf research view R-0001             # View specific research
 athf research search "credential access"  # Search research documents
 athf research stats                   # Show research metrics
 
+# ATT&CK data management (optional: pip install 'athf[attack]')
+athf attack update                    # Download/refresh STIX data
+athf attack status                    # Show provider type, version, cache info
+athf attack lookup T1003.001          # Look up technique metadata
+athf attack techniques credential-access  # List techniques for a tactic
+
 # Similarity search
 athf similar "LSASS dumping"          # Find similar hunts by query
 athf similar --hunt H-0001            # Find hunts similar to H-0001
@@ -596,6 +603,7 @@ ATHF includes bundled hunting knowledge files to inform hunt hypotheses and quer
 - Automated hypothesis generation (`athf agent run hypothesis-generator`) - **NEW**
 - Automated hunt research (`athf agent run hunt-researcher`) - **NEW**
 - ATT&CK coverage analysis (`athf hunt coverage`)
+- **ATT&CK STIX data** (`athf attack update/status/lookup/techniques`) - live technique metadata - **NEW**
 - Context loading optimization (`athf context`)
 - Session tracking (`athf session`)
 - MCP integrations (Notion, GitHub, custom tools)
