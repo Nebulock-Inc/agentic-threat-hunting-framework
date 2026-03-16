@@ -1,0 +1,41 @@
+services:
+  athf-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: athf:test
+    container_name: athf-test-container
+    user: sydney
+    volumes:
+      # Mount current directory for live code changes (optional)
+      - .:/app
+      # Persist workspace between container runs
+      - athf-workspace:/workspace
+      # Mount AWS credentials and config (for SSO)
+      # Note: Read-write mount required for AWS CLI cache (~/.aws/cli/cache/)
+      - ${HOME}/.aws:/home/sydney/.aws
+      # Claude Code config - isolated from host
+      - claude-config:/home/sydney/.claude
+    environment:
+      # Set terminal for better CLI output
+      - TERM=xterm-256color
+      # AWS profile (override with: AWS_PROFILE=myprofile docker-compose up)
+      - AWS_PROFILE=${AWS_PROFILE:-default}
+      # AWS region (override with: AWS_REGION=us-west-2 docker-compose up)
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      # Claude Code CLI Bedrock configuration (for Claude Code, not ATHF agents)
+      - CLAUDE_CODE_USE_BEDROCK=1
+      # ATHF LLM provider (auto-detected from API keys; uncomment to override)
+      # - ATHF_LLM_PROVIDER=openai
+      # - ATHF_LLM_MODEL=gpt-4o
+      # - ANTHROPIC_API_KEY=
+      # - OPENAI_API_KEY=
+    stdin_open: true
+    tty: true
+    command: /bin/bash
+
+volumes:
+  athf-workspace:
+    driver: local
+  claude-config:
+    driver: local

@@ -22,7 +22,7 @@ Examples:
 
 \b
 Agent Types:
-  • LLM Agents - AI-powered agents using Claude API via AWS Bedrock
+  • LLM Agents - AI-powered agents (supports Claude, GPT, Gemini, Ollama, etc.)
 
 \b
 Why Agents:
@@ -38,7 +38,7 @@ def agent() -> None:
     """Manage ATHF agents.
 
     Agents provide modular capabilities for threat hunting operations.
-    LLM agents use Claude API for creative and analytical tasks.
+    LLM agents support multiple providers (Claude, GPT, Gemini, Ollama, etc.).
 
     \b
     Agent Execution Mode:
@@ -58,13 +58,13 @@ def list() -> None:
     agents = [
         {
             "name": "hypothesis-generator",
-            "type": "LLM (Claude)",
+            "type": "LLM (auto-detect)",
             "status": "available",
             "description": "Generates creative hunt hypotheses using threat intelligence",
         },
         {
             "name": "hunt-researcher",
-            "type": "LLM (Claude)",
+            "type": "LLM (auto-detect)",
             "status": "available",
             "description": "Conducts thorough pre-hunt research using 5-skill methodology",
         },
@@ -105,7 +105,7 @@ def info(agent_name: str) -> None:
     if agent_name == "hypothesis-generator":
         # Display agent info
         console.print("\n[bold cyan]Agent:[/bold cyan] hypothesis-generator")
-        console.print("[bold]Type:[/bold] LLM (Claude)")
+        console.print("[bold]Type:[/bold] LLM (multi-provider)")
         console.print("[bold]Status:[/bold] available")
         console.print("\n[bold]Description:[/bold]")
         console.print("  Generates creative hunt hypotheses using threat intelligence")
@@ -118,6 +118,7 @@ def info(agent_name: str) -> None:
             "Past hunt deduplication",
             "Fallback to template generation",
             "Cost tracking",
+            "Multi-provider support (Claude, GPT, Gemini, Ollama)",
         ]
         for cap in capabilities:
             console.print(f"  • {cap}")
@@ -129,7 +130,7 @@ def info(agent_name: str) -> None:
 
     elif agent_name == "hunt-researcher":
         console.print("\n[bold cyan]Agent:[/bold cyan] hunt-researcher")
-        console.print("[bold]Type:[/bold] LLM (Claude)")
+        console.print("[bold]Type:[/bold] LLM (multi-provider)")
         console.print("[bold]Status:[/bold] available")
         console.print("\n[bold]Description:[/bold]")
         console.print("  Conducts thorough pre-hunt research using 5-skill methodology")
@@ -203,7 +204,7 @@ def run(  # noqa: C901
 ) -> None:
     """Run an agent.
 
-    LLM agents use Claude API via AWS Bedrock by default. Use --no-llm for fallback mode.
+    LLM agents auto-detect your provider (Claude, GPT, Gemini, Ollama). Use --no-llm for fallback mode.
 
     \b
     Examples:
@@ -296,8 +297,10 @@ def run(  # noqa: C901
 
         except ImportError as e:
             console.print(f"[red]Error loading agent: {e}[/red]")
-            console.print("\n[dim]Make sure all dependencies are installed:[/dim]")
-            console.print("  pip install boto3")
+            console.print("\n[dim]Install an LLM provider:[/dim]")
+            console.print("  pip install 'athf[litellm]'   # All providers via LiteLLM")
+            console.print("  pip install 'athf[openai]'    # OpenAI/GPT")
+            console.print("  pip install 'athf[bedrock]'   # AWS Bedrock")
             raise click.Abort()
         except Exception as e:
             console.print(f"[red]Error: {e}[/red]")
@@ -353,8 +356,9 @@ def run(  # noqa: C901
 
         except ImportError as e:
             console.print(f"[red]Error loading agent: {e}[/red]")
-            console.print("\n[dim]Make sure all dependencies are installed:[/dim]")
-            console.print("  pip install boto3 tavily-python")
+            console.print("\n[dim]Install an LLM provider:[/dim]")
+            console.print("  pip install 'athf[litellm]'   # All providers via LiteLLM")
+            console.print("  pip install tavily-python      # Web search (optional)")
             raise click.Abort()
         except Exception as e:
             console.print(f"[red]Error: {e}[/red]")

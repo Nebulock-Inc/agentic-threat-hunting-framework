@@ -1,6 +1,7 @@
 """LLM-powered agents for ATHF.
 
-These agents use Claude API for creative and analytical tasks.
+These agents use a model-agnostic provider abstraction supporting
+Claude, GPT, Gemini, Ollama, and any OpenAI-compatible endpoint.
 All LLM agents have fallback to deterministic methods when LLM is disabled.
 """
 
