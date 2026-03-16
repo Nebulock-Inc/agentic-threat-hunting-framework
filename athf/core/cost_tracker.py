@@ -5,7 +5,7 @@ across Anthropic, OpenAI, Google, and local/free model providers.
 """
 
 import re
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional
 
 # Pricing per 1K tokens (as of early 2026)
 MODEL_PRICING: Dict[str, Dict[str, float]] = {

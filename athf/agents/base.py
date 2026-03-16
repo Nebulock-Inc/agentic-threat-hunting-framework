@@ -141,7 +141,8 @@ class LLMAgent(Agent[InputT, OutputT]):
             duration_ms=response.duration_ms,
         )
 
-        return response.text
+        result: str = response.text
+        return result
 
     def _call_llm_with_retry(
         self,
@@ -211,7 +212,8 @@ class LLMAgent(Agent[InputT, OutputT]):
                 cleaned = cleaned[json_start:json_end].strip()
 
         try:
-            return json.loads(cleaned)
+            parsed: Dict[str, Any] = json.loads(cleaned)
+            return parsed
         except json.JSONDecodeError as e:
             raise ValueError(
                 "Failed to parse JSON from LLM response. Error: {}. "

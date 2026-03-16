@@ -8,7 +8,6 @@ Implements a structured 5-skill research methodology:
 5. Synthesis - Key findings, gaps, recommended focus areas
 """
 
-import json
 import os
 import time
 from dataclasses import dataclass, field
@@ -157,7 +156,7 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
             )
 
             # Execute skills 1-4 in parallel (they are independent)
-            from concurrent.futures import ThreadPoolExecutor, as_completed
+            from concurrent.futures import ThreadPoolExecutor
 
             with ThreadPoolExecutor(max_workers=4) as executor:
                 future_1 = executor.submit(

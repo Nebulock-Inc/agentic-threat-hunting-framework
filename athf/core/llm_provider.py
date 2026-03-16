@@ -190,7 +190,7 @@ class LiteLLMProvider(LLMProvider):
             ImportError: If litellm is not installed.
         """
         try:
-            import litellm  # type: ignore[import-untyped]
+            import litellm
         except ImportError:
             raise ImportError(
                 "litellm package is not installed. Install it with: pip install litellm"
@@ -265,7 +265,7 @@ class BedrockProvider(LLMProvider):
             return self._client
 
         try:
-            import boto3  # type: ignore[import-untyped]
+            import boto3
         except ImportError:
             raise ImportError("boto3 package is not installed. Install it with: pip install boto3")
 
@@ -463,7 +463,7 @@ class OpenAICompatibleProvider(LLMProvider):
             return self._client
 
         try:
-            import openai  # type: ignore[import-untyped]
+            import openai
         except ImportError:
             raise ImportError(
                 "openai package is not installed. Install it with: pip install openai"
@@ -555,11 +555,12 @@ def _load_config_file() -> Dict[str, Any]:
     for path in candidates:
         if path.is_file():
             try:
-                import yaml  # type: ignore[import-untyped]
+                import yaml
 
                 with open(str(path), "r") as fh:
                     data = yaml.safe_load(fh) or {}
-                return data.get("llm", {})
+                result: Dict[str, Any] = data.get("llm", {})
+                return result
             except ImportError:
                 # PyYAML not installed; try stdlib JSON fallback (unlikely to work, but safe)
                 logger.debug("PyYAML not installed; skipping config file %s", path)
@@ -584,7 +585,7 @@ def _ollama_is_running(base_url: str = "http://localhost:11434") -> bool:
     try:
         req = urllib.request.Request("{}/api/version".format(base_url))
         resp = urllib.request.urlopen(req, timeout=2)
-        return resp.status == 200
+        return bool(resp.status == 200)
     except Exception:
         return False
 
