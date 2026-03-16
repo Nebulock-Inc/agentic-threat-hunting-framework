@@ -75,6 +75,32 @@ similarity = [
 splunk = [
     "requests>=2.25.0",
 ]
+# LLM providers (choose one or use litellm for all)
+litellm = [
+    "litellm>=1.30.0",
+]
+openai = [
+    "openai>=1.0.0",
+]
+anthropic = [
+    "anthropic>=0.30.0",
+]
+bedrock = [
+    "boto3>=1.28.0",
+]
+ollama = [
+    "ollama>=0.3.0",
+]
+# Convenience: all LLM providers via LiteLLM
+llm = [
+    "litellm>=1.30.0",
+]
+all = [
+    "litellm>=1.30.0",
+    "scikit-learn>=1.0.0",
+    "requests>=2.25.0",
+    "tavily-python>=0.3.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/Nebulock-Inc/agentic-threat-hunting-framework"
@@ -159,7 +185,15 @@ module = [
     "sklearn.*",
     "requests",
     "requests.*",
-    "athf.core.metrics_tracker"
+    "litellm",
+    "litellm.*",
+    "openai",
+    "openai.*",
+    "ollama",
+    "ollama.*",
+    "anthropic",
+    "anthropic.*",
+    "athf.core.metrics_tracker",
 ]
 ignore_missing_imports = true
 

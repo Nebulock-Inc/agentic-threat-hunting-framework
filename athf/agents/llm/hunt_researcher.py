@@ -92,14 +92,28 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
         self,
         llm_enabled: bool = True,
         tavily_api_key: Optional[str] = None,
+        provider: Optional[Any] = None,
     ) -> None:
         """Initialize researcher with optional API keys."""
-        super().__init__(llm_enabled=llm_enabled)
+        super().__init__(llm_enabled=llm_enabled, provider=provider)
         self.tavily_api_key = tavily_api_key or os.getenv("TAVILY_API_KEY")
         self._search_client: Optional[Any] = None
         self._total_cost = 0.0
         self._llm_calls = 0
         self._web_searches = 0
+
+    def _log_llm_metrics(
+        self,
+        agent_name: str,
+        model_id: str,
+        input_tokens: int,
+        output_tokens: int,
+        cost_usd: float,
+        duration_ms: int,
+    ) -> None:
+        """Track LLM call metrics for cost reporting."""
+        self._llm_calls += 1
+        self._total_cost += cost_usd
 
     def _get_search_client(self) -> Optional[Any]:
         """Get or create Tavily search client."""
@@ -107,12 +121,16 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
             try:
                 from athf.core.web_search import TavilySearchClient
 
-                self._search_client = TavilySearchClient(api_key=self.tavily_api_key)
+                self._search_client = TavilySearchClient(
+                    api_key=self.tavily_api_key,
+                )
             except Exception:
                 pass
         return self._search_client
 
-    def execute(self, input_data: ResearchInput) -> AgentResult[ResearchOutput]:
+    def execute(
+        self, input_data: ResearchInput,
+    ) -> AgentResult[ResearchOutput]:
         """Execute complete research workflow.
 
         Args:
@@ -134,21 +152,36 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
             research_id = manager.get_next_research_id()
 
             # Determine search depth based on input
-            search_depth = "basic" if input_data.depth == "basic" else "advanced"
+            search_depth = (
+                "basic" if input_data.depth == "basic" else "advanced"
+            )
 
-            # Execute all 5 skills
-            skill_1 = self._skill_1_system_research(input_data.topic, search_depth)
-            skill_2 = self._skill_2_adversary_tradecraft(
-                input_data.topic,
-                input_data.mitre_technique,
-                search_depth,
-                input_data.web_search_enabled,
-            )
-            skill_3 = self._skill_3_telemetry_mapping(
-                input_data.topic,
-                input_data.mitre_technique,
-            )
-            skill_4 = self._skill_4_related_work(input_data.topic)
+            # Execute skills 1-4 in parallel (they are independent)
+            from concurrent.futures import ThreadPoolExecutor, as_completed
+
+            with ThreadPoolExecutor(max_workers=4) as executor:
+                future_1 = executor.submit(
+                    self._skill_1_system_research, input_data.topic, search_depth,
+                )
+                future_2 = executor.submit(
+                    self._skill_2_adversary_tradecraft,
+                    input_data.topic, input_data.mitre_technique,
+                    search_depth, input_data.web_search_enabled,
+                )
+                future_3 = executor.submit(
+                    self._skill_3_telemetry_mapping,
+                    input_data.topic, input_data.mitre_technique,
+                )
+                future_4 = executor.submit(
+                    self._skill_4_related_work, input_data.topic,
+                )
+
+                skill_1 = future_1.result()
+                skill_2 = future_2.result()
+                skill_3 = future_3.result()
+                skill_4 = future_4.result()
+
+            # Skill 5 (synthesis) depends on skills 1-4
             skill_5 = self._skill_5_synthesis(
                 input_data.topic,
                 input_data.mitre_technique,
@@ -156,7 +189,11 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
             )
 
             # Extract synthesis outputs
-            mitre_techniques = [input_data.mitre_technique] if input_data.mitre_technique else []
+            mitre_techniques = (
+                [input_data.mitre_technique]
+                if input_data.mitre_technique
+                else []
+            )
 
             # Build output
             total_duration_ms = int((time.time() - start_time) * 1000)
@@ -171,8 +208,12 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
                 related_work=skill_4,
                 synthesis=skill_5,
                 recommended_hypothesis=self._extract_hypothesis(skill_5),
-                data_source_availability=self._extract_data_sources(skill_3),
-                estimated_hunt_complexity=self._estimate_complexity(skill_2, skill_3),
+                data_source_availability=self._extract_data_sources(
+                    skill_3,
+                ),
+                estimated_hunt_complexity=self._estimate_complexity(
+                    skill_2, skill_3,
+                ),
                 gaps_identified=self._extract_gaps(skill_5),
                 total_duration_ms=total_duration_ms,
                 web_searches_performed=self._web_searches,
@@ -225,25 +266,33 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
         search_client = self._get_search_client()
         if search_client:
             try:
-                search_results = search_client.search_system_internals(topic, search_depth)
+                search_results = search_client.search_system_internals(
+                    topic, search_depth,
+                )
                 self._web_searches += 1
 
                 for result in search_results.results[:5]:
-                    sources.append(
-                        {
-                            "title": result.title,
-                            "url": result.url,
-                            "snippet": result.content[:200] + "..." if len(result.content) > 200 else result.content,
-                        }
-                    )
+                    snippet = result.content
+                    if len(snippet) > 200:
+                        snippet = snippet[:200] + "..."
+                    sources.append({
+                        "title": result.title,
+                        "url": result.url,
+                        "snippet": snippet,
+                    })
             except Exception:
                 pass
 
         # Generate summary using LLM
         if self.llm_enabled:
-            summary, key_findings = self._llm_summarize_system_research(topic, sources, search_results)
+            summary, key_findings = self._llm_summarize_system_research(
+                topic, sources, search_results,
+            )
         else:
-            summary = f"System research for {topic} - requires LLM for detailed analysis"
+            summary = (
+                "System research for {} - requires LLM for detailed"
+                " analysis".format(topic)
+            )
             key_findings = ["LLM disabled - manual research required"]
 
         duration_ms = int((time.time() - start_time) * 1000)
@@ -283,25 +332,35 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
         search_client = self._get_search_client()
         if search_client and web_search_enabled:
             try:
-                search_results = search_client.search_adversary_tradecraft(topic, technique, search_depth)
+                search_results = (
+                    search_client.search_adversary_tradecraft(
+                        topic, technique, search_depth,
+                    )
+                )
                 self._web_searches += 1
 
                 for result in search_results.results[:7]:
-                    sources.append(
-                        {
-                            "title": result.title,
-                            "url": result.url,
-                            "snippet": result.content[:200] + "..." if len(result.content) > 200 else result.content,
-                        }
-                    )
+                    snippet = result.content
+                    if len(snippet) > 200:
+                        snippet = snippet[:200] + "..."
+                    sources.append({
+                        "title": result.title,
+                        "url": result.url,
+                        "snippet": snippet,
+                    })
             except Exception:
                 pass
 
         # Generate summary using LLM
         if self.llm_enabled:
-            summary, key_findings = self._llm_summarize_tradecraft(topic, technique, sources, search_results)
+            summary, key_findings = self._llm_summarize_tradecraft(
+                topic, technique, sources, search_results,
+            )
         else:
-            summary = f"Adversary tradecraft for {topic} - requires LLM for detailed analysis"
+            summary = (
+                "Adversary tradecraft for {} - requires LLM for"
+                " detailed analysis".format(topic)
+            )
             key_findings = ["LLM disabled - manual research required"]
 
         duration_ms = int((time.time() - start_time) * 1000)
@@ -338,22 +397,30 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
 
         # Generate telemetry mapping using LLM
         if self.llm_enabled:
-            summary, key_findings = self._llm_map_telemetry(topic, technique, ocsf_schema, environment_data)
+            summary, key_findings = self._llm_map_telemetry(
+                topic, technique, ocsf_schema, environment_data,
+            )
         else:
-            summary = f"Telemetry mapping for {topic} - requires LLM for detailed analysis"
+            summary = (
+                "Telemetry mapping for {} - requires LLM for"
+                " detailed analysis".format(topic)
+            )
             key_findings = [
-                "Common fields: process.name, process.command_line, actor.user.name",
-                "Check OCSF_SCHEMA_REFERENCE.md for field population rates",
+                "Common fields: process.name, process.command_line,"
+                " actor.user.name",
+                "Check OCSF_SCHEMA_REFERENCE.md for field population"
+                " rates",
             ]
 
         # Add schema reference as source
-        sources.append(
-            {
-                "title": "OCSF Schema Reference",
-                "url": "knowledge/OCSF_SCHEMA_REFERENCE.md",
-                "snippet": "Internal schema documentation with field population rates",
-            }
-        )
+        sources.append({
+            "title": "OCSF Schema Reference",
+            "url": "knowledge/OCSF_SCHEMA_REFERENCE.md",
+            "snippet": (
+                "Internal schema documentation with field population"
+                " rates"
+            ),
+        })
 
         duration_ms = int((time.time() - start_time) * 1000)
 
@@ -366,7 +433,9 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
             duration_ms=duration_ms,
         )
 
-    def _skill_4_related_work(self, topic: str) -> ResearchSkillOutput:
+    def _skill_4_related_work(
+        self, topic: str,
+    ) -> ResearchSkillOutput:
         """Skill 4: Find related past hunts and investigations.
 
         Args:
@@ -377,37 +446,58 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
         """
         start_time = time.time()
         sources: List[Dict[str, str]] = []
-        key_findings = []
+        key_findings: List[str] = []
 
         # Use similarity search to find related hunts
         try:
             from athf.commands.similar import _find_similar_hunts
 
-            similar_hunts = _find_similar_hunts(topic, limit=5, threshold=0.1)
+            similar_hunts = _find_similar_hunts(
+                topic, limit=5, threshold=0.1,
+            )
 
             for hunt in similar_hunts:
-                sources.append(
-                    {
-                        "title": f"{hunt['hunt_id']}: {hunt['title']}",
-                        "url": f"hunts/{hunt['hunt_id']}.md",
-                        "snippet": f"Status: {hunt['status']}, Score: {hunt['similarity_score']:.3f}",
-                    }
+                sources.append({
+                    "title": "{}: {}".format(
+                        hunt["hunt_id"], hunt["title"],
+                    ),
+                    "url": "hunts/{}.md".format(hunt["hunt_id"]),
+                    "snippet": "Status: {}, Score: {:.3f}".format(
+                        hunt["status"], hunt["similarity_score"],
+                    ),
+                })
+                key_findings.append(
+                    "{}: {} (similarity: {:.2f})".format(
+                        hunt["hunt_id"],
+                        hunt["title"],
+                        hunt["similarity_score"],
+                    )
                 )
-                key_findings.append(f"{hunt['hunt_id']}: {hunt['title']} (similarity: {hunt['similarity_score']:.2f})")
 
         except Exception:
-            key_findings.append("No similar hunts found or similarity search unavailable")
+            key_findings.append(
+                "No similar hunts found or similarity search unavailable"
+            )
 
-        summary = f"Found {len(sources)} related hunts for {topic}"
+        summary = "Found {} related hunts for {}".format(
+            len(sources), topic,
+        )
         if not sources:
-            summary = f"No related hunts found for {topic} - this may be a new research area"
+            summary = (
+                "No related hunts found for {} - this may be a new"
+                " research area".format(topic)
+            )
 
         duration_ms = int((time.time() - start_time) * 1000)
 
         return ResearchSkillOutput(
             skill_name="related_work",
             summary=summary,
-            key_findings=key_findings if key_findings else ["No related past hunts found"],
+            key_findings=(
+                key_findings
+                if key_findings
+                else ["No related past hunts found"]
+            ),
             sources=sources,
             confidence=0.95,  # High confidence - based on internal search
             duration_ms=duration_ms,
@@ -433,9 +523,11 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
 
         # Generate synthesis using LLM
         if self.llm_enabled:
-            summary, key_findings = self._llm_synthesize(topic, technique, skills)
+            summary, key_findings = self._llm_synthesize(
+                topic, technique, skills,
+            )
         else:
-            summary = f"Research synthesis for {topic}"
+            summary = "Research synthesis for {}".format(topic)
             key_findings = [
                 "LLM disabled - manual synthesis required",
                 "Review individual skill outputs for findings",
@@ -460,41 +552,48 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
     ) -> Tuple[str, List[str]]:
         """Use LLM to summarize system research findings."""
         try:
-            client = self._get_llm_client()
-            if not client:
-                return f"System research for {topic}", ["LLM unavailable"]
-
             # Build context from sources
             context = ""
-            if search_results and hasattr(search_results, "answer") and search_results.answer:
-                context = f"Web search summary: {search_results.answer}\n\n"
+            if (
+                search_results
+                and hasattr(search_results, "answer")
+                and search_results.answer
+            ):
+                context = "Web search summary: {}\n\n".format(
+                    search_results.answer,
+                )
 
             for source in sources[:5]:
-                context += f"- {source['title']}: {source['snippet']}\n"
+                context += "- {}: {}\n".format(
+                    source["title"], source["snippet"],
+                )
 
-            prompt = f"""You are a security researcher studying system internals.
+            prompt = (
+                "You are a security researcher studying system"
+                " internals.\n\n"
+                "Topic: {topic}\n\n"
+                "Research Context:\n{context}\n\n"
+                "Based on this context, provide:\n"
+                "1. A concise summary (2-3 sentences) of how this"
+                " system/technology normally works\n"
+                "2. 3-5 key findings about normal behavior\n\n"
+                "Return JSON format:\n"
+                '{{\n  "summary": "string",\n'
+                '  "key_findings": ["finding1", "finding2",'
+                ' "finding3"]\n}}'
+            ).format(topic=topic, context=context)
 
-Topic: {topic}
-
-Research Context:
-{context}
-
-Based on this context, provide:
-1. A concise summary (2-3 sentences) of how this system/technology normally works
-2. 3-5 key findings about normal behavior
-
-Return JSON format:
-{{
-  "summary": "string",
-  "key_findings": ["finding1", "finding2", "finding3"]
-}}"""
-
-            response = self._call_llm(prompt)
-            data = json.loads(response)
+            response = self._call_llm(prompt, max_tokens=2048)
+            data = self._parse_json_response(response)
             return data["summary"], data["key_findings"]
 
         except Exception as e:
-            return f"System research for {topic} (LLM error: {str(e)[:50]})", ["Error during LLM analysis"]
+            return (
+                "System research for {} (LLM error: {})".format(
+                    topic, str(e)[:50],
+                ),
+                ["Error during LLM analysis"],
+            )
 
     def _llm_summarize_tradecraft(
         self,
@@ -505,43 +604,57 @@ Return JSON format:
     ) -> Tuple[str, List[str]]:
         """Use LLM to summarize adversary tradecraft findings."""
         try:
-            client = self._get_llm_client()
-            if not client:
-                return f"Adversary tradecraft for {topic}", ["LLM unavailable"]
-
             # Build context from sources
             context = ""
-            if search_results and hasattr(search_results, "answer") and search_results.answer:
-                context = f"Web search summary: {search_results.answer}\n\n"
+            if (
+                search_results
+                and hasattr(search_results, "answer")
+                and search_results.answer
+            ):
+                context = "Web search summary: {}\n\n".format(
+                    search_results.answer,
+                )
 
             for source in sources[:7]:
-                context += f"- {source['title']}: {source['snippet']}\n"
+                context += "- {}: {}\n".format(
+                    source["title"], source["snippet"],
+                )
 
-            technique_str = f" ({technique})" if technique else ""
+            technique_str = (
+                " ({})".format(technique) if technique else ""
+            )
 
-            prompt = f"""You are a threat intelligence analyst studying adversary techniques.
+            prompt = (
+                "You are a threat intelligence analyst studying"
+                " adversary techniques.\n\n"
+                "Topic: {topic}{technique_str}\n\n"
+                "Research Context:\n{context}\n\n"
+                "Based on this context, provide:\n"
+                "1. A concise summary (2-3 sentences) of how"
+                " adversaries abuse this system/technique\n"
+                "2. 4-6 key findings about attack methods, tools"
+                " used, and indicators\n\n"
+                "Return JSON format:\n"
+                '{{\n  "summary": "string",\n'
+                '  "key_findings": ["finding1", "finding2",'
+                ' "finding3", "finding4"]\n}}'
+            ).format(
+                topic=topic,
+                technique_str=technique_str,
+                context=context,
+            )
 
-Topic: {topic}{technique_str}
-
-Research Context:
-{context}
-
-Based on this context, provide:
-1. A concise summary (2-3 sentences) of how adversaries abuse this system/technique
-2. 4-6 key findings about attack methods, tools used, and indicators
-
-Return JSON format:
-{{
-  "summary": "string",
-  "key_findings": ["finding1", "finding2", "finding3", "finding4"]
-}}"""
-
-            response = self._call_llm(prompt)
-            data = json.loads(response)
+            response = self._call_llm(prompt, max_tokens=2048)
+            data = self._parse_json_response(response)
             return data["summary"], data["key_findings"]
 
         except Exception as e:
-            return f"Adversary tradecraft for {topic} (LLM error: {str(e)[:50]})", ["Error during LLM analysis"]
+            return (
+                "Adversary tradecraft for {} (LLM error: {})".format(
+                    topic, str(e)[:50],
+                ),
+                ["Error during LLM analysis"],
+            )
 
     def _llm_map_telemetry(
         self,
@@ -552,38 +665,44 @@ Return JSON format:
     ) -> Tuple[str, List[str]]:
         """Use LLM to map topic to OCSF telemetry fields."""
         try:
-            client = self._get_llm_client()
-            if not client:
-                return f"Telemetry mapping for {topic}", ["LLM unavailable"]
+            technique_str = (
+                " ({})".format(technique) if technique else ""
+            )
 
-            technique_str = f" ({technique})" if technique else ""
+            prompt = (
+                "You are a detection engineer mapping attack"
+                " behaviors to telemetry.\n\n"
+                "Topic: {topic}{technique_str}\n\n"
+                "OCSF Schema Reference (partial):\n"
+                "{ocsf_schema}\n\n"
+                "Environment:\n{environment_data}\n\n"
+                "Based on this context, provide:\n"
+                "1. A concise summary of what telemetry would"
+                " capture this behavior\n"
+                "2. 4-6 specific OCSF fields that are relevant,"
+                " with population rates if known\n\n"
+                "Return JSON format:\n"
+                '{{\n  "summary": "string",\n'
+                '  "key_findings": ["field1 (X% populated):'
+                ' description", "field2: description"]\n}}'
+            ).format(
+                topic=topic,
+                technique_str=technique_str,
+                ocsf_schema=ocsf_schema[:3000],
+                environment_data=environment_data[:1000],
+            )
 
-            prompt = f"""You are a detection engineer mapping attack behaviors to telemetry.
-
-Topic: {topic}{technique_str}
-
-OCSF Schema Reference (partial):
-{ocsf_schema[:3000]}
-
-Environment:
-{environment_data[:1000]}
-
-Based on this context, provide:
-1. A concise summary of what telemetry would capture this behavior
-2. 4-6 specific OCSF fields that are relevant, with population rates if known
-
-Return JSON format:
-{{
-  "summary": "string",
-  "key_findings": ["field1 (X% populated): description", "field2: description"]
-}}"""
-
-            response = self._call_llm(prompt)
-            data = json.loads(response)
+            response = self._call_llm(prompt, max_tokens=2048)
+            data = self._parse_json_response(response)
             return data["summary"], data["key_findings"]
 
         except Exception as e:
-            return f"Telemetry mapping for {topic} (LLM error: {str(e)[:50]})", ["Error during LLM analysis"]
+            return (
+                "Telemetry mapping for {} (LLM error: {})".format(
+                    topic, str(e)[:50],
+                ),
+                ["Error during LLM analysis"],
+            )
 
     def _llm_synthesize(
         self,
@@ -593,122 +712,64 @@ Return JSON format:
     ) -> Tuple[str, List[str]]:
         """Use LLM to synthesize all research findings."""
         try:
-            client = self._get_llm_client()
-            if not client:
-                return f"Research synthesis for {topic}", ["LLM unavailable"]
-
             # Build context from all skills
             context = ""
             for skill in skills:
-                context += f"\n### {skill.skill_name.replace('_', ' ').title()}\n"
-                context += f"Summary: {skill.summary}\n"
+                skill_title = skill.skill_name.replace("_", " ").title()
+                context += "\n### {}\n".format(skill_title)
+                context += "Summary: {}\n".format(skill.summary)
                 context += "Key findings:\n"
                 for finding in skill.key_findings[:4]:
-                    context += f"- {finding}\n"
+                    context += "- {}\n".format(finding)
 
-            technique_str = f" ({technique})" if technique else ""
+            technique_str = (
+                " ({})".format(technique) if technique else ""
+            )
 
-            prompt = f"""You are a senior threat hunter synthesizing research for a hunt.
+            prompt = (
+                "You are a senior threat hunter synthesizing"
+                " research for a hunt.\n\n"
+                "Topic: {topic}{technique_str}\n\n"
+                "Research Findings:\n{context}\n\n"
+                "Based on all research findings, provide:\n"
+                "1. An executive summary (2-3 sentences)"
+                " synthesizing all findings\n"
+                '2. A recommended hypothesis statement in the'
+                ' format: "Adversaries use [behavior] to [goal]'
+                ' on [target]"\n'
+                "3. 2-3 gaps identified in current coverage or"
+                " knowledge\n"
+                "4. 2-3 recommended focus areas for the hunt\n\n"
+                "Return JSON format:\n"
+                '{{\n  "summary": "string",\n'
+                '  "key_findings": [\n'
+                '    "Hypothesis: Adversaries use...",\n'
+                '    "Gap: ...",\n'
+                '    "Focus: ..."\n'
+                "  ]\n}}"
+            ).format(
+                topic=topic,
+                technique_str=technique_str,
+                context=context,
+            )
 
-Topic: {topic}{technique_str}
-
-Research Findings:
-{context}
-
-Based on all research findings, provide:
-1. An executive summary (2-3 sentences) synthesizing all findings
-2. A recommended hypothesis statement in the format: "Adversaries use [behavior] to [goal] on [target]"
-3. 2-3 gaps identified in current coverage or knowledge
-4. 2-3 recommended focus areas for the hunt
-
-Return JSON format:
-{{
-  "summary": "string",
-  "key_findings": [
-    "Hypothesis: Adversaries use...",
-    "Gap: ...",
-    "Focus: ..."
-  ]
-}}"""
-
-            response = self._call_llm(prompt)
-            data = json.loads(response)
+            response = self._call_llm(prompt, max_tokens=2048)
+            data = self._parse_json_response(response)
             return data["summary"], data["key_findings"]
 
         except Exception as e:
-            return f"Research synthesis for {topic} (LLM error: {str(e)[:50]})", ["Error during LLM analysis"]
-
-    def _call_llm(self, prompt: str) -> str:
-        """Call LLM and return response text."""
-        client = self._get_llm_client()
-        if not client:
-            raise ValueError("LLM client not available")
-
-        # Bedrock model ID - using cross-region inference profile for Claude Sonnet
-        model_id = "us.anthropic.claude-sonnet-4-5-20250929-v1:0"
-
-        # Prepare request body for Bedrock
-        request_body = {
-            "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": 2048,
-            "messages": [{"role": "user", "content": prompt}],
-        }
-
-        # Invoke model via Bedrock
-        start_time = time.time()
-        response = client.invoke_model(modelId=model_id, body=json.dumps(request_body))
-        duration_ms = int((time.time() - start_time) * 1000)
-
-        # Parse Bedrock response
-        response_body = json.loads(response["body"].read())
-
-        # Extract text from response
-        output_text: str = str(response_body["content"][0]["text"])
-
-        # Try to extract JSON from markdown code blocks if present
-        if "```json" in output_text:
-            json_start = output_text.find("```json") + 7
-            json_end = output_text.find("```", json_start)
-            output_text = output_text[json_start:json_end].strip()
-        elif "```" in output_text:
-            json_start = output_text.find("```") + 3
-            json_end = output_text.find("```", json_start)
-            output_text = output_text[json_start:json_end].strip()
-
-        # Track costs
-        usage = response_body.get("usage", {})
-        input_tokens = usage.get("input_tokens", 0)
-        output_tokens = usage.get("output_tokens", 0)
-        cost = self._calculate_cost_bedrock(input_tokens, output_tokens)
-        self._total_cost += cost
-        self._llm_calls += 1
-
-        # Log metrics
-        self._log_llm_metrics(
-            agent_name="hunt-researcher",
-            model_id=model_id,
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
-            cost_usd=cost,
-            duration_ms=duration_ms,
-        )
-
-        return output_text
-
-    def _calculate_cost_bedrock(self, input_tokens: int, output_tokens: int) -> float:
-        """Calculate AWS Bedrock Claude cost."""
-        # Claude Sonnet on Bedrock pricing
-        input_cost_per_1k = 0.003
-        output_cost_per_1k = 0.015
-
-        input_cost = (input_tokens / 1000) * input_cost_per_1k
-        output_cost = (output_tokens / 1000) * output_cost_per_1k
-
-        return round(input_cost + output_cost, 4)
+            return (
+                "Research synthesis for {} (LLM error: {})".format(
+                    topic, str(e)[:50],
+                ),
+                ["Error during LLM analysis"],
+            )
 
     def _load_ocsf_schema(self) -> str:
         """Load OCSF schema reference content."""
-        schema_path = Path.cwd() / "knowledge" / "OCSF_SCHEMA_REFERENCE.md"
+        schema_path = (
+            Path.cwd() / "knowledge" / "OCSF_SCHEMA_REFERENCE.md"
+        )
         if schema_path.exists():
             return schema_path.read_text()[:5000]  # Limit size
         return "OCSF schema reference not found"
@@ -720,21 +781,30 @@ Return JSON format:
             return env_path.read_text()[:2000]  # Limit size
         return "Environment file not found"
 
-    def _extract_hypothesis(self, synthesis: ResearchSkillOutput) -> Optional[str]:
+    def _extract_hypothesis(
+        self, synthesis: ResearchSkillOutput,
+    ) -> Optional[str]:
         """Extract recommended hypothesis from synthesis."""
         for finding in synthesis.key_findings:
             if finding.lower().startswith("hypothesis:"):
-                return finding.replace("Hypothesis:", "").replace("hypothesis:", "").strip()
+                return (
+                    finding
+                    .replace("Hypothesis:", "")
+                    .replace("hypothesis:", "")
+                    .strip()
+                )
         return None
 
-    def _extract_data_sources(self, telemetry: ResearchSkillOutput) -> Dict[str, bool]:
+    def _extract_data_sources(
+        self, telemetry: ResearchSkillOutput,
+    ) -> Dict[str, bool]:
         """Extract data source availability from telemetry mapping."""
         # Default data sources based on environment
         return {
             "process_execution": True,
             "file_operations": True,
-            "network_connections": False,  # Limited visibility per AGENTS.md
-            "registry_events": False,  # Platform-dependent
+            "network_connections": False,
+            "registry_events": False,
         }
 
     def _estimate_complexity(
@@ -743,8 +813,9 @@ Return JSON format:
         telemetry: ResearchSkillOutput,
     ) -> str:
         """Estimate hunt complexity based on research."""
-        # Simple heuristic based on number of findings
-        total_findings = len(tradecraft.key_findings) + len(telemetry.key_findings)
+        total_findings = (
+            len(tradecraft.key_findings) + len(telemetry.key_findings)
+        )
 
         if total_findings <= 4:
             return "low"
@@ -753,10 +824,17 @@ Return JSON format:
         else:
             return "high"
 
-    def _extract_gaps(self, synthesis: ResearchSkillOutput) -> List[str]:
+    def _extract_gaps(
+        self, synthesis: ResearchSkillOutput,
+    ) -> List[str]:
         """Extract identified gaps from synthesis."""
         gaps = []
         for finding in synthesis.key_findings:
             if finding.lower().startswith("gap:"):
-                gaps.append(finding.replace("Gap:", "").replace("gap:", "").strip())
+                gaps.append(
+                    finding
+                    .replace("Gap:", "")
+                    .replace("gap:", "")
+                    .strip()
+                )
         return gaps

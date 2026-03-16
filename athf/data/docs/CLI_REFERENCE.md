@@ -1922,7 +1922,7 @@ athf research new [OPTIONS]
 
 ### Description
 
-Conducts deep pre-hunt research using a 5-skill methodology: System Internals, Adversary Tradecraft, Telemetry Mapping, Historical Analysis, and Environmental Factors. Uses web search (Tavily API) and LLM analysis (AWS Bedrock) to generate comprehensive research documents.
+Conducts deep pre-hunt research using a 5-skill methodology: System Internals, Adversary Tradecraft, Telemetry Mapping, Historical Analysis, and Environmental Factors. Uses web search (Tavily API) and LLM analysis (auto-detected provider: Claude, GPT, Gemini, Ollama, etc.) to generate comprehensive research documents.
 
 **Research Depth:**
 - **Advanced** (default): 15-20 minutes, thorough 5-skill methodology
@@ -2017,9 +2017,14 @@ status: completed
 
 **Optional but Recommended:**
 - `TAVILY_API_KEY`: Web search for adversary tradecraft (get from https://tavily.com)
-- `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION`: AWS Bedrock for LLM analysis
-  - Without Bedrock: Falls back to template-based research
-  - With Bedrock: Enhanced analysis using Claude Sonnet 4.5
+- **LLM Provider** (any one of the following):
+  - `ANTHROPIC_API_KEY`: Anthropic API directly
+  - `OPENAI_API_KEY`: OpenAI or compatible endpoint
+  - `AWS_PROFILE` or `AWS_ACCESS_KEY_ID`: AWS Bedrock
+  - `OLLAMA_HOST`: Local Ollama instance
+  - Override with `ATHF_LLM_PROVIDER` and `ATHF_LLM_MODEL` (see `config/.env.example`)
+  - Without LLM: Falls back to template-based research
+  - With LLM: Enhanced analysis using your configured model
 
 ### Exit Codes
 
