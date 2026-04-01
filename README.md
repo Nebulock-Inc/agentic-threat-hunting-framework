@@ -185,6 +185,51 @@ athf hunt coverage                  # MITRE ATT&CK coverage
 athf research stats                 # Research metrics
 ```
 
+### ATT&CK Data Management (NEW in v0.11.0)
+
+```bash
+# Install STIX support (optional)
+pip install 'athf[attack]'
+
+# Download live ATT&CK data (835+ techniques with full metadata)
+athf attack update
+
+# Check provider status
+athf attack status
+
+# Look up technique metadata
+athf attack lookup T1003.001
+
+# List techniques for a tactic
+athf attack techniques credential-access
+```
+
+Without `mitreattack-python`, ATHF uses a hardcoded v14 fallback (14 tactics, approximate counts). With it, you get full technique metadata: platforms, data sources, sub-techniques, and accurate counts.
+
+### MCP Server (NEW in v0.11.0)
+
+```bash
+# Install MCP dependencies
+pip install 'athf[mcp]'
+
+# Start MCP server (for Claude Code, Copilot, Cursor, etc.)
+athf mcp serve --workspace /path/to/hunts
+```
+
+Configure in `~/.claude/mcp-servers.json`:
+```json
+{
+  "athf": {
+    "command": "athf-mcp",
+    "env": { "ATHF_WORKSPACE": "/path/to/your/hunts" }
+  }
+}
+```
+
+The standalone `athf-mcp` entry point auto-detects your workspace from cwd or `ATHF_WORKSPACE` env var. Use `athf mcp serve --workspace /path` for explicit paths.
+
+Exposes 17 tools: hunt management, semantic search, ATT&CK coverage, research, investigations, and AI-powered hypothesis generation — all accessible directly from your AI coding assistant.
+
 **Full documentation:** [CLI Reference](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/blob/main/docs/CLI_REFERENCE.md)
 
 ## 📺 See It In Action

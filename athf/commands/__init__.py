@@ -1,5 +1,6 @@
 """ATHF CLI commands (base commands only)."""
 
+from athf.commands.attack import attack
 from athf.commands.context import context
 from athf.commands.env import env
 from athf.commands.hunt import hunt
@@ -15,6 +16,7 @@ except ImportError:
     splunk = None  # type: ignore[assignment]
 
 __all__ = [
+    "attack",
     "init",
     "hunt",
     "investigate",

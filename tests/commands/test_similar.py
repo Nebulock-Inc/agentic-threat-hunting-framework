@@ -8,6 +8,14 @@ from click.testing import CliRunner
 
 from athf.commands.similar import _extract_session_text, _find_similar_hunts, _load_session_data, similar
 
+_has_sklearn = True
+try:
+    import sklearn  # noqa: F401
+except ImportError:
+    _has_sklearn = False
+
+requires_sklearn = pytest.mark.skipif(not _has_sklearn, reason="scikit-learn not installed")
+
 
 class TestSimilarCommand:
     """Tests for similar command."""
@@ -284,6 +292,7 @@ class TestLoadSessionData:
         assert result == []
 
 
+@requires_sklearn
 class TestSessionFoldIntoHunts:
     """Tests that sessions fold into hunt searchable text by default."""
 
@@ -327,6 +336,7 @@ class TestSessionFoldIntoHunts:
         assert results[0]["source"] == "hunt"
 
 
+@requires_sklearn
 class TestSessionsFlag:
     """Tests for --sessions CLI flag."""
 
