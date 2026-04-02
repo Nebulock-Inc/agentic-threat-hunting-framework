@@ -67,6 +67,9 @@ dmypy.json
 # Plan documents (session-specific, not shared)
 docs/plans/
 
+# Worktrees
+.worktrees/
+
 # Virtual environments
 tools/mcp/venv/
 venv/
