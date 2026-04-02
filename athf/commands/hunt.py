@@ -124,6 +124,12 @@ def hunt() -> None:
 @click.option("--evidence", help="Evidence description (for ABLE framework)")
 @click.option("--hunter", help="Hunter name", default="AI Assistant")
 @click.option("--research", help="Research document ID (e.g., R-0001) this hunt is based on")
+@click.option(
+    "--hypothesis-duration",
+    type=float,
+    default=None,
+    help="Hypothesis generation duration in minutes (from athf agent run output)",
+)
 def new(
     technique: Optional[str],
     title: Optional[str],
@@ -140,6 +146,7 @@ def new(
     evidence: Optional[str],
     hunter: Optional[str],
     research: Optional[str],
+    hypothesis_duration: Optional[float],
 ) -> None:
     """Create a new hunt hypothesis with LOCK structure.
 
@@ -267,6 +274,7 @@ def new(
         location=location,
         evidence=evidence,
         spawned_from=research,
+        hypothesis_duration_minutes=hypothesis_duration,
     )
 
     # Write hunt file using hierarchical directory structure

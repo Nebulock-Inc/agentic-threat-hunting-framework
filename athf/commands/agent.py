@@ -290,10 +290,21 @@ def run(  # noqa: C901
                 )
             )
 
+            # Extract and display duration
+            duration_ms = hypothesis_result.metadata.get("duration_ms", 0)
+            duration_min = round(duration_ms / 60000, 1)
+
             if output_format == "json":
                 console.print(json.dumps(hypothesis_result.metadata, indent=2))
             else:
                 _display_hypothesis_generator_result(hypothesis_result)
+                if duration_ms > 0:
+                    console.print(
+                        f"[dim]Hypothesis generated in {duration_min} minutes[/dim]"
+                    )
+                    console.print(
+                        f"[dim]Use: athf hunt new --hypothesis-duration {duration_min} ...[/dim]\n"
+                    )
 
         except ImportError as e:
             console.print(f"[red]Error loading agent: {e}[/red]")

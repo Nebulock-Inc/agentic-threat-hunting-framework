@@ -19,6 +19,7 @@ techniques: {{ techniques }}
 data_sources: {{ data_sources }}
 related_hunts: []
 {% if spawned_from %}spawned_from: {{ spawned_from }}
+{% endif %}{% if hypothesis_duration_minutes %}hypothesis_duration_minutes: {{ hypothesis_duration_minutes }}
 {% endif %}findings_count: 0
 true_positives: 0
 false_positives: 0
@@ -199,6 +200,7 @@ def render_hunt_template(
     location: Optional[str] = None,
     evidence: Optional[str] = None,
     spawned_from: Optional[str] = None,
+    hypothesis_duration_minutes: Optional[float] = None,
 ) -> str:
     """Render a hunt template with provided metadata.
 
@@ -217,6 +219,7 @@ def render_hunt_template(
         location: Location/scope (for ABLE)
         evidence: Evidence description (for ABLE)
         spawned_from: Research document ID (e.g., R-0001) that this hunt is based on
+        hypothesis_duration_minutes: Time spent generating hypothesis (from athf agent run)
 
     Returns:
         Rendered hunt markdown content
@@ -250,4 +253,5 @@ def render_hunt_template(
         location=location,
         evidence=evidence,
         spawned_from=spawned_from,
+        hypothesis_duration_minutes=hypothesis_duration_minutes,
     )

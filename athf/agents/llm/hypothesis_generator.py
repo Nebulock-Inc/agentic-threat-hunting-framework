@@ -1,6 +1,7 @@
 """Hypothesis generator agent - LLM-powered hypothesis generation."""
 
 import json
+import time
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
@@ -69,14 +70,23 @@ class HypothesisGeneratorAgent(
     ) -> AgentResult[HypothesisGenerationOutput]:
         """Generate hypothesis using LLM.
 
+        Measures wall-clock time for the entire execution (including retries,
+        prompt building, and JSON parsing) and includes it in metadata as
+        ``duration_ms``.
+
         Args:
             input_data: Hypothesis generation input
 
         Returns:
             AgentResult with hypothesis output or error
         """
+        start = time.monotonic()
+
         if not self.llm_enabled:
-            return self._template_generate(input_data)
+            result = self._template_generate(input_data)
+            elapsed_ms = int((time.monotonic() - start) * 1000)
+            result.metadata["duration_ms"] = elapsed_ms
+            return result
 
         try:
             prompt = self._build_prompt(input_data)
@@ -99,9 +109,11 @@ class HypothesisGeneratorAgent(
                 provider, "model",
                 getattr(provider, "model_id", "unknown"),
             )
+            elapsed_ms = int((time.monotonic() - start) * 1000)
             metadata = {
                 "llm_provider": provider.provider_name,
                 "llm_model": model_name,
+                "duration_ms": elapsed_ms,
             }
 
             return AgentResult(
@@ -113,7 +125,10 @@ class HypothesisGeneratorAgent(
             )
 
         except Exception as e:
-            return self._template_generate(input_data, error=str(e))
+            result = self._template_generate(input_data, error=str(e))
+            elapsed_ms = int((time.monotonic() - start) * 1000)
+            result.metadata["duration_ms"] = elapsed_ms
+            return result
 
     def _build_prompt(self, input_data: HypothesisGenerationInput) -> str:
         """Build LLM prompt for hypothesis generation.

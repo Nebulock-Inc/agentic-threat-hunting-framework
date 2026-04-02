@@ -190,3 +190,56 @@ class TestHypothesisGeneratorAgent:
         assert "Rubeus usage" in prompt
         assert "Event 4769" in prompt
         assert "No SPN audit logging" in prompt
+
+
+@pytest.mark.unit
+class TestHypothesisGeneratorDuration:
+    """Test wall-clock duration tracking in execute()."""
+
+    def test_execute_returns_duration_ms(self):
+        """LLM path includes duration_ms in metadata."""
+        mock = MockProvider(VALID_HYPOTHESIS_JSON)
+        agent = HypothesisGeneratorAgent(provider=mock, llm_enabled=True)
+
+        result = agent.execute(_make_input())
+
+        assert result.success is True
+        assert "duration_ms" in result.metadata
+        assert isinstance(result.metadata["duration_ms"], int)
+        assert result.metadata["duration_ms"] >= 0
+
+    def test_duration_ms_is_positive(self):
+        """duration_ms should be a positive integer (execution takes some time)."""
+        mock = MockProvider(VALID_HYPOTHESIS_JSON)
+        agent = HypothesisGeneratorAgent(provider=mock, llm_enabled=True)
+
+        result = agent.execute(_make_input())
+
+        assert result.metadata["duration_ms"] >= 0
+
+    def test_template_fallback_includes_duration_ms(self):
+        """Template fallback (no LLM) also includes duration_ms."""
+        agent = HypothesisGeneratorAgent(llm_enabled=False)
+        result = agent.execute(_make_input())
+
+        assert result.success is True
+        assert "duration_ms" in result.metadata
+        assert isinstance(result.metadata["duration_ms"], int)
+
+    def test_error_fallback_includes_duration_ms(self):
+        """Error fallback path also includes duration_ms."""
+
+        class ErrorProvider(LLMProvider):
+            @property
+            def provider_name(self):
+                return "error-mock"
+
+            def complete(self, messages, max_tokens=4096, temperature=0.7):
+                raise RuntimeError("LLM is down")
+
+        agent = HypothesisGeneratorAgent(provider=ErrorProvider(), llm_enabled=True)
+        result = agent.execute(_make_input())
+
+        assert result.success is True
+        assert "duration_ms" in result.metadata
+        assert isinstance(result.metadata["duration_ms"], int)
