@@ -13,7 +13,6 @@ from athf.agents.llm.hypothesis_generator import (
 )
 from athf.core.llm_provider import LLMProvider, LLMResponse
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

@@ -299,12 +299,8 @@ def run(  # noqa: C901
             else:
                 _display_hypothesis_generator_result(hypothesis_result)
                 if duration_ms > 0:
-                    console.print(
-                        f"[dim]Hypothesis generated in {duration_min} minutes[/dim]"
-                    )
-                    console.print(
-                        f"[dim]Use: athf hunt new --hypothesis-duration {duration_min} ...[/dim]\n"
-                    )
+                    console.print(f"[dim]Hypothesis generated in {duration_min} minutes[/dim]")
+                    console.print(f"[dim]Use: athf hunt new --hypothesis-duration {duration_min} ...[/dim]\n")
 
         except ImportError as e:
             console.print(f"[red]Error loading agent: {e}[/red]")

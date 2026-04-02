@@ -49,9 +49,7 @@ class HypothesisGenerationOutput:
     time_range_suggestion: str
 
 
-class HypothesisGeneratorAgent(
-    LLMAgent[HypothesisGenerationInput, HypothesisGenerationOutput]
-):
+class HypothesisGeneratorAgent(LLMAgent[HypothesisGenerationInput, HypothesisGenerationOutput]):
     """Generates hunt hypotheses using an LLM provider.
 
     Uses the provider-agnostic LLM abstraction for context-aware hypothesis
@@ -65,9 +63,7 @@ class HypothesisGeneratorAgent(
     - Cost tracking (via provider layer)
     """
 
-    def execute(
-        self, input_data: HypothesisGenerationInput
-    ) -> AgentResult[HypothesisGenerationOutput]:
+    def execute(self, input_data: HypothesisGenerationInput) -> AgentResult[HypothesisGenerationOutput]:
         """Generate hypothesis using LLM.
 
         Measures wall-clock time for the entire execution (including retries,
@@ -98,15 +94,14 @@ class HypothesisGeneratorAgent(
                 except ValueError as e:
                     return str(e)
 
-            output_text = self._call_llm_with_retry(
-                prompt, validate_json, max_retries=2
-            )
+            output_text = self._call_llm_with_retry(prompt, validate_json, max_retries=2)
             output_data = self._parse_json_response(output_text)
             output = HypothesisGenerationOutput(**output_data)
 
             provider = self._get_provider()
             model_name = getattr(
-                provider, "model",
+                provider,
+                "model",
                 getattr(provider, "model_id", "unknown"),
             )
             elapsed_ms = int((time.monotonic() - start) * 1000)
@@ -178,9 +173,7 @@ class HypothesisGeneratorAgent(
             research_section=self._build_research_section(input_data.research),
         )
 
-    def _build_research_section(
-        self, research: Optional[ResearchContext]
-    ) -> str:
+    def _build_research_section(self, research: Optional[ResearchContext]) -> str:
         """Build the research context section for the prompt.
 
         Args:
@@ -198,9 +191,7 @@ class HypothesisGeneratorAgent(
             "- Topic: {}".format(research.topic),
             "- Techniques: {}".format(", ".join(research.mitre_techniques)),
             "",
-            "Adversary Tradecraft: {}".format(
-                research.adversary_tradecraft_summary
-            ),
+            "Adversary Tradecraft: {}".format(research.adversary_tradecraft_summary),
         ]
 
         if research.adversary_tradecraft_findings:
@@ -209,11 +200,7 @@ class HypothesisGeneratorAgent(
                 lines.append("  - {}".format(finding))
 
         lines.append("")
-        lines.append(
-            "Telemetry Mapping: {}".format(
-                research.telemetry_mapping_summary
-            )
-        )
+        lines.append("Telemetry Mapping: {}".format(research.telemetry_mapping_summary))
 
         if research.telemetry_mapping_findings:
             lines.append("Key fields:")
@@ -235,11 +222,7 @@ class HypothesisGeneratorAgent(
 
         if research.recommended_hypothesis:
             lines.append("")
-            lines.append(
-                "Recommended Hypothesis from Research: {}".format(
-                    research.recommended_hypothesis
-                )
-            )
+            lines.append("Recommended Hypothesis from Research: {}".format(research.recommended_hypothesis))
 
         lines.append("")
         return "\n".join(lines) + "\n"
@@ -263,17 +246,12 @@ class HypothesisGeneratorAgent(
             hypothesis = input_data.research.recommended_hypothesis
             mitre_techniques = list(input_data.research.mitre_techniques)
         else:
-            hypothesis = (
-                "Investigate suspicious activity related to: "
-                "{}".format(input_data.threat_intel[:100])
-            )
+            hypothesis = "Investigate suspicious activity related to: " "{}".format(input_data.threat_intel[:100])
             mitre_techniques = []
 
         output = HypothesisGenerationOutput(
             hypothesis=hypothesis,
-            justification=(
-                "Template-generated hypothesis (LLM disabled or failed)"
-            ),
+            justification=("Template-generated hypothesis (LLM disabled or failed)"),
             mitre_techniques=mitre_techniques,
             data_sources=["EDR telemetry", "SIEM logs"],
             expected_observables=[
