@@ -1,0 +1,9 @@
+{
+  "name": "athf-automation",
+  "type": "module",
+  "scripts": {
+    "start": "bun run loop.ts --watch",
+    "once": "bun run loop.ts --once",
+    "dry-run": "bun run loop.ts --dry-run"
+  }
+}

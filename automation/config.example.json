@@ -1,0 +1,16 @@
+{
+  "_comment": "Copy this file to config.json and fill in your local repoPath. Never commit config.json — it contains local paths.",
+  "repo": "Nebulock-Inc/agentic-threat-hunting-framework",
+  "repoPath": "/path/to/your/local/agentic-threat-hunting-framework",
+  "intervalMinutes": 15,
+  "triggerLabel": "auto:ready",
+  "requireCollaborator": true,
+  "readinessCriteria": [
+    "Has a clear title describing the feature or bug",
+    "Has acceptance criteria or expected behavior described in the body",
+    "Is not blocked by another open issue",
+    "Does not have a 'needs-discussion' or 'on-hold' label",
+    "Contains enough technical detail to implement without asking questions"
+  ],
+  "draftCommentTemplate": "This issue needs more detail before it can be automatically implemented.\n\nReasoning: {reasoning}\n\nPlease add the missing information and re-apply the `auto:ready` label when ready.\n\n_Posted by ATHF automation loop._"
+}

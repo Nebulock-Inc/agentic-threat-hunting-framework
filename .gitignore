@@ -76,3 +76,9 @@ venv/
 ENV/
 env/
 .venv/
+
+# Automation loop (local config and runtime state — never commit)
+automation/config.json
+automation/state.json
+automation/state.json.tmp
+automation/loop.log
