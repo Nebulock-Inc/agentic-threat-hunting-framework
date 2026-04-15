@@ -1,6 +1,7 @@
 """ATT&CK data management commands."""
 
 import time
+import urllib.request
 from typing import TYPE_CHECKING
 
 import click
@@ -65,11 +66,13 @@ def update(force: bool) -> None:
     console.print("[cyan]Downloading ATT&CK Enterprise STIX data...[/cyan]")
     console.print(f"[dim]Cache location: {stix_path}[/dim]")
 
+    _STIX_URL = (
+        "https://raw.githubusercontent.com/mitre-attack/attack-stix-data"
+        "/master/enterprise-attack/enterprise-attack.json"
+    )
+
     try:
-        MitreAttackData.stix_store_to_file(
-            "enterprise-attack",
-            str(stix_path),
-        )
+        urllib.request.urlretrieve(_STIX_URL, str(stix_path))
         # Reset provider so it picks up the new data
         reset_provider()
         console.print("[green]ATT&CK STIX data downloaded successfully.[/green]")

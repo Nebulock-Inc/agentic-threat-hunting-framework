@@ -88,3 +88,32 @@ class TestAttackUpdate:
         result = runner.invoke(attack, ["update"])
         # Should abort (exit code 1) with helpful message
         assert result.exit_code != 0 or "not installed" in result.output.lower()
+
+    def test_update_downloads_via_urllib(self, monkeypatch, tmp_path):
+        """update should use urllib.request.urlretrieve, not MitreAttackData.stix_store_to_file."""
+        import urllib.request
+
+        downloaded = {}
+
+        def mock_urlretrieve(url, dest):
+            downloaded["url"] = url
+            downloaded["dest"] = dest
+            # Write a minimal valid JSON so reset_provider + status don't error
+            import json
+            with open(dest, "w") as f:
+                json.dump({"type": "bundle", "objects": []}, f)
+
+        monkeypatch.setattr(urllib.request, "urlretrieve", mock_urlretrieve)
+
+        # Point STIX cache to tmp_path so no real file exists
+        monkeypatch.setenv("ATHF_STIX_CACHE", str(tmp_path / "stix-data"))
+
+        from athf.core import attack_matrix
+        attack_matrix.reset_provider(attack_matrix.FallbackProvider())
+
+        runner = CliRunner()
+        result = runner.invoke(attack, ["update"])
+
+        assert "url" in downloaded, "urlretrieve was not called"
+        assert "enterprise-attack" in downloaded["url"]
+        assert result.exit_code == 0 or "successfully" in result.output.lower()
