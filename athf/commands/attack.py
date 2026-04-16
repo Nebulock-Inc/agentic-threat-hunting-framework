@@ -1,7 +1,10 @@
 """ATT&CK data management commands."""
 
+import json
+import re
 import time
 import urllib.request
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import click
@@ -30,6 +33,32 @@ def attack() -> None:
     """
 
 
+_STIX_ID_RE = re.compile(r"^[a-z][a-z0-9-]+--[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+
+
+def _sanitize_stix_bundle(path: Path) -> None:
+    """Fix known-bad fields in the MITRE STIX bundle that cause stix2 validation errors.
+
+    The upstream bundle sometimes ships DataComponent objects with empty
+    ``x_mitre_data_source_ref`` values.  The ``stix2`` library rejects
+    these because they don't match the STIX identifier format.  We
+    strip those invalid entries so ``MitreAttackData`` can load the file.
+    """
+    with open(path, "r") as f:
+        bundle = json.load(f)
+
+    modified = False
+    for obj in bundle.get("objects", []):
+        ref = obj.get("x_mitre_data_source_ref")
+        if ref is not None and not _STIX_ID_RE.match(ref):
+            del obj["x_mitre_data_source_ref"]
+            modified = True
+
+    if modified:
+        with open(path, "w") as f:
+            json.dump(bundle, f)
+
+
 @attack.command()
 @click.option("--force", is_flag=True, help="Re-download even if cache exists")
 def update(force: bool) -> None:
@@ -44,7 +73,7 @@ def update(force: bool) -> None:
       athf attack update --force
     """
     try:
-        from mitreattack.stix20 import MitreAttackData
+        from mitreattack.stix20 import MitreAttackData  # noqa: F401
     except ImportError:
         console.print("[red]Error: mitreattack-python is not installed.[/red]")
         console.print("[dim]Install it with: pip install 'athf[attack]'[/dim]")
@@ -73,6 +102,7 @@ def update(force: bool) -> None:
 
     try:
         urllib.request.urlretrieve(_STIX_URL, str(stix_path))
+        _sanitize_stix_bundle(stix_path)
         # Reset provider so it picks up the new data
         reset_provider()
         console.print("[green]ATT&CK STIX data downloaded successfully.[/green]")

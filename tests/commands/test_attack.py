@@ -1,9 +1,11 @@
 """Tests for athf.commands.attack - ATT&CK CLI commands."""
 
+import json
+
 import pytest
 from click.testing import CliRunner
 
-from athf.commands.attack import attack
+from athf.commands.attack import _sanitize_stix_bundle, attack
 
 
 @pytest.mark.unit
@@ -91,14 +93,32 @@ class TestAttackUpdate:
 
     def test_update_downloads_via_urllib(self, monkeypatch, tmp_path):
         """update should use urllib.request.urlretrieve, not MitreAttackData.stix_store_to_file."""
+        import builtins
+        import types
         import urllib.request
+
+        # Ensure the mitreattack import inside update() succeeds even when
+        # the package is not installed, by providing a stub module.
+        original_import = builtins.__import__
+        fake_mitreattack = types.ModuleType("mitreattack")
+        fake_stix20 = types.ModuleType("mitreattack.stix20")
+        fake_stix20.MitreAttackData = type("MitreAttackData", (), {})
+        fake_mitreattack.stix20 = fake_stix20
+
+        def mock_import(name, *args, **kwargs):
+            if name == "mitreattack.stix20":
+                return fake_stix20
+            if name == "mitreattack":
+                return fake_mitreattack
+            return original_import(name, *args, **kwargs)
+
+        monkeypatch.setattr(builtins, "__import__", mock_import)
 
         downloaded = {}
 
         def mock_urlretrieve(url, dest):
             downloaded["url"] = url
             downloaded["dest"] = dest
-            # Write a minimal valid JSON so reset_provider + status don't error
             import json
             with open(dest, "w") as f:
                 json.dump({"type": "bundle", "objects": []}, f)
@@ -117,3 +137,56 @@ class TestAttackUpdate:
         assert "url" in downloaded, "urlretrieve was not called"
         assert "enterprise-attack" in downloaded["url"]
         assert result.exit_code == 0 or "successfully" in result.output.lower()
+
+
+@pytest.mark.unit
+class TestSanitizeStixBundle:
+    """Test _sanitize_stix_bundle strips invalid x_mitre_data_source_ref."""
+
+    def test_removes_empty_refs(self, tmp_path):
+        bundle = {
+            "type": "bundle",
+            "objects": [
+                {"type": "x-mitre-data-component", "x_mitre_data_source_ref": ""},
+                {"type": "x-mitre-data-component", "x_mitre_data_source_ref": "bad-value"},
+                {
+                    "type": "x-mitre-data-component",
+                    "x_mitre_data_source_ref": "x-mitre-data-source--abcd1234-abcd-abcd-abcd-abcdef123456",
+                },
+                {"type": "attack-pattern", "name": "no ref field"},
+            ],
+        }
+        path = tmp_path / "enterprise-attack.json"
+        with open(path, "w") as f:
+            json.dump(bundle, f)
+
+        _sanitize_stix_bundle(path)
+
+        with open(path, "r") as f:
+            result = json.load(f)
+
+        objects = result["objects"]
+        assert "x_mitre_data_source_ref" not in objects[0]
+        assert "x_mitre_data_source_ref" not in objects[1]
+        assert objects[2]["x_mitre_data_source_ref"] == "x-mitre-data-source--abcd1234-abcd-abcd-abcd-abcdef123456"
+        assert objects[3] == {"type": "attack-pattern", "name": "no ref field"}
+
+    def test_noop_when_all_refs_valid(self, tmp_path):
+        bundle = {
+            "type": "bundle",
+            "objects": [
+                {
+                    "type": "x-mitre-data-component",
+                    "x_mitre_data_source_ref": "x-mitre-data-source--abcd1234-abcd-abcd-abcd-abcdef123456",
+                },
+            ],
+        }
+        path = tmp_path / "enterprise-attack.json"
+        with open(path, "w") as f:
+            json.dump(bundle, f)
+
+        mtime_before = path.stat().st_mtime
+        _sanitize_stix_bundle(path)
+        mtime_after = path.stat().st_mtime
+
+        assert mtime_before == mtime_after
