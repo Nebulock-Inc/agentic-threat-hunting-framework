@@ -391,7 +391,7 @@ class OllamaProvider(LLMProvider):
 
         start = time.monotonic()
         try:
-            resp = urllib.request.urlopen(req)
+            resp = urllib.request.urlopen(req, timeout=30)
         except urllib.error.URLError as exc:
             raise ConnectionError(
                 "Cannot reach Ollama at {}. Is it running? Error: {}".format(self.base_url, exc)
