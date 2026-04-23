@@ -1,0 +1,121 @@
+version: "1.0"
+agent: hypothesis-generator
+description: "Eval cases for HypothesisGeneratorAgent"
+
+cases:
+  - id: hg-001
+    description: "LSASS credential dumping on Windows"
+    tags: [credential-access, windows, T1003.001]
+    input:
+      threat_intel: >
+        Adversaries targeting LSASS (Local Security Authority Subsystem Service)
+        to extract credential material including NTLM hashes and Kerberos tickets.
+        Common tools include Mimikatz, ProcDump, and Task Manager.
+      past_hunts: []
+      environment:
+        platforms: [Windows]
+        data_sources: [EDR, Windows Event Logs, Sysmon]
+    expected:
+      mitre_techniques_contain: [T1003.001]
+      data_sources_any_of: [EDR, Process Telemetry, Sysmon, Windows Event]
+      observables_min_count: 2
+      hypothesis_pattern_match: true
+    rubric_weights:
+      technique_accuracy: 0.35
+      data_source_relevance: 0.25
+      hypothesis_quality: 0.25
+      observable_specificity: 0.15
+
+  - id: hg-002
+    description: "Pass-the-Hash lateral movement via SMB"
+    tags: [lateral-movement, windows, T1550.002]
+    input:
+      threat_intel: >
+        Adversaries using harvested NTLM hashes to authenticate to remote systems
+        without knowing the plaintext password. Often follows credential dumping.
+        Commonly executed via Mimikatz sekurlsa::pth or Impacket psexec.py.
+      past_hunts: []
+      environment:
+        platforms: [Windows]
+        data_sources: [Windows Security Events, EDR, Network Logs]
+    expected:
+      mitre_techniques_contain: [T1550.002]
+      data_sources_any_of: [Windows Security Events, Windows Event, EDR, Network]
+      observables_min_count: 2
+      hypothesis_pattern_match: true
+    rubric_weights:
+      technique_accuracy: 0.35
+      data_source_relevance: 0.25
+      hypothesis_quality: 0.25
+      observable_specificity: 0.15
+
+  - id: hg-003
+    description: "Kerberoasting service account targeting"
+    tags: [credential-access, windows, T1558.003]
+    input:
+      threat_intel: >
+        Adversaries requesting Kerberos TGS tickets for service accounts
+        (SPNs) to crack offline. Targets high-privilege service accounts
+        like SQL Server, IIS, backup agents. Observable via Windows Security
+        Event 4769 (Kerberos Service Ticket request) with RC4 encryption.
+      past_hunts: []
+      environment:
+        platforms: [Windows]
+        data_sources: [Windows Security Events, Active Directory Logs, EDR]
+    expected:
+      mitre_techniques_contain: [T1558.003]
+      data_sources_any_of: [Windows Security Events, Active Directory, Kerberos, EDR]
+      observables_min_count: 2
+      hypothesis_pattern_match: true
+    rubric_weights:
+      technique_accuracy: 0.35
+      data_source_relevance: 0.25
+      hypothesis_quality: 0.25
+      observable_specificity: 0.15
+
+  - id: hg-004
+    description: "PowerShell Empire C2 beacon detection on Windows"
+    tags: [command-and-control, windows, T1059.001]
+    input:
+      threat_intel: >
+        Adversaries using PowerShell-based C2 frameworks (Empire, Covenant, Metasploit)
+        that communicate via HTTPS to blend with legitimate web traffic.
+        Beacons typically exhibit regular intervals, encoded payloads,
+        and unusual PowerShell process ancestry.
+      past_hunts: []
+      environment:
+        platforms: [Windows]
+        data_sources: [EDR, PowerShell Script Block Logging, Network Proxy Logs]
+    expected:
+      mitre_techniques_contain: [T1059.001]
+      data_sources_any_of: [EDR, PowerShell, Network, Proxy]
+      observables_min_count: 2
+      hypothesis_pattern_match: true
+    rubric_weights:
+      technique_accuracy: 0.30
+      data_source_relevance: 0.30
+      hypothesis_quality: 0.25
+      observable_specificity: 0.15
+
+  - id: hg-005
+    description: "macOS LaunchDaemon persistence mechanism"
+    tags: [persistence, macos, T1543.004]
+    input:
+      threat_intel: >
+        Adversaries installing LaunchDaemon plist files in /Library/LaunchDaemons
+        to persist across reboots with root privileges. Commonly used by malware
+        families targeting macOS developers and enterprise environments.
+      past_hunts: []
+      environment:
+        platforms: [macOS]
+        data_sources: [EDR, macOS Unified Log, File System Monitoring]
+    expected:
+      mitre_techniques_contain: [T1543.004]
+      data_sources_any_of: [EDR, macOS, Unified Log, File System, FSEvents]
+      observables_min_count: 1
+      hypothesis_pattern_match: true
+    rubric_weights:
+      technique_accuracy: 0.35
+      data_source_relevance: 0.25
+      hypothesis_quality: 0.25
+      observable_specificity: 0.15

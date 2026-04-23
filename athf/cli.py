@@ -12,6 +12,7 @@ load_dotenv()
 from athf.__version__ import __version__  # noqa: E402
 from athf.commands import attack, context, env, hunt, init, investigate, research, similar, splunk  # noqa: E402
 from athf.commands.agent import agent  # noqa: E402
+from athf.commands.harness import harness  # noqa: E402
 from athf.commands.mcp import mcp  # noqa: E402
 from athf.plugin_system import PluginRegistry  # noqa: E402
 
@@ -97,6 +98,9 @@ cli.add_command(similar)
 
 # Agent commands
 cli.add_command(agent)
+
+# Harness engineering commands
+cli.add_command(harness)
 
 # MCP server command
 cli.add_command(mcp)

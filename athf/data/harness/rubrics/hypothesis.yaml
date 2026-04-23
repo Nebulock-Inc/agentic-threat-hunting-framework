@@ -1,0 +1,44 @@
+version: "1.0"
+name: "Hypothesis Quality Rubric"
+description: >
+  Scoring dimensions for evaluating hunt hypothesis quality.
+  Each dimension is scored 0.0–1.0 and combined using weights.
+
+dimensions:
+  technique_accuracy:
+    weight: 0.30
+    description: "ATT&CK techniques are correctly identified and formatted"
+    criteria:
+      - "Technique IDs use correct format (T1234 or T1234.001)"
+      - "Techniques are relevant to the described adversary behavior"
+      - "Sub-technique specificity where applicable"
+
+  data_source_relevance:
+    weight: 0.25
+    description: "Data sources are appropriate and available for the hypothesis"
+    criteria:
+      - "Named data sources can realistically capture the behavior"
+      - "At least one specific telemetry source named (not just 'logs')"
+      - "Data sources match the target platform"
+
+  hypothesis_quality:
+    weight: 0.30
+    description: "Hypothesis is well-formed, testable, and behavior-focused"
+    criteria:
+      - "Follows 'Adversaries use X to Y on Z' pattern"
+      - "Focuses on behavior/TTP, not just IOCs"
+      - "Is falsifiable — can be confirmed or denied with a query"
+      - "Scoped appropriately (not too broad or narrow)"
+
+  observable_specificity:
+    weight: 0.15
+    description: "Expected observables are specific and actionable"
+    criteria:
+      - "Observables map to real telemetry fields"
+      - "At least 2 distinct observable types listed"
+      - "Observables help distinguish malicious from benign activity"
+
+scoring:
+  pass_threshold: 0.70
+  warn_threshold: 0.50
+  dimensions_required: [technique_accuracy, data_source_relevance, hypothesis_quality]

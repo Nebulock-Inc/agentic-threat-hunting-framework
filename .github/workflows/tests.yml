@@ -124,6 +124,37 @@ jobs:
         markdownlint '**/*.md' --ignore node_modules --ignore .github
       continue-on-error: true  # Don't fail build on style issues
 
+  harness-eval:
+    name: Harness Eval (offline, CI-safe)
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install ATHF
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .
+
+    - name: Run harness eval — hypothesis-generator (offline)
+      run: |
+        athf harness eval --agent hypothesis-generator --format json
+
+    - name: Run harness eval — hunt-researcher (offline)
+      run: |
+        athf harness eval --agent hunt-researcher --format json
+
+    - name: List available eval datasets
+      run: |
+        athf harness list-datasets
+
   build:
     name: Build Package
     runs-on: ubuntu-latest

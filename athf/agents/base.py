@@ -13,6 +13,27 @@ OutputT = TypeVar("OutputT")
 logger = logging.getLogger(__name__)
 
 
+# ---------------------------------------------------------------------------
+# Harness sensor protocol
+# ---------------------------------------------------------------------------
+
+class Sensor:
+    """Base class for harness sensors (feedback controls).
+
+    Sensors observe agent output after execution and surface quality signals.
+    Attach sensors to agents via Agent.attach_sensor() to run them automatically.
+    """
+
+    def observe(self, result: "AgentResult") -> None:
+        """Observe an agent result.  Override in subclasses.
+
+        Args:
+            result: The AgentResult to observe.  May be mutated (e.g., to
+                append warnings) but should not change success/data.
+        """
+        pass
+
+
 @dataclass
 class AgentResult(Generic[OutputT]):
     """Standard result format for all agents."""
@@ -39,10 +60,47 @@ class Agent(ABC, Generic[InputT, OutputT]):
             config: Optional configuration dictionary
         """
         self.config = config or {}
+        self._sensors: List[Sensor] = []
         self._setup()
 
     def _setup(self) -> None:
         """Optional setup method for subclasses."""
+        pass
+
+    def attach_sensor(self, sensor: Sensor) -> None:
+        """Attach a harness sensor to observe every execution result.
+
+        Sensors are called after execute() completes successfully.  They can
+        append warnings to the result or log quality signals, but must not
+        raise exceptions.
+
+        Args:
+            sensor: A Sensor instance to attach.
+        """
+        self._sensors.append(sensor)
+
+    def _run_sensors(self, result: AgentResult[OutputT]) -> None:
+        """Run all attached sensors against a result (errors are logged, not raised)."""
+        for sensor in self._sensors:
+            try:
+                sensor.observe(result)
+            except Exception as exc:
+                logger.debug("Sensor %s raised an error: %s", sensor.__class__.__name__, exc)
+
+    def _pre_execute_hook(self, input_data: InputT) -> None:
+        """Called before execute().  Override to add input validation guides.
+
+        Args:
+            input_data: The input about to be processed.
+        """
+        pass
+
+    def _post_execute_hook(self, result: AgentResult[OutputT]) -> None:
+        """Called after execute().  Override to add output observation logic.
+
+        Args:
+            result: The result just produced by execute().
+        """
         pass
 
     @abstractmethod
@@ -58,8 +116,16 @@ class Agent(ABC, Generic[InputT, OutputT]):
         pass
 
     def __call__(self, input_data: InputT) -> AgentResult[OutputT]:
-        """Allow calling agent as a function."""
-        return self.execute(input_data)
+        """Allow calling agent as a function.
+
+        Runs pre/post hooks and sensors around execute().
+        """
+        self._pre_execute_hook(input_data)
+        result = self.execute(input_data)
+        self._post_execute_hook(result)
+        if result.success:
+            self._run_sensors(result)
+        return result
 
 
 class DeterministicAgent(Agent[InputT, OutputT]):

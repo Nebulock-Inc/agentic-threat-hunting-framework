@@ -1,0 +1,37 @@
+version: "1.0"
+agent: hunt-researcher
+description: "Eval cases for HuntResearcherAgent (5-skill methodology)"
+
+cases:
+  - id: hr-001
+    description: "LSASS memory access research coverage"
+    tags: [credential-access, windows, T1003.001]
+    input:
+      topic: "LSASS memory dumping for credential theft"
+      mitre_technique: "T1003.001"
+      depth: "basic"
+      web_search_enabled: false
+    expected:
+      skills_required: [system_research, adversary_tradecraft, telemetry_mapping, related_work, synthesis]
+      recommended_hypothesis_present: true
+      research_id_format: "R-\\d{4}"
+    rubric_weights:
+      skill_completeness: 0.40
+      synthesis_quality: 0.30
+      hypothesis_recommendation: 0.30
+
+  - id: hr-002
+    description: "Kerberoasting research coverage"
+    tags: [credential-access, windows, T1558.003]
+    input:
+      topic: "Kerberoasting service ticket abuse"
+      mitre_technique: "T1558.003"
+      depth: "basic"
+      web_search_enabled: false
+    expected:
+      skills_required: [system_research, adversary_tradecraft, telemetry_mapping, related_work, synthesis]
+      recommended_hypothesis_present: true
+    rubric_weights:
+      skill_completeness: 0.40
+      synthesis_quality: 0.30
+      hypothesis_recommendation: 0.30
