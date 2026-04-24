@@ -103,7 +103,10 @@ def reset_server() -> None:
     _workspace = None
 
 
-def main(workspace_path: Optional[str] = None) -> None:
-    """Entry point for running the MCP server via stdio."""
+def main(workspace_path: Optional[str] = None, transport: str = "stdio", port: int = 3100) -> None:
+    """Entry point for running the MCP server."""
     server = create_server(workspace_path)
-    server.run(transport="stdio")
+    if transport in ("sse", "streamable-http"):
+        server.settings.host = "0.0.0.0"
+        server.settings.port = port
+    server.run(transport=transport)
