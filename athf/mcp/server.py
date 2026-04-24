@@ -110,3 +110,15 @@ def main(workspace_path: Optional[str] = None, transport: str = "stdio", port: i
         server.settings.host = "0.0.0.0"
         server.settings.port = port
     server.run(transport=transport)
+
+
+def cli() -> None:
+    """CLI entry point for athf-mcp standalone command."""
+    import argparse
+
+    parser = argparse.ArgumentParser(description="ATHF MCP Server")
+    parser.add_argument("--workspace", default=None, help="Workspace path")
+    parser.add_argument("--transport", default="stdio", choices=["stdio", "sse", "streamable-http"])
+    parser.add_argument("--port", type=int, default=3100, help="HTTP port for SSE/HTTP transport")
+    args = parser.parse_args()
+    main(workspace_path=args.workspace, transport=args.transport, port=args.port)

@@ -120,7 +120,7 @@ Discussions = "https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/
 
 [project.scripts]
 athf = "athf.cli:main"
-athf-mcp = "athf.mcp.server:main"
+athf-mcp = "athf.mcp.server:cli"
 
 [tool.setuptools]
 packages = ["athf", "athf.agents", "athf.agents.llm", "athf.commands", "athf.core", "athf.data", "athf.mcp", "athf.mcp.tools", "athf.utils"]
