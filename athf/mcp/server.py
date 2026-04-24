@@ -8,6 +8,7 @@ Usage:
 
 import json
 import logging
+import sys
 from pathlib import Path
 from typing import Any, Optional
 
@@ -27,6 +28,16 @@ def get_workspace() -> Path:
 def _json_result(data: Any) -> str:
     """Serialize a result to JSON string for MCP tool output."""
     return json.dumps(data, indent=2, default=str)
+
+
+def _discover_plugin_tools():
+    """Discover MCP tool registration functions from installed plugins."""
+    if sys.version_info >= (3, 10):
+        from importlib.metadata import entry_points
+        return list(entry_points(group="athf.mcp_tools"))
+    else:
+        from importlib.metadata import entry_points
+        return list(entry_points().get("athf.mcp_tools", []))
 
 
 def create_server(workspace_path: Optional[str] = None) -> "FastMCP":  # type: ignore[name-defined]  # noqa: F821
@@ -73,6 +84,14 @@ def create_server(workspace_path: Optional[str] = None) -> "FastMCP":  # type: i
     register_research_tools(mcp)
     register_investigate_tools(mcp)
     register_agent_tools(mcp)
+
+    for ep in _discover_plugin_tools():
+        try:
+            register_fn = ep.load()
+            register_fn(mcp, _workspace)
+            logger.info("Loaded MCP tools from plugin: %s", ep.name)
+        except Exception:
+            logger.warning("Failed to load MCP tools from plugin: %s", ep.name, exc_info=True)
 
     logger.info("ATHF MCP server initialized with workspace: %s", _workspace)
     return mcp

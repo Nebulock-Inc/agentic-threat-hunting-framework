@@ -4,7 +4,7 @@ import json
 import os
 import pytest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 pytest.importorskip("mcp", reason="MCP optional dependency not installed")
 
@@ -118,3 +118,61 @@ class TestCreateServer:
         assert "athf_investigate_list" in tool_names
         assert "athf_agent_run_hypothesis" in tool_names
         assert "athf_agent_run_researcher" in tool_names
+
+
+class TestPluginToolDiscovery:
+    def test_discovers_plugin_mcp_tools(self, tmp_path):
+        """Plugin entry points in athf.mcp_tools group get called with (mcp, workspace)."""
+        (tmp_path / ".athfconfig.yaml").write_text("workspace_name: test\n")
+        (tmp_path / "hunts").mkdir()
+        (tmp_path / "research").mkdir()
+        (tmp_path / "investigations").mkdir()
+
+        call_log = []
+
+        def fake_register(mcp, workspace):
+            call_log.append({"mcp": mcp, "workspace": workspace})
+
+        fake_ep = type("FakeEP", (), {"load": lambda self: fake_register, "name": "test-plugin"})()
+
+        with patch("athf.mcp.server._discover_plugin_tools", return_value=[fake_ep]):
+            from athf.mcp.server import create_server
+            server = create_server(str(tmp_path))
+
+        assert len(call_log) == 1
+        assert call_log[0]["workspace"] == tmp_path
+        assert call_log[0]["mcp"] is server
+
+    def test_plugin_import_error_does_not_crash_server(self, tmp_path):
+        """A broken plugin should log a warning, not crash the server."""
+        (tmp_path / ".athfconfig.yaml").write_text("workspace_name: test\n")
+        (tmp_path / "hunts").mkdir()
+        (tmp_path / "research").mkdir()
+        (tmp_path / "investigations").mkdir()
+
+        def broken_register(mcp, workspace):
+            raise ImportError("Missing dependency xyz")
+
+        fake_ep = type("FakeEP", (), {"load": lambda self: broken_register, "name": "broken-plugin"})()
+
+        with patch("athf.mcp.server._discover_plugin_tools", return_value=[fake_ep]):
+            from athf.mcp.server import create_server
+            server = create_server(str(tmp_path))
+
+        assert server is not None
+
+    def test_no_plugins_still_works(self, tmp_path):
+        """Server works fine when no plugins define athf.mcp_tools."""
+        (tmp_path / ".athfconfig.yaml").write_text("workspace_name: test\n")
+        (tmp_path / "hunts").mkdir()
+        (tmp_path / "research").mkdir()
+        (tmp_path / "investigations").mkdir()
+
+        with patch("athf.mcp.server._discover_plugin_tools", return_value=[]):
+            from athf.mcp.server import create_server
+            server = create_server(str(tmp_path))
+
+        import asyncio
+        tools = asyncio.run(server.list_tools())
+        tool_names = [t.name for t in tools]
+        assert "athf_hunt_list" in tool_names
