@@ -262,7 +262,7 @@ class TestHuntNewCommand:
         assert match
         hunt_id = match.group(1)
         content = next((temp_workspace / "hunts").rglob(f"{hunt_id}.md")).read_text()
-        assert "collection" in content
+        assert "tactics: [collection]" in content or "tactics:\n- collection" in content
 
     def test_hunt_new_with_multiple_tactics(self, runner, temp_workspace):
         """Test creating hunt with multiple tactics."""
