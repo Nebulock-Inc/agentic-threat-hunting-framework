@@ -13,12 +13,30 @@ from rich.console import Console
 from rich.prompt import Prompt
 from rich.table import Table
 
+from athf.core.attack_matrix import get_technique
 from athf.core.hunt_manager import HuntManager
 from athf.core.hunt_parser import validate_hunt_file
 from athf.core.template_engine import render_hunt_template
 from athf.utils.validation import validate_hunt_id, validate_research_id
 
 console = Console()
+
+
+def _default_tactics_for_technique(technique_id: str) -> List[str]:
+    """Best-effort tactic auto-derivation from an ATT&CK technique ID.
+
+    Looks up the technique in the active ATT&CK data provider and returns
+    its tactic shortnames. Returns an empty list if the technique isn't
+    found or the active provider is the hardcoded fallback (which doesn't
+    carry per-technique metadata) — callers should treat that as "no
+    derivation available" and fall back to their own default.
+    """
+    if not technique_id:
+        return []
+    info = get_technique(technique_id)
+    if info:
+        return list(info.get("tactic_shortnames") or [])
+    return []
 
 
 def get_hunt_directory(is_test: bool = False) -> Path:
@@ -226,7 +244,11 @@ def new(
             return
         hunt_title = title
         hunt_technique = technique or "T1005"
-        hunt_tactics = list(tactic) if tactic else ["collection"]
+        if tactic:
+            hunt_tactics = list(tactic)
+        else:
+            derived = _default_tactics_for_technique(hunt_technique)
+            hunt_tactics = derived if derived else ["collection"]
         hunt_platforms = list(platform) if platform else ["Windows"]
         hunt_data_sources = list(data_source) if data_source else ["SIEM", "EDR"]
     else:
@@ -239,10 +261,16 @@ def new(
         # Title
         hunt_title = Prompt.ask("2. Hunt Title", default=title or f"Hunt for {hunt_technique}")
 
-        # Tactics
+        # Tactics — auto-derive from technique when possible, otherwise prompt
+        # with a generic default the user is likely to override anyway.
         console.print("\n3. Primary Tactic(s) (comma-separated):")
         console.print("   Common: [cyan]persistence, credential-access, collection, lateral-movement[/cyan]")
-        tactic_input = Prompt.ask("   Tactics", default=",".join(tactic) if tactic else "collection")
+        if tactic:
+            tactic_default = ",".join(tactic)
+        else:
+            derived = _default_tactics_for_technique(hunt_technique)
+            tactic_default = ",".join(derived) if derived else "collection"
+        tactic_input = Prompt.ask("   Tactics", default=tactic_default)
         hunt_tactics = [t.strip() for t in tactic_input.split(",")]
 
         # Platform
