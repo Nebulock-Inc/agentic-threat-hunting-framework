@@ -176,6 +176,94 @@ class TestHuntNewCommand:
         # Second hunt should have ID incremented by 1
         assert num2 == num1 + 1, f"Expected {hunt_id_2} to be one more than {hunt_id_1}"
 
+    def test_hunt_new_auto_derives_tactic_from_technique(self, runner, temp_workspace, monkeypatch):
+        """When --tactic is omitted, tactic should be auto-derived from --technique
+        via the ATT&CK provider. With STIX data, T1003.001 must yield
+        credential-access (NOT the legacy hardcoded "collection" default).
+
+        Patches `get_technique` so the test runs without a STIX cache.
+        """
+        import re
+
+        # Patch the provider lookup used by hunt.py. We patch on the
+        # module object directly because `athf.commands.hunt` has a
+        # click Group named `hunt` that shadows attribute-style lookup.
+        import sys
+
+        hunt_mod = sys.modules["athf.commands.hunt"]
+
+        def fake_get_technique(tid):
+            if tid == "T1003.001":
+                return {
+                    "id": "T1003.001",
+                    "name": "LSASS Memory",
+                    "tactic_shortnames": ["credential-access"],
+                }
+            return None
+
+        monkeypatch.setattr(hunt_mod, "get_technique", fake_get_technique)
+
+        runner.invoke(init, ["--non-interactive"])
+
+        result = runner.invoke(
+            hunt,
+            [
+                "new",
+                "--title",
+                "Auto-tactic Hunt",
+                "--technique",
+                "T1003.001",
+                "--non-interactive",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        match = re.search(r"Created (H-\d+)", result.output)
+        assert match, f"Could not find hunt ID in output: {result.output}"
+        hunt_id = match.group(1)
+
+        hunt_files = list((temp_workspace / "hunts").rglob(f"{hunt_id}.md"))
+        assert len(hunt_files) == 1
+        content = hunt_files[0].read_text()
+
+        assert "credential-access" in content, (
+            "Expected auto-derived tactic 'credential-access' in hunt frontmatter; " "got hunt content:\n" + content
+        )
+        # Make sure we did NOT regress to the legacy hardcoded default.
+        assert "tactics: [collection]" not in content
+        assert "tactics:\n- collection" not in content
+
+    def test_hunt_new_falls_back_when_technique_unknown(self, runner, temp_workspace, monkeypatch):
+        """If the provider can't resolve the technique (e.g. fallback provider in
+        use), the legacy default of 'collection' is preserved so existing
+        behavior is unchanged for users without STIX data."""
+        import re
+
+        import sys
+
+        hunt_mod = sys.modules["athf.commands.hunt"]
+        monkeypatch.setattr(hunt_mod, "get_technique", lambda _tid: None)
+
+        runner.invoke(init, ["--non-interactive"])
+        result = runner.invoke(
+            hunt,
+            [
+                "new",
+                "--title",
+                "Fallback Default Hunt",
+                "--technique",
+                "T1003.001",
+                "--non-interactive",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        match = re.search(r"Created (H-\d+)", result.output)
+        assert match
+        hunt_id = match.group(1)
+        content = next((temp_workspace / "hunts").rglob(f"{hunt_id}.md")).read_text()
+        assert "tactics: [collection]" in content or "tactics:\n- collection" in content
+
     def test_hunt_new_with_multiple_tactics(self, runner, temp_workspace):
         """Test creating hunt with multiple tactics."""
         import re
