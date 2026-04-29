@@ -30,7 +30,7 @@ def _json_result(data: Any) -> str:
     return json.dumps(data, indent=2, default=str)
 
 
-def _discover_plugin_tools():
+def _discover_plugin_tools() -> list:
     """Discover MCP tool registration functions from installed plugins."""
     if sys.version_info >= (3, 10):
         from importlib.metadata import entry_points
@@ -78,12 +78,14 @@ def create_server(workspace_path: Optional[str] = None) -> "FastMCP":  # type: i
     from athf.mcp.tools.research_tools import register_research_tools
     from athf.mcp.tools.investigate_tools import register_investigate_tools
     from athf.mcp.tools.agent_tools import register_agent_tools
+    from athf.mcp.tools.attack_tools import register_attack_tools
 
     register_hunt_tools(mcp)
     register_search_tools(mcp)
     register_research_tools(mcp)
     register_investigate_tools(mcp)
     register_agent_tools(mcp)
+    register_attack_tools(mcp)
 
     for ep in _discover_plugin_tools():
         try:
