@@ -67,15 +67,22 @@ dmypy.json
 # Plan documents (session-specific, not shared)
 docs/plans/
 
+# Talk submissions (private)
+talks/
+
 # Worktrees
 .worktrees/
 
 # Virtual environments
 tools/mcp/venv/
 venv/
+demo-venv/
 ENV/
 env/
 .venv/
+
+# Local plan documents (session-specific)
+Plans/
 
 # Automation loop (local config and runtime state — never commit)
 automation/config.json

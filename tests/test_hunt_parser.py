@@ -284,14 +284,4 @@ title: Test Hunt
             parse_hunt_file(Path("/nonexistent/path/hunt.md"))
 
 
-class TestHuntDirectory:
-    """Test suite for hunt directory structure."""
-
-    def test_hunt_directory_structure(self):
-        """Test that hunt files follow expected directory structure."""
-        # This test verifies the test structure is correct
-        # Actual hunt examples may or may not exist
-        assert True
-
-
 # Run tests with: pytest tests/test_hunt_parser.py -v

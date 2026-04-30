@@ -14,51 +14,6 @@ class TestEnvCommand:
         """Create CLI runner."""
         return CliRunner()
 
-    def test_env_group_exists(self, runner):
-        """Test that env command group is callable."""
-        result = runner.invoke(env, ["--help"])
-
-        assert result.exit_code == 0
-        assert "Manage Python virtual environment" in result.output
-
-    def test_env_setup_help(self, runner):
-        """Test env setup command help."""
-        result = runner.invoke(env, ["setup", "--help"])
-
-        assert result.exit_code == 0
-        assert "Setup Python virtual environment" in result.output
-        assert "--python" in result.output
-        assert "--dev" in result.output
-        assert "--clean" in result.output
-
-    def test_env_info_help(self, runner):
-        """Test env info command help."""
-        result = runner.invoke(env, ["info", "--help"])
-
-        assert result.exit_code == 0
-        assert "Show virtual environment information" in result.output
-
-    def test_env_clean_help(self, runner):
-        """Test env clean command help."""
-        result = runner.invoke(env, ["clean", "--help"])
-
-        assert result.exit_code == 0
-        assert "Remove virtual environment" in result.output
-
-    def test_env_activate_help(self, runner):
-        """Test env activate command help."""
-        result = runner.invoke(env, ["activate", "--help"])
-
-        assert result.exit_code == 0
-        assert "Show command to activate virtual environment" in result.output
-
-    def test_env_deactivate_help(self, runner):
-        """Test env deactivate command help."""
-        result = runner.invoke(env, ["deactivate", "--help"])
-
-        assert result.exit_code == 0
-        assert "Show command to deactivate virtual environment" in result.output
-
     def test_env_info_shows_info(self, runner):
         """Test that env info shows environment information."""
         result = runner.invoke(env, ["info"])

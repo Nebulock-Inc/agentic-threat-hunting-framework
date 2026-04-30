@@ -20,33 +20,6 @@ from athf.core.llm_provider import (
 
 
 # ---------------------------------------------------------------------------
-# LLMResponse dataclass
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-class TestLLMResponse:
-    """Test the LLMResponse data class."""
-
-    def test_llm_response_dataclass(self):
-        """All fields are correctly stored and accessible."""
-        resp = LLMResponse(
-            text="Hello world",
-            input_tokens=100,
-            output_tokens=50,
-            model="test-model",
-            duration_ms=250,
-            cost_usd=0.001,
-        )
-        assert resp.text == "Hello world"
-        assert resp.input_tokens == 100
-        assert resp.output_tokens == 50
-        assert resp.model == "test-model"
-        assert resp.duration_ms == 250
-        assert resp.cost_usd == 0.001
-
-
-# ---------------------------------------------------------------------------
 # LiteLLM provider
 # ---------------------------------------------------------------------------
 
@@ -85,6 +58,14 @@ class TestLiteLLMProvider:
         assert result.output_tokens == 40
         assert result.model == "anthropic/claude-sonnet-4-5-20250514"
         assert provider.provider_name == "litellm"
+
+        # Verify the request was built correctly
+        mock_litellm.completion.assert_called_once_with(
+            model="anthropic/claude-sonnet-4-5-20250514",
+            messages=[{"role": "user", "content": "Hi"}],
+            max_tokens=4096,
+            temperature=0.7,
+        )
 
     def test_litellm_provider_import_error(self):
         """ImportError is raised when litellm is not installed."""
@@ -188,6 +169,35 @@ class TestOllamaProvider:
         assert result.cost_usd == 0.0
         assert provider.provider_name == "ollama"
 
+    def test_ollama_provider_sends_correct_payload(self):
+        """Verify the JSON payload sent to Ollama's /api/chat endpoint."""
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = json.dumps(
+            {
+                "message": {"content": "ok"},
+                "prompt_eval_count": 1,
+                "eval_count": 1,
+            }
+        ).encode("utf-8")
+        mock_resp.status = 200
+
+        with patch("urllib.request.urlopen", return_value=mock_resp) as mock_urlopen:
+            provider = OllamaProvider(model="llama3")
+            provider.complete(
+                messages=[{"role": "user", "content": "test"}],
+                max_tokens=512,
+                temperature=0.3,
+            )
+
+        sent_request = mock_urlopen.call_args[0][0]
+        sent_body = json.loads(sent_request.data.decode("utf-8"))
+        assert sent_body["model"] == "llama3"
+        assert sent_body["messages"] == [{"role": "user", "content": "test"}]
+        assert sent_body["stream"] is False
+        assert sent_body["options"]["num_predict"] == 512
+        assert sent_body["options"]["temperature"] == 0.3
+        assert "api/chat" in sent_request.full_url
+
     def test_ollama_provider_connection_error(self):
         """ConnectionError is raised when Ollama is unreachable."""
         from urllib.error import URLError
@@ -242,6 +252,14 @@ class TestOpenAICompatibleProvider:
         assert result.input_tokens == 60
         assert result.output_tokens == 30
         assert provider.provider_name == "openai"
+
+        # Verify the request was built correctly
+        mock_client.chat.completions.create.assert_called_once_with(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": "Hi"}],
+            max_tokens=4096,
+            temperature=0.7,
+        )
 
 
 # ---------------------------------------------------------------------------

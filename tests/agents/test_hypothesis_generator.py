@@ -207,15 +207,6 @@ class TestHypothesisGeneratorDuration:
         assert isinstance(result.metadata["duration_ms"], int)
         assert result.metadata["duration_ms"] >= 0
 
-    def test_duration_ms_is_positive(self):
-        """duration_ms should be a positive integer (execution takes some time)."""
-        mock = MockProvider(VALID_HYPOTHESIS_JSON)
-        agent = HypothesisGeneratorAgent(provider=mock, llm_enabled=True)
-
-        result = agent.execute(_make_input())
-
-        assert result.metadata["duration_ms"] >= 0
-
     def test_template_fallback_includes_duration_ms(self):
         """Template fallback (no LLM) also includes duration_ms."""
         agent = HypothesisGeneratorAgent(llm_enabled=False)

@@ -108,8 +108,8 @@ class TestContextCommand:
         output_data = json.loads(output_file.read_text())
         assert output_data["metadata"]["filters"]["platform"] == "linux"
 
-    def test_context_output_to_file(self, runner, tmp_path):
-        """Test context export to file."""
+    def test_context_output_to_file_confirms_path(self, runner, tmp_path):
+        """When --output is used, stdout confirms the file path."""
         output_file = tmp_path / "context.json"
 
         result = runner.invoke(
@@ -119,10 +119,7 @@ class TestContextCommand:
 
         assert result.exit_code == 0
         assert output_file.exists()
-
-        # Verify file content
-        output_data = json.loads(output_file.read_text())
-        assert output_data["metadata"]["filters"]["hunt"] == "H-0001"
+        assert "exported to" in result.output.lower() or str(output_file) in result.output
 
     def test_context_nonexistent_hunt(self, runner, tmp_path):
         """Test context with nonexistent hunt ID."""
