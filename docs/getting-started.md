@@ -191,6 +191,37 @@ The repository includes [knowledge/hunting-knowledge.md](../knowledge/hunting-kn
 
 **No changes needed** - this file provides universal hunting expertise that AI assistants will apply to your environment.
 
+### Configure an LLM Provider (Optional)
+
+ATHF agents and research commands can use any LLM provider. Without one, they fall back to template-based output — still useful, but without AI-enhanced analysis.
+
+Set **one** of the following environment variables and ATHF auto-detects your provider:
+
+| Provider | Environment Variable | Install Extra |
+|----------|---------------------|---------------|
+| Anthropic (Claude) | `ANTHROPIC_API_KEY` | `pip install 'athf[anthropic]'` |
+| OpenAI (GPT) | `OPENAI_API_KEY` | `pip install 'athf[openai]'` |
+| AWS Bedrock | `AWS_PROFILE` or `AWS_ACCESS_KEY_ID` | `pip install 'athf[bedrock]'` |
+| Ollama (local) | `OLLAMA_HOST` (default: `localhost:11434`) | `pip install 'athf[ollama]'` |
+| Any via LiteLLM | varies | `pip install 'athf[litellm]'` |
+
+```bash
+# Example: configure OpenAI
+export OPENAI_API_KEY=sk-...
+
+# Example: configure a local Ollama instance
+export OLLAMA_HOST=http://localhost:11434
+```
+
+To override auto-detection and explicitly set a provider and model:
+
+```bash
+export ATHF_LLM_PROVIDER=openai
+export ATHF_LLM_MODEL=gpt-4o
+```
+
+See [`config/.env.example`](../config/.env.example) for all supported variables.
+
 ### Test AI Integration and Agent Framework (v0.3.0+)
 
 1. Open your repository in Claude Code, GitHub Copilot, or Cursor
