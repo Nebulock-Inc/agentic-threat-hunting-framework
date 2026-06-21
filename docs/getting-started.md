@@ -197,14 +197,13 @@ ATHF agents and research commands can use any LLM provider. Without one, they fa
 
 Set **one** of the following environment variables and ATHF auto-detects your provider:
 
-| Provider | Environment Variable | Install Extra |
-|----------|---------------------|---------------|
-| Anthropic (Claude) | `ANTHROPIC_API_KEY` | `pip install 'athf[anthropic]'` |
-| OpenAI (GPT) | `OPENAI_API_KEY` | `pip install 'athf[openai]'` |
-| OpenAI (GPT) | `OPENAI_API_HOST` (optional) | `pip install 'athf[openai]'` |
-| AWS Bedrock | `AWS_PROFILE` or `AWS_ACCESS_KEY_ID` | `pip install 'athf[bedrock]'` |
-| Ollama (local) | `OLLAMA_HOST` (default: `localhost:11434`) | `pip install 'athf[ollama]'` |
-| Any via LiteLLM | varies | `pip install 'athf[litellm]'` |
+| Provider           | Environment Variable                              | Install Extra                   |
+|--------------------|---------------------------------------------------|---------------------------------|
+| Anthropic (Claude) | `ANTHROPIC_API_KEY`                               | `pip install 'athf[anthropic]'` |
+| OpenAI (GPT)       | `OPENAI_API_KEY`<br/>`OPENAI_API_HOST` (optional) | `pip install 'athf[openai]'`    |
+| AWS Bedrock        | `AWS_PROFILE` or `AWS_ACCESS_KEY_ID`              | `pip install 'athf[bedrock]'`   |
+| Ollama (local)     | `OLLAMA_HOST` (default: `localhost:11434`)        | `pip install 'athf[ollama]'`    |
+| Any via LiteLLM    | varies                                            | `pip install 'athf[litellm]'`   |
 
 ```bash
 # Example: configure OpenAI
