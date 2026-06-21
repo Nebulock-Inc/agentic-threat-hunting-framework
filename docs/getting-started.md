@@ -201,6 +201,7 @@ Set **one** of the following environment variables and ATHF auto-detects your pr
 |----------|---------------------|---------------|
 | Anthropic (Claude) | `ANTHROPIC_API_KEY` | `pip install 'athf[anthropic]'` |
 | OpenAI (GPT) | `OPENAI_API_KEY` | `pip install 'athf[openai]'` |
+| OpenAI (GPT) | `OPENAI_API_HOST` (optional) | `pip install 'athf[openai]'` |
 | AWS Bedrock | `AWS_PROFILE` or `AWS_ACCESS_KEY_ID` | `pip install 'athf[bedrock]'` |
 | Ollama (local) | `OLLAMA_HOST` (default: `localhost:11434`) | `pip install 'athf[ollama]'` |
 | Any via LiteLLM | varies | `pip install 'athf[litellm]'` |
@@ -211,6 +212,9 @@ export OPENAI_API_KEY=sk-...
 
 # Example: configure a local Ollama instance
 export OLLAMA_HOST=http://localhost:11434
+
+# Example: configure custom OpenAI-compatible endpoint
+export OPENAI_API_HOST=https://api.example.com/v1
 ```
 
 To override auto-detection and explicitly set a provider and model:

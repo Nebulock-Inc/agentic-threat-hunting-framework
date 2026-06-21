@@ -442,7 +442,7 @@ class OpenAICompatibleProvider(LLMProvider):
     ):
         self.model = model
         self.api_key = api_key or os.getenv("OPENAI_API_KEY", "")
-        self.base_url = base_url
+        self.base_url = base_url or os.getenv("OPENAI_API_HOST", "")
         self._client = None  # type: Any
 
     @property
