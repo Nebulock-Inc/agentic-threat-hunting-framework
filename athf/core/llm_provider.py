@@ -431,7 +431,7 @@ class OpenAICompatibleProvider(LLMProvider):
     Args:
         model: Model name to request (e.g. ``"gpt-4o"``).
         api_key: API key. Falls back to ``OPENAI_API_KEY`` env var.
-        base_url: Optional base URL override for non-OpenAI endpoints.
+        base_url: Base URL for the OpenAI API. Falls back to ``OPENAI_API_HOST`` env var.
     """
 
     def __init__(
