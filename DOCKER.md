@@ -89,16 +89,18 @@ ATHF agents auto-detect your LLM provider from environment variables. You can us
 
 ### Quick Setup
 
-Pass your provider's API key as an environment variable when starting the container:
+Export your provider's API key in the shell (avoid placing secrets directly on the command line — they leak into shell history and `ps` output) before starting the container. Prefer a gitignored `.env` file or `read -s`:
 
 ```bash
 # Option A: Anthropic
-ANTHROPIC_API_KEY=sk-ant-... docker-compose up -d
+read -rs ANTHROPIC_API_KEY && export ANTHROPIC_API_KEY
+docker-compose up -d
 
 # Option B: OpenAI
-OPENAI_API_KEY=sk-... docker-compose up -d
+read -rs OPENAI_API_KEY && export OPENAI_API_KEY
+docker-compose up -d
 
-# Option C: AWS Bedrock (mount AWS credentials)
+# Option C: AWS Bedrock (mount AWS credentials, no secret on the command line)
 AWS_PROFILE=my-sso-profile docker-compose up -d
 
 # Option D: Local Ollama (connect to host)
@@ -160,7 +162,7 @@ aws sso login --profile <your-profile>
 **"No LLM provider detected":**
 - Ensure at least one provider API key is set in environment
 - Check with: `docker-compose exec athf-test env | grep -E 'ANTHROPIC|OPENAI|AWS_PROFILE|OLLAMA'`
-- Without an LLM provider, agents fall back to template-based output
+- Without an LLM provider, the provider factory raises a `RuntimeError` at agent init — agents do not fall back to template output. Set one of: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `AWS_PROFILE`/`AWS_ACCESS_KEY_ID`, or set `ATHF_LLM_PROVIDER` explicitly.
 
 ## Claude Code CLI with AWS Bedrock (Optional - Manual Install)
 
@@ -188,22 +190,25 @@ AWS_PROFILE=your-profile docker-compose up -d
 docker-compose exec athf-test bash
 ```
 
-### Installation Steps (Inside Container)
+### Installation Steps
 
-Once inside the container, install Node.js and Claude Code:
+The runtime user (`athf`) is non-root, so Node.js must be installed as root via a separate exec, then Claude Code is installed globally from the normal non-root shell:
 
 ```bash
-# 1. Install Node.js 20.x
-curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-apt-get install -y nodejs
+# 1. Install Node.js 20.x as root from the host:
+docker-compose exec --user root athf-test bash -lc \
+  'curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && apt-get install -y nodejs'
 
-# 2. Install Claude Code CLI globally
+# 2. Drop into the normal non-root shell:
+docker-compose exec athf-test bash
+
+# 3. Install Claude Code CLI globally (npm uses the user prefix):
 npm install -g @anthropic-ai/claude-code
 
-# 3. Verify installation
+# 4. Verify installation
 claude --version
 
-# 4. Test with Bedrock (should work immediately - no login needed)
+# 5. Test with Bedrock (should work immediately - no login needed)
 claude chat "Hello, can you access Bedrock?"
 ```
 
