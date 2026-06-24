@@ -72,7 +72,11 @@ def test_record_web_search_no_cost_field(tmp_path: Path) -> None:
     events = _read_events(tmp_path)
     assert events[0]["event_type"] == "web_search"
     assert "cost_usd" not in events[0]
-    assert events[0]["custom"]["query"] == "lsass dumping"
+    # Raw query text is hashed (not persisted verbatim) for privacy.
+    import hashlib
+
+    assert events[0]["custom"]["query_hash"] == hashlib.sha256(b"lsass dumping").hexdigest()[:16]
+    assert "query" not in events[0]["custom"]
 
 
 def test_record_similarity_search_latency_only(tmp_path: Path) -> None:

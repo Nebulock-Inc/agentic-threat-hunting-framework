@@ -53,46 +53,70 @@ from athf.core.metrics import (
 logger = logging.getLogger(__name__)
 
 
-_context_provider: Optional[Callable[[], tuple[Optional[str], Optional[str]]]] = None
+# A context provider may return either:
+#   (hunt_id, session_id)                      — legacy 2-tuple, no org scope
+#   (hunt_id, session_id, organization_id)     — current 3-tuple, tenant-scoped
+# Both shapes are accepted so existing plugins keep working; tenant-scoped
+# storage requires the 3-tuple form.
+ContextTuple = Union[
+    tuple[Optional[str], Optional[str]],
+    tuple[Optional[str], Optional[str], Optional[str]],
+]
+
+_context_provider: Optional[Callable[[], ContextTuple]] = None
 
 
-def register_context_provider(
-    provider: Callable[[], tuple[Optional[str], Optional[str]]],
-) -> None:
-    """Register a callable that returns ``(hunt_id, session_id)`` for the active session.
+def register_context_provider(provider: Callable[[], ContextTuple]) -> None:
+    """Register a callable returning ``(hunt_id, session_id[, organization_id])``.
 
     Plugins (vault extensions) call this once at import time to plug in their
     own session manager. ATHF core ships no provider, so without one
-    registered, ``_resolve_active_context`` returns ``(None, None)`` and
-    callers must pass ``hunt_id`` / ``session_id`` explicitly.
+    registered, ``_resolve_active_context`` returns ``(None, None, None)`` and
+    callers must pass ``hunt_id`` / ``session_id`` / ``organization_id``
+    explicitly. The 2-tuple shape is accepted for backwards compatibility
+    and treated as having no organization scope.
     """
     global _context_provider
     _context_provider = provider
 
 
-def _resolve_active_context() -> tuple[Optional[str], Optional[str]]:
-    """Best-effort lookup of (hunt_id, session_id) from an active session.
+def _resolve_active_context() -> tuple[Optional[str], Optional[str], Optional[str]]:
+    """Best-effort lookup of (hunt_id, session_id, organization_id).
 
-    Returns (None, None) if no provider is registered, no active session,
-    or the provider raises for any reason.
+    Returns (None, None, None) if no provider is registered, no active
+    session, or the provider raises for any reason. A legacy 2-tuple
+    provider is normalized to ``(hunt, session, None)``.
     """
     provider = _context_provider
     if provider is None:
-        return None, None
+        return None, None, None
     try:
-        return provider()
+        result = provider()
     except Exception:
-        return None, None
+        return None, None, None
+    if not isinstance(result, tuple):
+        return None, None, None
+    if len(result) == 2:
+        return result[0], result[1], None
+    if len(result) == 3:
+        return result[0], result[1], result[2]
+    return None, None, None
 
 
 def _fill_context(
-    hunt_id: Optional[str], session_id: Optional[str]
-) -> tuple[Optional[str], Optional[str]]:
-    """Backfill missing hunt_id / session_id from the active context provider."""
-    if hunt_id is not None and session_id is not None:
-        return hunt_id, session_id
-    ctx_hunt, ctx_session = _resolve_active_context()
-    return hunt_id or ctx_hunt, session_id or ctx_session
+    hunt_id: Optional[str],
+    session_id: Optional[str],
+    organization_id: Optional[str] = None,
+) -> tuple[Optional[str], Optional[str], Optional[str]]:
+    """Backfill missing hunt_id / session_id / organization_id from the provider."""
+    if hunt_id is not None and session_id is not None and organization_id is not None:
+        return hunt_id, session_id, organization_id
+    ctx_hunt, ctx_session, ctx_org = _resolve_active_context()
+    return (
+        hunt_id or ctx_hunt,
+        session_id or ctx_session,
+        organization_id or ctx_org,
+    )
 
 
 def _store_for(workspace: Optional[Union[str, Path]] = None) -> EventStore:
@@ -125,6 +149,7 @@ def record_llm_call(
     cost_usd: Optional[float] = None,
     hunt_id: Optional[str] = None,
     session_id: Optional[str] = None,
+    organization_id: Optional[str] = None,
     workspace: Optional[Union[str, Path]] = None,
     custom: Optional[Dict[str, Any]] = None,
 ) -> None:
@@ -137,10 +162,13 @@ def record_llm_call(
     """
     if cost_usd is None:
         cost_usd = estimate_cost(model, input_tokens, output_tokens)
-    hunt_id, session_id = _fill_context(hunt_id, session_id)
+    hunt_id, session_id, organization_id = _fill_context(
+        hunt_id, session_id, organization_id
+    )
 
     evt = MetricEvent(
         event_type="llm_call",
+        organization_id=organization_id,
         hunt_id=hunt_id,
         session_id=session_id,
         agent=agent,
@@ -162,6 +190,7 @@ def record_query(
     status: str = "success",
     hunt_id: Optional[str] = None,
     session_id: Optional[str] = None,
+    organization_id: Optional[str] = None,
     workspace: Optional[Union[str, Path]] = None,
     custom: Optional[Dict[str, Any]] = None,
 ) -> None:
@@ -170,7 +199,9 @@ def record_query(
     The SQL itself is **not** stored — only a hash, so query patterns can
     be grouped without leaking data.
     """
-    hunt_id, session_id = _fill_context(hunt_id, session_id)
+    hunt_id, session_id, organization_id = _fill_context(
+        hunt_id, session_id, organization_id
+    )
 
     custom_dict = dict(custom or {})
     if sql is not None:
@@ -180,6 +211,7 @@ def record_query(
 
     evt = MetricEvent(
         event_type="query",
+        organization_id=organization_id,
         hunt_id=hunt_id,
         session_id=session_id,
         duration_ms=duration_ms,
@@ -190,6 +222,13 @@ def record_query(
     _append_safely(_store_for(workspace), evt)
 
 
+def _hash_query(query: str) -> str:
+    """Truncated SHA-256 of a query string. Lets us group repeats without storing text."""
+    import hashlib
+
+    return hashlib.sha256(query.encode("utf-8")).hexdigest()[:16]
+
+
 def record_web_search(
     *,
     query: str,
@@ -197,19 +236,29 @@ def record_web_search(
     result_count: Optional[int] = None,
     hunt_id: Optional[str] = None,
     session_id: Optional[str] = None,
+    organization_id: Optional[str] = None,
     workspace: Optional[Union[str, Path]] = None,
     custom: Optional[Dict[str, Any]] = None,
 ) -> None:
-    """Record a web search call (Tavily etc.). No cost field — by design."""
-    hunt_id, session_id = _fill_context(hunt_id, session_id)
+    """Record a web search call (Tavily etc.). No cost field — by design.
+
+    Search text is hashed (not persisted verbatim) so the metrics log
+    doesn't leak hunt content, IOCs, or other sensitive user input. Pass
+    ``custom={"query": ...}`` explicitly if a caller has already
+    sanitized the text and wants to keep it.
+    """
+    hunt_id, session_id, organization_id = _fill_context(
+        hunt_id, session_id, organization_id
+    )
 
     custom_dict = dict(custom or {})
-    custom_dict.setdefault("query", query)
+    custom_dict.setdefault("query_hash", _hash_query(query))
     if result_count is not None:
         custom_dict.setdefault("result_count", result_count)
 
     evt = MetricEvent(
         event_type="web_search",
+        organization_id=organization_id,
         hunt_id=hunt_id,
         session_id=session_id,
         duration_ms=duration_ms,
@@ -225,20 +274,28 @@ def record_similarity_search(
     result_count: Optional[int] = None,
     hunt_id: Optional[str] = None,
     session_id: Optional[str] = None,
+    organization_id: Optional[str] = None,
     workspace: Optional[Union[str, Path]] = None,
     custom: Optional[Dict[str, Any]] = None,
 ) -> None:
-    """Record a similarity (TF-IDF) search."""
-    hunt_id, session_id = _fill_context(hunt_id, session_id)
+    """Record a similarity (TF-IDF) search.
+
+    The raw query text is hashed before persisting (same approach as
+    :func:`record_query`) so the metrics log never holds search prose.
+    """
+    hunt_id, session_id, organization_id = _fill_context(
+        hunt_id, session_id, organization_id
+    )
 
     custom_dict = dict(custom or {})
     if query is not None:
-        custom_dict.setdefault("query", query)
+        custom_dict.setdefault("query_hash", _hash_query(query))
     if result_count is not None:
         custom_dict.setdefault("result_count", result_count)
 
     evt = MetricEvent(
         event_type="similarity_search",
+        organization_id=organization_id,
         hunt_id=hunt_id,
         session_id=session_id,
         duration_ms=duration_ms,
@@ -252,6 +309,7 @@ def record_hunt_outcome(
     hunt_id: str,
     outcome: str,
     session_id: Optional[str] = None,
+    organization_id: Optional[str] = None,
     workspace: Optional[Union[str, Path]] = None,
     custom: Optional[Dict[str, Any]] = None,
 ) -> None:
@@ -266,12 +324,16 @@ def record_hunt_outcome(
             "outcome must be one of 'TP', 'FP', 'inconclusive'; got {!r}".format(outcome)
         )
 
-    if session_id is None:
-        _, ctx_session = _resolve_active_context()
-        session_id = ctx_session
+    if session_id is None or organization_id is None:
+        _, ctx_session, ctx_org = _resolve_active_context()
+        if session_id is None:
+            session_id = ctx_session
+        if organization_id is None:
+            organization_id = ctx_org
 
     evt = MetricEvent(
         event_type="hunt_outcome",
+        organization_id=organization_id,
         hunt_id=hunt_id,
         session_id=session_id,
         outcome=canonical,
@@ -285,6 +347,7 @@ def record(
     *,
     hunt_id: Optional[str] = None,
     session_id: Optional[str] = None,
+    organization_id: Optional[str] = None,
     workspace: Optional[Union[str, Path]] = None,
     **fields: Any,
 ) -> None:
@@ -299,12 +362,14 @@ def record(
             "event_type must be one of {}; got {!r}".format(", ".join(EVENT_TYPES), event_type)
         )
 
-    hunt_id, session_id = _fill_context(hunt_id, session_id)
+    hunt_id, session_id, organization_id = _fill_context(
+        hunt_id, session_id, organization_id
+    )
 
     known_kwargs: Dict[str, Any] = {}
     custom: Dict[str, Any] = {}
     for k, v in fields.items():
-        if k in {"event_type", "hunt_id", "session_id"}:
+        if k in {"event_type", "hunt_id", "session_id", "organization_id"}:
             # These are passed as explicit parameters; ignore duplicates in fields
             # to avoid TypeError "got multiple values for keyword argument".
             continue
@@ -319,6 +384,7 @@ def record(
 
     evt = MetricEvent(
         event_type=event_type,
+        organization_id=organization_id,
         hunt_id=hunt_id,
         session_id=session_id,
         custom=custom,

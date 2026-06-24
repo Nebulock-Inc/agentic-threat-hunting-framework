@@ -64,6 +64,7 @@ class MetricEvent:
     timestamp: str = field(default_factory=_now_iso)
     event_id: str = field(default_factory=lambda: uuid.uuid4().hex[:16])
 
+    organization_id: Optional[str] = None
     hunt_id: Optional[str] = None
     session_id: Optional[str] = None
     agent: Optional[str] = None
@@ -99,16 +100,32 @@ class MetricEvent:
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "MetricEvent":
-        """Build a MetricEvent from a dict, ignoring unknown keys."""
-        known = {f for f in cls.__dataclass_fields__}
+        """Build a MetricEvent from a dict, ignoring unknown keys.
+
+        Raises ``ValueError`` for malformed payloads (wrong shape, bad
+        ``custom`` type) so ``EventStore.read_all()`` can skip them
+        without aborting the whole replay.
+        """
+        if not isinstance(data, dict):
+            raise ValueError("event payload must be a JSON object")
+        known = set(cls.__dataclass_fields__)
         kwargs = {k: v for k, v in data.items() if k in known}
-        custom = dict(kwargs.get("custom") or {})
+        raw_custom = kwargs.get("custom")
+        if raw_custom is None:
+            custom: Dict[str, Any] = {}
+        elif isinstance(raw_custom, dict):
+            custom = dict(raw_custom)
+        else:
+            raise ValueError("custom must be an object")
         # Keep extra fields under custom for round-trip safety.
         for k, v in data.items():
             if k not in known and k != "custom":
                 custom[k] = v
         kwargs["custom"] = custom
-        return cls(**kwargs)
+        try:
+            return cls(**kwargs)
+        except TypeError as exc:
+            raise ValueError("invalid metric event payload") from exc
 
 
 # ---------------------------------------------------------------------------
@@ -243,9 +260,16 @@ class Aggregator:
 
     # -- public ------------------------------------------------------------
 
-    def extract(self) -> Dict[str, Any]:
-        """Compute the aggregate dict and write it to ``aggregates.json``."""
-        per_hunt = self._scan_events()
+    def extract(self, organization_id: Optional[str] = None) -> Dict[str, Any]:
+        """Compute the aggregate dict and write it to ``aggregates.json``.
+
+        If ``organization_id`` is supplied, only events with a matching
+        ``organization_id`` (or no ``organization_id`` at all, treated as
+        unscoped legacy data) are considered. Without it, the aggregator
+        merges every event in the log — appropriate for single-tenant
+        workspaces only.
+        """
+        per_hunt = self._scan_events(organization_id=organization_id)
         for hunt_id, file_metrics in self._scan_hunt_files().items():
             bucket = per_hunt.setdefault(hunt_id, _empty_hunt_bucket())
             # Normalize hunt-file frontmatter keys onto bucket totals when the
@@ -296,14 +320,36 @@ class Aggregator:
 
     # -- internal ----------------------------------------------------------
 
-    def _scan_events(self) -> Dict[str, Dict[str, Any]]:
-        """Group ``events.jsonl`` rows by hunt_id."""
+    def _scan_events(
+        self, organization_id: Optional[str] = None
+    ) -> Dict[str, Dict[str, Any]]:
+        """Group ``events.jsonl`` rows by hunt_id.
+
+        Events without a ``hunt_id`` are workspace-level (manual records,
+        ad-hoc CLI use). They get accumulated into a separate bucket and
+        excluded from per-hunt aggregates and the hunt count.
+
+        If ``organization_id`` is provided, events whose ``organization_id``
+        is set and does not match are skipped. Events with no
+        ``organization_id`` are always included (legacy/unscoped data).
+        """
         per_hunt: Dict[str, Dict[str, Any]] = {}
+        workspace_bucket = _empty_hunt_bucket()
         store = EventStore(self.events_path)
         for evt in store.read_all():
-            hunt_id = evt.hunt_id or "_unbound"
-            bucket = per_hunt.setdefault(hunt_id, _empty_hunt_bucket())
+            if (
+                organization_id is not None
+                and evt.organization_id is not None
+                and evt.organization_id != organization_id
+            ):
+                continue
+            if evt.hunt_id:
+                bucket = per_hunt.setdefault(evt.hunt_id, _empty_hunt_bucket())
+            else:
+                bucket = workspace_bucket
             _accumulate(bucket, evt)
+        if workspace_bucket["events"]:
+            per_hunt["_workspace"] = workspace_bucket
         return per_hunt
 
     def _scan_hunt_files(self) -> Dict[str, Dict[str, Any]]:
@@ -447,8 +493,11 @@ def _accumulate(bucket: Dict[str, Any], evt: MetricEvent) -> None:
 
 
 def _aggregate_workspace(per_hunt: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
+    # ``_workspace`` is the synthetic bucket for events with no hunt_id;
+    # exclude it from the hunt count so workspace-level activity doesn't
+    # masquerade as a real hunt.
     totals = {
-        "hunts": len(per_hunt),
+        "hunts": sum(1 for k in per_hunt if k != "_workspace"),
         "llm_calls": 0,
         "input_tokens": 0,
         "output_tokens": 0,

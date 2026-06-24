@@ -119,7 +119,7 @@ m.record("manual", hunt_id="H-0019", duration_ms=300, custom={"step": "triage"})
 - **Best-effort.** Every helper wraps its append in a `try/except`; serialization or filesystem failures are silently dropped. Metrics never break callers.
 - **Active-session lookup.** If `hunt_id` / `session_id` are omitted, the helpers ask whatever context provider was registered via `athf.metrics.register_context_provider` for the active session and fill them in. Plugins register their own session manager at import time; ATHF core ships no provider, so without a registration the helpers leave both fields `None`.
 - **Cost is automatic.** `record_llm_call` defers to `athf.core.cost_tracker.estimate_cost` when `cost_usd` is not passed.
-- **SQL is hashed, not stored.** `record_query` writes a SHA-256 prefix of the SQL (`custom.sql_hash`) so query patterns can be grouped without leaking data.
+- **Search text is hashed, not stored.** `record_query`, `record_web_search`, and `record_similarity_search` write a SHA-256 prefix of the input text (`custom.sql_hash` / `custom.query_hash`) so patterns can be grouped without leaking hunt content, IOCs, or user prose into the metrics log.
 - **Outcomes are canonicalized.** `record_hunt_outcome` accepts `TP`, `tp`, `FP`, `fp`, or `inconclusive` and stores lowercase.
 
 ---

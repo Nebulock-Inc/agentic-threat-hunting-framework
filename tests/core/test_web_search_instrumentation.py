@@ -36,7 +36,13 @@ def test_tavily_search_records_web_search_event(
     assert events_file.exists()
     evt = json.loads(events_file.read_text(encoding="utf-8").splitlines()[0])
     assert evt["event_type"] == "web_search"
-    assert evt["custom"]["query"] == "lsass dumping"
+    # Query text is now hashed (not persisted verbatim) so the metrics log
+    # never holds raw search prose. Verify the hash is present and stable.
+    import hashlib
+
+    expected_hash = hashlib.sha256(b"lsass dumping").hexdigest()[:16]
+    assert evt["custom"]["query_hash"] == expected_hash
     assert evt["custom"]["result_count"] == 1
+    assert evt["custom"]["search_depth"] == "basic"
     assert "duration_ms" in evt
     assert "cost_usd" not in evt

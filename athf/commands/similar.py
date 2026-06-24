@@ -123,7 +123,10 @@ def similar(
 
         record_similarity_search(
             duration_ms=duration_ms,
-            query=query_text[:120] if query_text else None,
+            hunt_id=hunt,
+            # Only persist the user's free-text query; never serialize hunt
+            # markdown into the metrics log.
+            query=query[:120] if query else None,
             result_count=len(results),
         )
     except Exception:

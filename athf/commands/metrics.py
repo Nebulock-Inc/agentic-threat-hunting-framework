@@ -98,7 +98,7 @@ def show(hunt_id: str, output_format: str, workspace: Path) -> None:
     if not hunt:
         console.print(f"[yellow]No metrics found for hunt: {hunt_id}[/yellow]")
         console.print("[dim]Try: athf metrics extract[/dim]")
-        raise SystemExit(0)
+        raise click.ClickException(f"No metrics found for hunt: {hunt_id}")
 
     if output_format == "json":
         click.echo(json.dumps({"hunt_id": hunt_id, **hunt}, indent=2))
@@ -290,8 +290,10 @@ def record_cmd(
 
     reserved = {
         "event_type": "--type",
+        "event_id": "(generated automatically)",
         "hunt_id": "--hunt",
         "session_id": "--session",
+        "timestamp": "(generated automatically)",
         "custom": "(custom fields are derived automatically from --field)",
     }
     known_kwargs: Dict[str, Any] = {}

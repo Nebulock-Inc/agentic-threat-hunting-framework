@@ -47,3 +47,4 @@ def test_llm_agent_emits_metric_event(tmp_path: Path, monkeypatch: pytest.Monkey
     assert evt["output_tokens"] == 20
     assert evt["agent"] == "_StubAgent"
     assert evt["duration_ms"] == 50
+    assert evt["cost_usd"] == pytest.approx(0.001)

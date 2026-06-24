@@ -132,7 +132,7 @@ class TestMetricsShow:
         assert payload["hunt_id"] == "H-0019"
         assert payload["llm_calls"] == 1
 
-    def test_show_unknown_hunt_returns_zero_with_message(self, tmp_path: Path) -> None:
+    def test_show_unknown_hunt_returns_nonzero_with_message(self, tmp_path: Path) -> None:
         _seed_events(tmp_path)
 
         runner = CliRunner()
@@ -141,7 +141,9 @@ class TestMetricsShow:
             ["show", "--hunt", "H-9999", "--workspace", str(tmp_path)],
         )
 
-        assert result.exit_code == 0
+        # Missing-hunt is an error path: shell automation must see a non-zero
+        # status so missing IDs don't silently look like success.
+        assert result.exit_code != 0
         assert "No metrics found" in result.output
 
 

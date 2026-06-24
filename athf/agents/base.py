@@ -246,6 +246,13 @@ class LLMAgent(Agent[InputT, OutputT]):
                 agent=agent_name,
                 cost_usd=cost_usd,
             )
-        except Exception:
-            # Metrics must never break agent execution.
-            pass
+        except ImportError:
+            logger.debug(
+                "athf.metrics unavailable; skipping llm_call metric emission"
+            )
+        except Exception as exc:
+            # Metrics must never break agent execution, but surface the
+            # cause for diagnostics — silent swallowing hides regressions.
+            logger.debug(
+                "llm_call metric emission failed (%s): %s", type(exc).__name__, exc
+            )
