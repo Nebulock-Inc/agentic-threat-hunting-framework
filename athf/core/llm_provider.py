@@ -443,7 +443,7 @@ class OpenAICompatibleProvider(LLMProvider):
         self.model = model
         self.api_key = api_key or os.getenv("OPENAI_API_KEY", "")
         self.base_url = (
-             os.getenv("OPENAI_API_HOST", "") if base_url is None else base_url
+            os.getenv("OPENAI_API_HOST", "") if base_url is None else base_url
         )
         self._client = None  # type: Any
 
