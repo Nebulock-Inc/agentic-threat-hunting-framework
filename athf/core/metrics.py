@@ -268,9 +268,19 @@ class Aggregator:
         unscoped legacy data) are considered. Without it, the aggregator
         merges every event in the log — appropriate for single-tenant
         workspaces only.
+
+        Hunt-file backfill is tenant-aware: when ``organization_id`` is
+        supplied, frontmatter metrics are merged only onto hunts that already
+        surfaced in the org-scoped event scan. Hunt files carry no
+        ``organization_id`` of their own, so merging them unconditionally would
+        leak other tenants' hunt metadata into a per-org aggregate.
         """
         per_hunt = self._scan_events(organization_id=organization_id)
         for hunt_id, file_metrics in self._scan_hunt_files().items():
+            if organization_id is not None and hunt_id not in per_hunt:
+                # Tenant-scoped: never introduce hunts that had no matching
+                # events. Backfill only enriches hunts already in scope.
+                continue
             bucket = per_hunt.setdefault(hunt_id, _empty_hunt_bucket())
             # Normalize hunt-file frontmatter keys onto bucket totals when the
             # event store had nothing to contribute. Without this, hunt-file-only

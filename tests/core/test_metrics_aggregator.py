@@ -152,3 +152,42 @@ def test_rollups_by_platform(tmp_path: Path) -> None:
     rollups = agg["rollups"]["by_platform"]
     assert rollups.get("Linux") == 2
     assert rollups.get("macOS") == 1
+
+
+def test_org_scoped_extract_excludes_other_tenants_hunt_files(tmp_path: Path) -> None:
+    """Tenant-scoped extract must not backfill hunt files for hunts that had
+    no org-matching events, or another tenant's hunt metadata leaks in."""
+    store = EventStore(tmp_path / "metrics" / "events.jsonl")
+    store.append(MetricEvent(
+        event_type="query",
+        hunt_id="H-ORG-A",
+        organization_id="org-a",
+        duration_ms=100,
+    ))
+    store.append(MetricEvent(
+        event_type="query",
+        hunt_id="H-ORG-B",
+        organization_id="org-b",
+        duration_ms=200,
+    ))
+    # Hunt files exist for BOTH hunts (shared workspace); files carry no org id.
+    _write_hunt(tmp_path, "H-ORG-A", "hunt_id: H-ORG-A\ntotal_queries: 4")
+    _write_hunt(tmp_path, "H-ORG-B", "hunt_id: H-ORG-B\ntotal_queries: 9")
+
+    agg = Aggregator(workspace=tmp_path).extract(organization_id="org-a")
+
+    assert "H-ORG-A" in agg["hunts"]
+    # org-b's hunt (and its frontmatter metrics) must NOT appear in org-a's aggregate.
+    assert "H-ORG-B" not in agg["hunts"]
+    assert agg["totals"]["hunts"] == 1
+
+
+def test_single_tenant_extract_still_merges_all_hunt_files(tmp_path: Path) -> None:
+    """Without organization_id, hunt-file backfill is unchanged (merges all)."""
+    _write_hunt(tmp_path, "H-0001", "hunt_id: H-0001\ntotal_queries: 4")
+    _write_hunt(tmp_path, "H-0002", "hunt_id: H-0002\ntotal_queries: 9")
+
+    agg = Aggregator(workspace=tmp_path).extract()
+
+    assert "H-0001" in agg["hunts"]
+    assert "H-0002" in agg["hunts"]
