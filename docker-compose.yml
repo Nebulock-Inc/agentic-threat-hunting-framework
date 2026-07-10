@@ -5,17 +5,19 @@ services:
       dockerfile: Dockerfile
     image: athf:test
     container_name: athf-test-container
-    user: sydney
+    user: athf
     volumes:
       # Mount current directory for live code changes (optional)
       - .:/app
       # Persist workspace between container runs
       - athf-workspace:/workspace
-      # Mount AWS credentials and config (for SSO)
-      # Note: Read-write mount required for AWS CLI cache (~/.aws/cli/cache/)
-      - ${HOME}/.aws:/home/sydney/.aws
+      # Mount AWS credentials/config read-only; only cache dirs are writable.
+      - ${HOME}/.aws/config:/home/athf/.aws/config:ro
+      - ${HOME}/.aws/credentials:/home/athf/.aws/credentials:ro
+      - ${HOME}/.aws/sso/cache:/home/athf/.aws/sso/cache
+      - ${HOME}/.aws/cli/cache:/home/athf/.aws/cli/cache
       # Claude Code config - isolated from host
-      - claude-config:/home/sydney/.claude
+      - claude-config:/home/athf/.claude
     environment:
       # Set terminal for better CLI output
       - TERM=xterm-256color

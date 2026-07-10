@@ -75,7 +75,7 @@ crontab -e
 
 Add:
 ```
-*/15 * * * * cd /path/to/agentic-threat-hunting-framework && /Users/sydney/.bun/bin/bun run automation/loop.ts --once >> automation/loop.log 2>&1
+*/15 * * * * cd /path/to/agentic-threat-hunting-framework && $(which bun) run automation/loop.ts --once >> automation/loop.log 2>&1
 ```
 
 ## Workflow
