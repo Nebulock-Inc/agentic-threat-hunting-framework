@@ -84,8 +84,15 @@ env/
 # Local plan documents (session-specific)
 Plans/
 
+# Local goal-tracking notes (interview/facts/plan/drift docs)
+goals/
+
 # Automation loop (local config and runtime state — never commit)
 automation/config.json
 automation/state.json
 automation/state.json.tmp
 automation/loop.log
+
+# Metrics runtime state (per-workspace, regenerable)
+metrics/events.jsonl
+metrics/aggregates.json

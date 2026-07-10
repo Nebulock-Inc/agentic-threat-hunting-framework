@@ -13,6 +13,7 @@ from athf.__version__ import __version__  # noqa: E402
 from athf.commands import attack, context, env, hunt, init, investigate, research, similar, splunk  # noqa: E402
 from athf.commands.agent import agent  # noqa: E402
 from athf.commands.mcp import mcp  # noqa: E402
+from athf.commands.metrics import metrics  # noqa: E402
 from athf.plugin_system import PluginRegistry  # noqa: E402
 
 console = Console()
@@ -101,6 +102,9 @@ cli.add_command(agent)
 # MCP server command
 cli.add_command(mcp)
 
+# Metrics commands
+cli.add_command(metrics)
+
 # Integration commands (optional, requires additional dependencies)
 if splunk is not None:
     cli.add_command(splunk)
@@ -150,6 +154,12 @@ def thrunt() -> None:
 
 def main() -> None:
     """Main entry point for the CLI."""
+    # ADEF v0.1.x dual-registration signal. Detect-vault's ``detect`` callback
+    # reads this env var to decide whether to print its deprecation banner —
+    # the banner only fires under ``athf detect``, never under ``adef detect``.
+    # Removed in athf v-next when ``athf detect`` is dropped.
+    import os
+    os.environ["ATHF_INVOKED"] = "1"
     cli()
 
 

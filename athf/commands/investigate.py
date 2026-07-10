@@ -160,7 +160,7 @@ def new(
 
         # Data sources
         console.print("\n4. Data Sources (comma-separated, optional):")
-        console.print("   Examples: [cyan]ClickHouse, EDR, CloudTrail[/cyan]")
+        console.print("   Examples: [cyan]Splunk, EDR, CloudTrail[/cyan]")
         ds_input = Prompt.ask("   Data Sources", default="")
         inv_data_sources = [ds.strip() for ds in ds_input.split(",")] if ds_input else []
 

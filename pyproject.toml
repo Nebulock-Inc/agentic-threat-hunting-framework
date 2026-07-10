@@ -207,7 +207,6 @@ module = [
     "mitreattack.*",
     "stix2",
     "stix2.*",
-    "athf.core.metrics_tracker",
     "mcp",
     "mcp.*",
 ]

@@ -99,7 +99,7 @@ tags: [credential-theft]           # Freeform categorization tags (optional)
 | `platform` | array | Operating systems or environments targeted | `[Windows, macOS, Linux]`, `[Cloud]`, `[Network]` |
 | `tactics` | array | MITRE ATT&CK tactics (lowercase with hyphens) | `[credential-access, persistence]` |
 | `techniques` | array | MITRE ATT&CK technique IDs | `[T1003.001, T1558.003]` |
-| `data_sources` | array | SIEM, EDR, or log platforms used | `[Splunk, Sentinel, ClickHouse]` |
+| `data_sources` | array | SIEM, EDR, or log platforms used | `[Splunk, Sentinel, Elasticsearch]` |
 
 #### Optional Fields
 

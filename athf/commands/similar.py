@@ -1,6 +1,7 @@
 """Semantic similarity search for past hunts."""
 
 import json
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -113,8 +114,23 @@ def similar(
     else:
         query_text = query or ""  # Should never be None due to validation above
 
-    # Find similar hunts
+    # Find similar hunts (instrumented for metrics)
+    start = time.monotonic()
     results = _find_similar_hunts(query_text, limit=limit, threshold=threshold, exclude_hunt=hunt, include_sessions=sessions)
+    duration_ms = int((time.monotonic() - start) * 1000)
+    try:
+        from athf.metrics import record_similarity_search
+
+        record_similarity_search(
+            duration_ms=duration_ms,
+            hunt_id=hunt,
+            # Only persist the user's free-text query; never serialize hunt
+            # markdown into the metrics log.
+            query=query[:120] if query else None,
+            result_count=len(results),
+        )
+    except Exception:
+        pass
 
     # Format and display results
     if output_format == "json":

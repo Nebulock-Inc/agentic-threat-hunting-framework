@@ -229,17 +229,30 @@ class LLMAgent(Agent[InputT, OutputT]):
         cost_usd: float,
         duration_ms: int,
     ) -> None:
-        """Log LLM call metrics to centralized tracker.
+        """Log LLM call metrics to the workspace event log.
 
-        Override this method in subclasses or plugins to implement custom metrics tracking.
-
-        Args:
-            agent_name: Name of the agent (e.g., "hypothesis-generator")
-            model_id: Model identifier
-            input_tokens: Number of input tokens
-            output_tokens: Number of output tokens
-            cost_usd: Estimated cost in USD
-            duration_ms: Call duration in milliseconds
+        Routes through :func:`athf.metrics.record_llm_call`. Subclasses can
+        still override for additional bookkeeping; calling ``super()._log_llm_metrics(...)``
+        preserves the workspace event-log write.
         """
-        # No-op by default. Override in plugins for custom metrics tracking.
-        pass
+        try:
+            from athf.metrics import record_llm_call
+
+            record_llm_call(
+                model=model_id,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                duration_ms=duration_ms,
+                agent=agent_name,
+                cost_usd=cost_usd,
+            )
+        except ImportError:
+            logger.debug(
+                "athf.metrics unavailable; skipping llm_call metric emission"
+            )
+        except Exception as exc:
+            # Metrics must never break agent execution, but surface the
+            # cause for diagnostics — silent swallowing hides regressions.
+            logger.debug(
+                "llm_call metric emission failed (%s): %s", type(exc).__name__, exc
+            )

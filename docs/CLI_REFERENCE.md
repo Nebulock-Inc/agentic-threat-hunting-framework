@@ -1334,7 +1334,7 @@ athf investigate new \
   --type finding \
   --tags alert-triage,powershell,customer-x \
   --data-source "EDR Telemetry" \
-  --data-source "ClickHouse" \
+  --data-source "Splunk" \
   --related-hunt H-0013 \
   --investigator "Jane Doe" \
   --non-interactive
@@ -1390,7 +1390,7 @@ related_hunts:
   - H-0013
 data_sources:
   - EDR Telemetry
-  - ClickHouse
+  - Splunk
 tags:
   - alert-triage
   - powershell
@@ -1874,7 +1874,7 @@ Executes a specific agent with provided inputs. Agents are autonomous components
 
 **query-validator:**
 - `--sql`: SQL query to validate
-- `--target`: Target database (default: clickhouse)
+- `--target`: Target database (default: generic SQL)
 
 **coverage-analyzer:**
 - `--tactic`: Analyze specific tactic coverage
