@@ -40,7 +40,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional, Union
+from typing import Any, Callable, Dict, Optional, Tuple, Union
 
 from athf.core.cost_tracker import estimate_cost
 from athf.core.metrics import (
@@ -59,8 +59,8 @@ logger = logging.getLogger(__name__)
 # Both shapes are accepted so existing plugins keep working; tenant-scoped
 # storage requires the 3-tuple form.
 ContextTuple = Union[
-    tuple[Optional[str], Optional[str]],
-    tuple[Optional[str], Optional[str], Optional[str]],
+    Tuple[Optional[str], Optional[str]],
+    Tuple[Optional[str], Optional[str], Optional[str]],
 ]
 
 _context_provider: Optional[Callable[[], ContextTuple]] = None
@@ -91,7 +91,9 @@ def _resolve_active_context() -> tuple[Optional[str], Optional[str], Optional[st
     if provider is None:
         return None, None, None
     try:
-        result = provider()
+        # Providers are external plugins; treat the return as untrusted so the
+        # defensive shape checks below are not narrowed away by the type system.
+        result: Any = provider()
     except Exception:
         return None, None, None
     if not isinstance(result, tuple):

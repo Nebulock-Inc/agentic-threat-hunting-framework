@@ -168,15 +168,20 @@ class EventStore:
                     fh.write(line)
 
     def _append_flock(self, line: str) -> None:
-        import fcntl
+        import fcntl  # POSIX-only; guarded by _has_fcntl() at the call site
 
+        # Access attributes via getattr so mypy on Windows (where the fcntl
+        # stub is empty) does not flag them; the call site guards on _has_fcntl.
+        flock = getattr(fcntl, "flock")
+        lock_ex = getattr(fcntl, "LOCK_EX")
+        lock_un = getattr(fcntl, "LOCK_UN")
         with open(self.path, "a", encoding="utf-8") as fh:
             try:
-                fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
+                flock(fh.fileno(), lock_ex)
                 fh.write(line)
                 fh.flush()
             finally:
-                fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
+                flock(fh.fileno(), lock_un)
 
     # -- reads -------------------------------------------------------------
 
