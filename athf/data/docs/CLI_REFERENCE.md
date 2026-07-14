@@ -2273,12 +2273,21 @@ version: 0.2.1
 | `ATHF_CONFIG` | Path to config file | `.athfconfig.yaml` |
 | `ATHF_HUNTS_DIR` | Path to hunts directory | `./hunts` |
 | `ATHF_TEMPLATE_DIR` | Path to templates | `./templates` |
+| `OPENAI_API_KEY` | OpenAI or compatible endpoint API key | (none) |
+| `OPENAI_API_HOST` | Custom OpenAI-compatible API endpoint URL | (none) |
 
 Example:
 
 ```bash
 export ATHF_HUNTS_DIR="/opt/threat-hunting/hunts"
 athf hunt list
+```
+
+```bash
+# Configure OpenAI with custom endpoint
+export OPENAI_API_KEY=sk-...
+export OPENAI_API_HOST=https://api.example.com/v1
+athf agent run hypothesis-generator --threat-intel "APT29 using LSASS dumping"
 ```
 
 ---
