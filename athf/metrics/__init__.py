@@ -91,7 +91,9 @@ def _resolve_active_context() -> tuple[Optional[str], Optional[str], Optional[st
     if provider is None:
         return None, None, None
     try:
-        result = provider()
+        # Providers are external plugins; treat the return as untrusted so the
+        # defensive shape checks below are not narrowed away by the type system.
+        result: Any = provider()
     except Exception:
         return None, None, None
     if not isinstance(result, tuple):
