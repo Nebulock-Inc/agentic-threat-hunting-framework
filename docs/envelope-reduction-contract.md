@@ -30,7 +30,7 @@ Examples:
 
 - Research-hypothesis writer:
   `metadata: { research_id, mitre_techniques, data_sources }`
-- ClickHouse query CLI:
+- Vault-side data-source query CLI:
   `metadata: { row_count, columns, query_hash }`
 
 Producers are encouraged to keep `metadata` flat (one level deep) and JSON-serializable.
@@ -60,7 +60,7 @@ Each producer defines its own env var for the scratch directory, with a sensible
 | Producer | Env var | Default |
 |----------|---------|---------|
 | Hypothesis writer (this repo) | `ATHF_HUNTS_DIR` | `<workspace>/research/` (existing — predates this contract) |
-| `athf clickhouse query` (hunt-vault) | `ATHF_QUERY_RESULTS_DIR` | `./query-results/` |
+| Vault-side data-source query CLI (e.g. `hv query`) | `ATHF_QUERY_RESULTS_DIR` | `./query-results/` |
 
 Producers do **not** share a single env var. The contract names the field (`path`), not the location of the bytes.
 

@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `athf_agent_run_hypothesis` MCP response (PR #30 shape) now carries the contract's core fields (`preview`, `path`, `byte_count`) **in addition to** its existing fields (`research_id`, `file_path`, `hypothesis_preview`, `mitre_techniques`, `data_sources`, `persisted`, `metadata`). PR #30's regression test (`tests/core/test_research_manager_hypothesis.py`) passes unchanged. The shape is now described as a strict superset of the contract.
 
 ### Notes
-- The contract names the field shape, not the location of the bytes. Each producer picks its own env var for its scratch dir (this repo uses the existing `ATHF_HUNTS_DIR`; the `athf clickhouse query` CLI in hunt-vault adopts its own `ATHF_QUERY_RESULTS_DIR` separately).
+- The contract names the field shape, not the location of the bytes. Each producer picks its own env var for its scratch dir (this repo uses the existing `ATHF_HUNTS_DIR`; vault-side data-source query CLIs in vault plugins adopt their own `ATHF_QUERY_RESULTS_DIR` separately).
 
 ## [0.14.0] - 2026-05-22
 

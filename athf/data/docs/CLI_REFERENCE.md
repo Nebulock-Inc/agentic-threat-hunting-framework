@@ -29,6 +29,10 @@ Complete reference for all `athf` command-line interface commands.
 | [`athf investigate promote`](#athf-investigate-promote) | Investigation | Promote investigation to formal hunt |
 | [`athf context`](#athf-context) | AI Optimization | Export AI-optimized context bundle (saves ~75% tokens) |
 | [`athf similar`](#athf-similar) | AI Optimization | Find similar hunts using semantic search |
+| [`athf metrics show`](#athf-metrics) | Metrics | Show per-hunt cost, tokens, queries, outcomes |
+| [`athf metrics summary`](#athf-metrics) | Metrics | Show workspace-wide totals + rollups |
+| [`athf metrics extract`](#athf-metrics) | Metrics | Rebuild `metrics/aggregates.json` |
+| [`athf metrics record`](#athf-metrics) | Metrics | Append a manual event to `metrics/events.jsonl` |
 
 ## Table of Contents
 
@@ -56,6 +60,7 @@ Complete reference for all `athf` command-line interface commands.
 - [athf investigate search](#athf-investigate-search)
 - [athf investigate validate](#athf-investigate-validate)
 - [athf investigate promote](#athf-investigate-promote)
+- [athf metrics](#athf-metrics)
 - [Configuration](#configuration)
 - [Exit Codes](#exit-codes)
 
@@ -1313,7 +1318,7 @@ athf investigate new \
   --type finding \
   --tags alert-triage,powershell,customer-x \
   --data-source "EDR Telemetry" \
-  --data-source "ClickHouse" \
+  --data-source "Splunk" \
   --related-hunt H-0013 \
   --investigator "Jane Doe" \
   --non-interactive
@@ -1369,7 +1374,7 @@ related_hunts:
   - H-0013
 data_sources:
   - EDR Telemetry
-  - ClickHouse
+  - Splunk
 tags:
   - alert-triage
   - powershell
@@ -1853,7 +1858,7 @@ Executes a specific agent with provided inputs. Agents are autonomous components
 
 **query-validator:**
 - `--sql`: SQL query to validate
-- `--target`: Target database (default: clickhouse)
+- `--target`: Target database (default: generic SQL)
 
 **coverage-analyzer:**
 - `--tactic`: Analyze specific tactic coverage
@@ -2147,6 +2152,95 @@ athf hunt execute H-0013 --dry-run
 
 - `0`: Success
 - `1`: Execution failed
+
+---
+
+## athf metrics
+
+Track hunting metrics: cost, tokens, queries, web searches, similarity searches, and outcomes. Auto-instruments LLM calls, web searches, and similarity searches; manual subcommands handle outcomes and ad-hoc events.
+
+See [metrics.md](metrics.md) for the schema, storage layout, and recording API.
+
+### Storage
+
+| File                       | Role                                       |
+| -------------------------- | ------------------------------------------ |
+| `metrics/events.jsonl`     | Append-only canonical event log            |
+| `metrics/aggregates.json`  | Derived view, regenerable via `extract`    |
+
+### Subcommands
+
+```bash
+athf metrics show     --hunt H-0019   [--format table|json] [--workspace PATH]
+athf metrics summary                  [--format table|json] [--workspace PATH]
+athf metrics extract                  [--workspace PATH] [--output PATH]
+athf metrics record   --type TYPE     [--hunt H-XXXX] [--session SID] [--field key=value]...
+```
+
+### `athf metrics show`
+
+Per-hunt detail view. Auto-extracts on first read, so it always works.
+
+```bash
+# Render rich table
+athf metrics show --hunt H-0019
+
+# Machine-readable
+athf metrics show --hunt H-0019 --format json
+```
+
+Exit code is `0` whether or not the hunt has metrics; missing hunts print a yellow notice. This keeps shell pipelines simple.
+
+### `athf metrics summary`
+
+Workspace-wide totals plus per-platform / per-tactic rollups.
+
+```bash
+athf metrics summary
+athf metrics summary --format json | jq '.totals.cost_usd'
+```
+
+### `athf metrics extract`
+
+Rebuild `metrics/aggregates.json` from `events.jsonl` plus `hunts/*.md`. Uses an atomic `mkstemp` + `os.replace` write, so it's safe to run alongside readers.
+
+```bash
+athf metrics extract                                  # default location
+athf metrics extract --output /tmp/snapshot.json      # capture a snapshot
+```
+
+### `athf metrics record`
+
+Append a single event manually. Useful for closing out hunts (TP / FP) and for plugin / scripting use.
+
+```bash
+# Record a hunt outcome
+athf metrics record --type hunt_outcome --hunt H-0019 --field outcome=tp
+
+# Record a custom step
+athf metrics record --type manual --hunt H-0019 \
+    --field note=triaged --field duration_ms=300
+
+# Record from a script (Python is usually preferred — see metrics.md)
+athf metrics record --type query --hunt H-0019 --field duration_ms=42 --field rows_returned=10
+```
+
+`--field` is repeatable. Values are coerced int → float → bool → string in that order. Unknown keys are routed to the event's `custom` map; known schema fields (e.g. `duration_ms`, `rows_returned`) populate the typed columns.
+
+### Common Workflow
+
+```bash
+# After a hunting session
+athf metrics extract                       # refresh aggregates
+athf metrics summary                       # overall view
+athf metrics show --hunt H-0019            # zoom into one hunt
+athf metrics record --type hunt_outcome --hunt H-0019 --field outcome=tp
+```
+
+### Exit Codes
+
+- `0`: Success (including "no metrics for that hunt" — prints a notice)
+- `1`: Click validation error (bad `--type`, malformed `--field`, missing required option)
 
 ---
 

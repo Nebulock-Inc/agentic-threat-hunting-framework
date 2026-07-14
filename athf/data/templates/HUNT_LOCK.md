@@ -7,7 +7,7 @@ hunter: [Your Name]
 platform: [Windows, macOS, Linux, Cloud, Network]  # Array - can include multiple platforms
 tactics: [initial-access, persistence, privilege-escalation, defense-evasion, credential-access, discovery, lateral-movement, collection, command-and-control, exfiltration, impact]
 techniques: [T1003.001, T1059.001]  # MITRE ATT&CK technique IDs
-data_sources: [Splunk, ClickHouse, Sentinel, etc.]  # SIEM/log platforms used
+data_sources: [Splunk, Elasticsearch, Sentinel]  # SIEM/log platforms used (add more entries as needed; keep each as a concrete platform name)
 related_hunts: []  # Hunt IDs that relate to this hunt (e.g., [H-0001, H-0005])
 findings_count: 0  # Total findings discovered (optional - can update post-execution)
 true_positives: 0  # Count of confirmed malicious activity (optional)

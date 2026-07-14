@@ -235,7 +235,7 @@ def render_hunt_template(
 
     template = Template(_load_hunt_template())
 
-    return template.render(
+    return str(template.render(
         hunt_id=hunt_id,
         title=title,
         status="planning",
@@ -254,4 +254,4 @@ def render_hunt_template(
         evidence=evidence,
         spawned_from=spawned_from,
         hypothesis_duration_minutes=hypothesis_duration_minutes,
-    )
+    ))

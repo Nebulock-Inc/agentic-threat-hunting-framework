@@ -159,7 +159,7 @@ class HypothesisGeneratorAgent(LLMAgent[HypothesisGenerationInput, HypothesisGen
             '  "justification": "string",\n'
             '  "mitre_techniques": ["T1234.001", "T5678.002"],\n'
             '  "data_sources": '
-            '["ClickHouse nocsf_unified_events", "CloudTrail"],\n'
+            '["EDR process telemetry", "CloudTrail"],\n'
             '  "expected_observables": '
             '["Process execution", "Network connections"],\n'
             '  "known_false_positives": '

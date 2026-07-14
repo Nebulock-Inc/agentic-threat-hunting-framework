@@ -154,7 +154,7 @@ class TavilySearchClient:
                 )
             )
 
-        return SearchResponse(
+        search_response = SearchResponse(
             query=query,
             results=results,
             answer=response.get("answer"),
@@ -162,6 +162,20 @@ class TavilySearchClient:
             search_depth=search_depth,
             images=response.get("images", []),
         )
+
+        try:
+            from athf.metrics import record_web_search
+
+            record_web_search(
+                query=query,
+                duration_ms=response_time_ms,
+                result_count=len(results),
+                custom={"search_depth": search_depth},
+            )
+        except Exception:
+            pass
+
+        return search_response
 
     def search_threat_intel(
         self,

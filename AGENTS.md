@@ -292,7 +292,6 @@ This repository follows the **LOCK pattern**:
 
 Query syntax, field naming, and performance optimization vary by data source. Refer to integration-specific AGENTS.md files in your workspace:
 
-- `integrations/clickhouse/AGENTS.md` - ClickHouse query syntax, field escaping, timeout prevention
 - `integrations/splunk/AGENTS.md` - SPL query patterns, search modes
 - `integrations/elasticsearch/AGENTS.md` - Query DSL, aggregations
 - `integrations/athena/AGENTS.md` - Presto SQL, partition optimization
@@ -388,7 +387,7 @@ athf --version
 4. **Create hunt file:** `athf hunt new --research R-XXXX --non-interactive ...` (link to research)
 5. **Load context:** `athf context --hunt H-XXXX --format json`
 6. **Present hypothesis to user** - ABLE scoping table + threat context
-7. **Execute queries** - Use appropriate data source tools (ClickHouse CLI, SIEM interface, etc.)
+7. **Execute queries** - Use appropriate data source tools (SIEM interface, query CLI, etc.)
 8. **STOP after each query** - Wait for user feedback before next query
 9. **Document findings** - Update hunt file with results and conclusions
 
@@ -606,6 +605,7 @@ ATHF includes bundled hunting knowledge files to inform hunt hypotheses and quer
 - **ATT&CK STIX data** (`athf attack update/status/lookup/techniques`) - live technique metadata - **NEW**
 - Context loading optimization (`athf context`)
 - Session tracking (`athf session`)
+- **Hunting metrics** (`athf metrics show/summary/extract/record`) - cost, tokens, queries, outcomes - **NEW**
 - MCP integrations (Notion, GitHub, custom tools)
 
 **Data sources AI can access:**
@@ -624,6 +624,43 @@ ATHF includes bundled hunting knowledge files to inform hunt hypotheses and quer
 - **Execution Modes:** Interactive (default, step-by-step execution with user approval)
 
 **MCP Server Integration:** Organizations can extend AI capabilities by installing MCP servers. See [integrations/MCP_CATALOG.md](integrations/MCP_CATALOG.md) for available integrations.
+
+---
+
+## Hunting Metrics
+
+**Purpose:** Track cost, tokens, queries, web searches, similarity searches, and outcomes per hunt and across the workspace.
+
+ATHF auto-instruments three surfaces:
+
+- LLM calls via `athf.agents.base.LLMAgent`
+- Web searches via `athf.core.web_search.TavilySearchClient`
+- Similarity searches via `athf similar`
+
+Anything else — vault-side queries, custom plugin work, hunt outcomes — calls the public Python API:
+
+```python
+import athf.metrics as m
+
+m.record_query(sql="...", duration_ms=15, rows=42)
+m.record_hunt_outcome(hunt_id="H-0019", outcome="TP")
+m.record("manual", hunt_id="H-0019", duration_ms=300, custom={"step": "triage"})
+```
+
+All helpers are best-effort: failures never break callers. `hunt_id` / `session_id` auto-resolve from the active SessionManager when omitted.
+
+**CLI:**
+
+```bash
+athf metrics show --hunt H-0019      # per-hunt detail
+athf metrics summary                  # workspace totals + rollups
+athf metrics extract                  # rebuild aggregates.json
+athf metrics record --type hunt_outcome --hunt H-0019 --field outcome=tp
+```
+
+**Storage:** `metrics/events.jsonl` (canonical, append-only) and `metrics/aggregates.json` (derived, regenerable).
+
+**Full reference:** [athf/data/docs/metrics.md](athf/data/docs/metrics.md)
 
 ---
 
