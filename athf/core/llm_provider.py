@@ -266,11 +266,25 @@ class BedrockProvider(LLMProvider):
 
         try:
             import boto3
+            from botocore.config import Config
         except ImportError:
             raise ImportError("boto3 package is not installed. Install it with: pip install boto3")
 
+        # Long-form generations (e.g. 8k-token reports) can exceed boto3's
+        # default 60s read timeout on non-streaming invoke_model. Give the
+        # read a generous budget and let botocore retry transient failures.
+        client_config = Config(
+            read_timeout=300,
+            connect_timeout=10,
+            retries={"max_attempts": 3, "mode": "adaptive"},
+        )
+
         try:
-            self._client = boto3.client(service_name="bedrock-runtime", region_name=self.region)
+            self._client = boto3.client(
+                service_name="bedrock-runtime",
+                region_name=self.region,
+                config=client_config,
+            )
         except Exception as exc:
             raise ValueError("Failed to create Bedrock client: {}".format(exc))
 
