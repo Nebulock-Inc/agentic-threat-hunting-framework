@@ -337,18 +337,3 @@ class TavilySearchClient:
             include_domains=detection_domains,
             include_answer=True,
         )
-
-
-def create_search_client(api_key: Optional[str] = None) -> Optional[TavilySearchClient]:
-    """Create a Tavily search client if API key is available.
-
-    Args:
-        api_key: Optional API key (defaults to TAVILY_API_KEY env var)
-
-    Returns:
-        TavilySearchClient if API key is available, None otherwise
-    """
-    key = api_key or os.getenv("TAVILY_API_KEY")
-    if not key:
-        return None
-    return TavilySearchClient(api_key=key)
