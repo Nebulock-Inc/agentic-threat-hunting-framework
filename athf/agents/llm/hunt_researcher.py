@@ -820,14 +820,17 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
             Path.cwd() / "knowledge" / "OCSF_SCHEMA_REFERENCE.md"
         )
         if schema_path.exists():
-            return schema_path.read_text()[:5000]  # Limit size
+            # Explicit UTF-8: these knowledge files are UTF-8 on disk, and
+            # Windows would otherwise default to cp1252 and raise on any byte
+            # outside that codec, sinking the whole research run.
+            return schema_path.read_text(encoding="utf-8")[:5000]  # Limit size
         return "OCSF schema reference not found"
 
     def _load_environment(self) -> str:
         """Load environment.md content."""
         env_path = Path.cwd() / "environment.md"
         if env_path.exists():
-            return env_path.read_text()[:2000]  # Limit size
+            return env_path.read_text(encoding="utf-8")[:2000]  # Limit size
         return "Environment file not found"
 
     def _extract_hypothesis(
