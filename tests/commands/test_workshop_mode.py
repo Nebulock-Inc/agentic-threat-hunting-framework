@@ -91,7 +91,7 @@ def test_setup_failure_does_not_block_call(temp_dir, monkeypatch):
     assert agent.calls == [256]
 
 
-def test_run_rejects_zero_token_cap(monkeypatch):
+def test_run_rejects_zero_token_cap():
     runner = CliRunner()
     result = runner.invoke(
         run,
@@ -101,7 +101,7 @@ def test_run_rejects_zero_token_cap(monkeypatch):
     assert "--token-cap must be >= 1" in result.output
 
 
-def test_run_rejects_negative_token_cap(monkeypatch):
+def test_run_rejects_negative_token_cap():
     runner = CliRunner()
     result = runner.invoke(
         run,
