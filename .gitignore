@@ -19,6 +19,9 @@ secrets/
 # User-specific ATHF config
 .athfconfig.yaml
 
+# Workshop-mode session audit log (per-workspace, may contain prompt metadata)
+.athf/
+
 # Evidence artifacts (optional - uncomment if you want to exclude large files)
 # evidence/
 
