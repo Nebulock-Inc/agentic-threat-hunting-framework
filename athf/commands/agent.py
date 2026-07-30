@@ -1,12 +1,67 @@
 """Agent management commands."""
 
 import json
+import time
 from typing import Any, List, Optional
 
 import click
 from rich.console import Console
 
 console = Console()
+
+# Workshop mode default cap on generated tokens per LLM call. Keeps a shared
+# classroom Splunk/LLM budget bounded when 40 attendees run agents at once.
+WORKSHOP_DEFAULT_TOKEN_CAP = 1024
+
+
+def _apply_workshop_mode(agent: Any, token_cap: int) -> None:
+    """Constrain an agent for shared-classroom use (the --workshop flag).
+
+    Wraps the agent's ``_call_llm`` to (1) clamp ``max_tokens`` to ``token_cap``
+    so no attendee can blow the shared budget, and (2) append one JSONL record
+    per LLM call to ``.athf/session.log`` for staff to audit spend live. Purely
+    additive — no change to agent internals.
+    """
+    from pathlib import Path
+
+    session_log = Path.cwd() / ".athf" / "session.log"
+    try:
+        session_log.parent.mkdir(parents=True, exist_ok=True)
+        log_path: Optional[Path] = session_log
+    except OSError:
+        log_path = None  # logging unavailable — never block the LLM call
+
+    original_call_llm = agent._call_llm
+
+    def capped_call_llm(prompt: str, max_tokens: int = 4096) -> str:
+        effective = min(max_tokens, token_cap)
+        start = time.time()
+        error = None
+        try:
+            result: str = original_call_llm(prompt, max_tokens=effective)
+            return result
+        except Exception as exc:  # log the failure, then re-raise unchanged
+            error = str(exc)
+            raise
+        finally:
+            record = {
+                "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                "agent": agent.__class__.__name__,
+                "requested_max_tokens": max_tokens,
+                "effective_max_tokens": effective,
+                "token_cap": token_cap,
+                "prompt_chars": len(prompt),
+                "duration_ms": round((time.time() - start) * 1000, 1),
+                "error": error,
+            }
+            if log_path is not None:
+                try:
+                    with log_path.open("a", encoding="utf-8") as fh:
+                        fh.write(json.dumps(record) + "\n")
+                except OSError:
+                    pass  # never let logging break a hunt
+
+    agent._call_llm = capped_call_llm
 
 AGENT_EPILOG = """
 \b
@@ -184,6 +239,17 @@ def info(agent_name: str) -> None:
 @click.option("--tactic", help="MITRE tactic filter")
 @click.option("--llm/--no-llm", default=True, help="Enable/disable LLM (default: enabled)")
 @click.option(
+    "--workshop",
+    is_flag=True,
+    help="Workshop mode: cap token spend per LLM call and log calls to .athf/session.log (for shared classroom use)",
+)
+@click.option(
+    "--token-cap",
+    type=int,
+    default=None,
+    help=f"Max tokens per LLM call in --workshop mode (default: {WORKSHOP_DEFAULT_TOKEN_CAP})",
+)
+@click.option(
     "--output-format",
     "output_format",
     type=click.Choice(["table", "json"]),
@@ -200,6 +266,8 @@ def run(  # noqa: C901
     no_web_search: bool,
     tactic: Optional[str],
     llm: bool,
+    workshop: bool,
+    token_cap: Optional[int],
     output_format: str,
 ) -> None:
     """Run an agent.
@@ -221,6 +289,9 @@ def run(  # noqa: C901
       # Fallback mode (no LLM)
       athf agent run hypothesis-generator --threat-intel "..." --no-llm
     """
+    if workshop and token_cap is not None and token_cap < 1:
+        raise click.BadParameter("--token-cap must be >= 1", param_hint="--token-cap")
+
     if agent_name == "hypothesis-generator":
         if not threat_intel:
             console.print("[red]Error: --threat-intel required for hypothesis-generator[/red]")
@@ -231,6 +302,11 @@ def run(  # noqa: C901
             from athf.agents.llm import HypothesisGenerationInput, HypothesisGeneratorAgent
 
             hypothesis_agent = HypothesisGeneratorAgent(llm_enabled=llm)
+
+            if workshop and llm:
+                cap = token_cap or WORKSHOP_DEFAULT_TOKEN_CAP
+                _apply_workshop_mode(hypothesis_agent, cap)
+                console.print(f"[dim]Workshop mode: token cap {cap}/call, logging to .athf/session.log[/dim]\n")
 
             # Load context for hypothesis generation
             # Try to load past hunts and environment data if available
@@ -331,6 +407,11 @@ def run(  # noqa: C901
             console.print()
 
             research_agent = HuntResearcherAgent(llm_enabled=llm)
+
+            if workshop and llm:
+                cap = token_cap or WORKSHOP_DEFAULT_TOKEN_CAP
+                _apply_workshop_mode(research_agent, cap)
+                console.print(f"[dim]Workshop mode: token cap {cap}/call, logging to .athf/session.log[/dim]\n")
 
             # Show progress
             with Progress(
