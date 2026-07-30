@@ -261,24 +261,22 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
             if self.llm_enabled and self._llm_failures > 0:
                 if self._llm_failures >= expected_llm_skills:
                     warnings.append(
-                        "All {} LLM research skills failed — no usable LLM "
-                        "research was produced. Every LLM-backed section "
-                        "contains an 'Error during LLM analysis' placeholder "
-                        "(the related-work section is a local similarity search "
-                        "and may still be populated). Verify the LLM provider "
-                        "is reachable and configured (ATHF_LLM_PROVIDER / API "
-                        "keys / local Ollama), then re-run.".format(
-                            expected_llm_skills,
-                        )
+                        f"All {expected_llm_skills} LLM research skills failed "
+                        "— no usable LLM research was produced. Every LLM-backed "
+                        "section contains an 'Error during LLM analysis' "
+                        "placeholder (the related-work section is a local "
+                        "similarity search and may still be populated). Verify "
+                        "the LLM provider is reachable and configured "
+                        "(ATHF_LLM_PROVIDER / API keys / local Ollama), then "
+                        "re-run."
                     )
                 else:
                     warnings.append(
-                        "{} of {} LLM research skills failed (e.g. the provider "
-                        "was unreachable or returned unparseable output). "
-                        "Affected LLM-backed sections contain 'Error during LLM "
-                        "analysis' placeholders.".format(
-                            self._llm_failures, expected_llm_skills,
-                        )
+                        f"{self._llm_failures} of {expected_llm_skills} LLM "
+                        "research skills failed (e.g. the provider was "
+                        "unreachable or returned unparseable output). Affected "
+                        "LLM-backed sections contain 'Error during LLM analysis' "
+                        "placeholders."
                     )
 
             return AgentResult(
