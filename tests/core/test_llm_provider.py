@@ -103,6 +103,28 @@ class TestBedrockProvider:
         mock_client.invoke_model.return_value = {"body": mock_body}
         return mock_client
 
+    def test_bedrock_provider_skips_thinking_block(self):
+        """Extended-thinking models return a leading thinking block before the text block."""
+        mock_body = MagicMock()
+        mock_body.read.return_value = json.dumps(
+            {
+                "content": [
+                    {"type": "thinking", "thinking": "reasoning...", "signature": "sig"},
+                    {"type": "text", "text": "Hello from Opus 5"},
+                ],
+                "usage": {"input_tokens": 10, "output_tokens": 5},
+            }
+        ).encode()
+        mock_client = MagicMock()
+        mock_client.invoke_model.return_value = {"body": mock_body}
+
+        provider = BedrockProvider(model_id="us.anthropic.claude-opus-5")
+        provider._client = mock_client
+
+        result = provider.complete(messages=[{"role": "user", "content": "Hi"}])
+
+        assert result.text == "Hello from Opus 5"
+
     def test_bedrock_provider_complete(self):
         """Mocked Bedrock invoke_model returns a properly parsed LLMResponse."""
         mock_client = self._make_mock_client()

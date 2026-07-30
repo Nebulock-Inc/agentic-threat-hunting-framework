@@ -464,7 +464,9 @@ def list_investigations(
         inv_type = frontmatter.get("type", "unknown")
         inv_tags = frontmatter.get("tags", [])
         inv_related_hunts = frontmatter.get("related_hunts", [])
-        date = frontmatter.get("date", "N/A")
+        # YAML parses an unquoted `date: 2026-07-30` into a datetime.date,
+        # which Rich cannot render directly. Coerce to str for the table.
+        date = str(frontmatter.get("date", "N/A"))
 
         tags_str = ", ".join(inv_tags[:3]) if inv_tags else "-"
         if len(inv_tags) > 3:

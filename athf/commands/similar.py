@@ -133,12 +133,16 @@ def similar(
         pass
 
     # Format and display results
+    #
+    # Machine-readable formats bypass Rich: console.print() word-wraps to the
+    # terminal width, which injects literal newlines inside JSON/YAML string
+    # values and makes the output unparseable by downstream consumers.
     if output_format == "json":
         output = json.dumps(results, indent=2)
-        console.print(output)
+        click.echo(output)
     elif output_format == "yaml":
         output = yaml.dump(results, default_flow_style=False, sort_keys=False)
-        console.print(output)
+        click.echo(output)
     else:  # table
         _display_results_table(results, query_text=query_text, reference_hunt=hunt, include_sessions=sessions)
 

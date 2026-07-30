@@ -309,7 +309,11 @@ class BedrockProvider(LLMProvider):
         duration_ms = int((time.monotonic() - start) * 1000)
 
         response_body = json.loads(response["body"].read())
-        text = response_body["content"][0]["text"]
+        # Extended-thinking models (e.g. Opus 5) return a leading "thinking"
+        # block, so the text is not necessarily at index 0. Select the first
+        # text block instead of assuming its position.
+        content = response_body.get("content", [])
+        text = next((b["text"] for b in content if "text" in b and b.get("type", "text") == "text"), "")
 
         usage = response_body.get("usage", {})
         input_tokens = usage.get("input_tokens", 0)
