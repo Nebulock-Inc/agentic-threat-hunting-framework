@@ -9,6 +9,7 @@ Implements a structured 5-skill research methodology:
 """
 
 import os
+import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -101,6 +102,14 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
         self._llm_calls = 0
         self._web_searches = 0
         self._llm_failures = 0
+        # Skills 1-4 run concurrently in a ThreadPoolExecutor and each mutate
+        # these counters; guard every increment so no update is lost to a race.
+        self._metrics_lock = threading.Lock()
+
+    def _record_llm_failure(self) -> None:
+        """Thread-safe increment of the failed-LLM-skill counter."""
+        with self._metrics_lock:
+            self._llm_failures += 1
 
     def _log_llm_metrics(
         self,
@@ -112,8 +121,9 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
         duration_ms: int,
     ) -> None:
         """Track LLM call metrics for cost reporting."""
-        self._llm_calls += 1
-        self._total_cost += cost_usd
+        with self._metrics_lock:
+            self._llm_calls += 1
+            self._total_cost += cost_usd
 
     def _get_search_client(self) -> Optional[Any]:
         """Get or create Tavily search client."""
@@ -302,7 +312,8 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
                 search_results = search_client.search_system_internals(
                     topic, search_depth,
                 )
-                self._web_searches += 1
+                with self._metrics_lock:
+                    self._web_searches += 1
 
                 for result in search_results.results[:5]:
                     snippet = result.content
@@ -370,7 +381,8 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
                         topic, technique, search_depth,
                     )
                 )
-                self._web_searches += 1
+                with self._metrics_lock:
+                    self._web_searches += 1
 
                 for result in search_results.results[:7]:
                     snippet = result.content
@@ -621,7 +633,7 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
             return data["summary"], data["key_findings"]
 
         except Exception as e:
-            self._llm_failures += 1
+            self._record_llm_failure()
             return (
                 "System research for {} (LLM error: {})".format(
                     topic, str(e)[:50],
@@ -683,7 +695,7 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
             return data["summary"], data["key_findings"]
 
         except Exception as e:
-            self._llm_failures += 1
+            self._record_llm_failure()
             return (
                 "Adversary tradecraft for {} (LLM error: {})".format(
                     topic, str(e)[:50],
@@ -732,7 +744,7 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
             return data["summary"], data["key_findings"]
 
         except Exception as e:
-            self._llm_failures += 1
+            self._record_llm_failure()
             return (
                 "Telemetry mapping for {} (LLM error: {})".format(
                     topic, str(e)[:50],
@@ -794,7 +806,7 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
             return data["summary"], data["key_findings"]
 
         except Exception as e:
-            self._llm_failures += 1
+            self._record_llm_failure()
             return (
                 "Research synthesis for {} (LLM error: {})".format(
                     topic, str(e)[:50],

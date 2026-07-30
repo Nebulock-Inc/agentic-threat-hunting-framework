@@ -18,6 +18,14 @@ logger = logging.getLogger(__name__)
 _workspace: Optional[Path] = None
 
 
+class MCPDependencyError(ImportError):
+    """Raised when the optional MCP server dependencies are missing or an
+    incompatible version is installed (e.g. mcp 2.0.0, which removed FastMCP).
+
+    Subclasses ImportError so existing `except ImportError` handlers keep
+    working, while giving callers a specific type to catch."""
+
+
 def get_workspace() -> Path:
     """Return the current workspace path."""
     if _workspace is None:
@@ -52,11 +60,12 @@ def create_server(workspace_path: Optional[str] = None) -> "FastMCP":  # type: i
     try:
         from mcp.server.fastmcp import FastMCP
     except ImportError as exc:
-        raise ImportError(
-            "Could not import mcp.server.fastmcp.FastMCP ({}). This usually means "
-            "either the mcp package is not installed, or an incompatible version "
-            "is installed: mcp 2.0.0 removed FastMCP. Install a supported version "
-            "with: pip install 'athf[mcp]' (which pins mcp[cli]>=1.0.0,<2.0.0).".format(exc)
+        raise MCPDependencyError(
+            f"Could not import mcp.server.fastmcp.FastMCP ({exc}). This usually "
+            "means either the mcp package is not installed, or an incompatible "
+            "version is installed: mcp 2.0.0 removed FastMCP. Install a supported "
+            "version with: pip install 'athf[mcp]' (which pins "
+            "mcp[cli]>=1.9.4,<2.0.0)."
         ) from exc
 
     from athf.mcp.utils import find_workspace, load_workspace_config

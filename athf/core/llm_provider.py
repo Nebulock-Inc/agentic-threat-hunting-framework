@@ -715,11 +715,18 @@ def create_provider(config: Optional[Dict[str, Any]] = None) -> LLMProvider:
     # credentials (e.g. for unrelated tooling) without boto3 installed, so
     # preferring detected-and-reachable Ollama avoids silently picking a
     # provider that then fails to import.
-    ollama_url = effective.get("base_url", "http://localhost:11434")
-    if _ollama_is_running(ollama_url):
+    #
+    # Probe ONLY the fixed loopback address, never a config-supplied base_url:
+    # auto-detect fires unprompted, and probing a config/env-controlled URL here
+    # would be an SSRF sink (an attacker who can influence config could make the
+    # process issue requests to an arbitrary host). A non-default Ollama endpoint
+    # must be selected explicitly via provider="ollama" + base_url, which routes
+    # through _build_provider above and skips this auto-probe.
+    default_ollama_url = "http://localhost:11434"
+    if _ollama_is_running(default_ollama_url):
         detected_model = model or "llama3"
         logger.info("Auto-detected local Ollama -> using Ollama provider with model %s", detected_model)
-        return OllamaProvider(model=detected_model, base_url=ollama_url)
+        return OllamaProvider(model=detected_model, base_url=default_ollama_url)
 
     # AWS credentials -> Bedrock
     if os.getenv("AWS_PROFILE") or os.getenv("AWS_ACCESS_KEY_ID"):

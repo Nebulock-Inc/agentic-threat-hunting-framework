@@ -7,12 +7,20 @@ failures), yet the run reported "Research Complete, $0.00". A run that produced
 no usable research must be loud, not look done.
 """
 
+import importlib
 from unittest.mock import patch
 
 import pytest
 
 from athf.agents.llm.hunt_researcher import HuntResearcherAgent, ResearchInput
 from athf.core.llm_provider import LLMProvider, LLMResponse
+
+# Patch the source module's attribute directly. Patching via the string
+# "athf.commands.similar._find_similar_hunts" breaks on Python 3.8-3.10 because
+# athf.commands.__init__ binds the `similar` Click command over the submodule
+# name, so mock's attribute walk resolves `similar` to the command, not the
+# module. Grabbing the module object explicitly sidesteps that shadowing.
+_similar_module = importlib.import_module("athf.commands.similar")
 
 
 class ProseProvider(LLMProvider):
@@ -58,8 +66,8 @@ class TestHuntResearcherHonesty:
         agent = HuntResearcherAgent(llm_enabled=True, provider=provider)
 
         # Isolate the LLM skills: no similarity search, no schema files.
-        with patch(
-            "athf.commands.similar._find_similar_hunts", return_value=[]
+        with patch.object(
+            _similar_module, "_find_similar_hunts", return_value=[]
         ):
             result = agent.execute(_input())
 
@@ -75,8 +83,8 @@ class TestHuntResearcherHonesty:
         provider = ProseProvider()
         agent = HuntResearcherAgent(llm_enabled=True, provider=provider)
 
-        with patch(
-            "athf.commands.similar._find_similar_hunts", return_value=[]
+        with patch.object(
+            _similar_module, "_find_similar_hunts", return_value=[]
         ):
             result = agent.execute(_input())
 
@@ -104,8 +112,8 @@ class TestHuntResearcherHonesty:
                 )
 
         agent = HuntResearcherAgent(llm_enabled=True, provider=CapturingProvider())
-        with patch(
-            "athf.commands.similar._find_similar_hunts", return_value=[]
+        with patch.object(
+            _similar_module, "_find_similar_hunts", return_value=[]
         ):
             result = agent.execute(_input())
 
