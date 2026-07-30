@@ -34,7 +34,8 @@ def _apply_workshop_mode(agent: Any, token_cap: int) -> None:
         start = time.time()
         error = None
         try:
-            return original_call_llm(prompt, max_tokens=effective)
+            result: str = original_call_llm(prompt, max_tokens=effective)
+            return result
         except Exception as exc:  # log the failure, then re-raise unchanged
             error = str(exc)
             raise
