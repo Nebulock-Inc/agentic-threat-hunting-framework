@@ -100,6 +100,7 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
         self._total_cost = 0.0
         self._llm_calls = 0
         self._web_searches = 0
+        self._llm_failures = 0
 
     def _log_llm_metrics(
         self,
@@ -142,6 +143,7 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
         self._total_cost = 0.0
         self._llm_calls = 0
         self._web_searches = 0
+        self._llm_failures = 0
 
         try:
             # Get next research ID
@@ -197,6 +199,10 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
             # Build output
             total_duration_ms = int((time.time() - start_time) * 1000)
 
+            # Skills 1, 2, 3, and 5 each make one LLM call when llm_enabled.
+            # Skill 4 (related work) is a local similarity search with no LLM.
+            expected_llm_skills = 4
+
             output = ResearchOutput(
                 research_id=research_id,
                 topic=input_data.topic,
@@ -220,16 +226,44 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
                 total_cost_usd=round(self._total_cost, 4),
             )
 
+            # A research run that produced no usable LLM output must not look
+            # like a clean success — the record has to be trustworthy (a stub
+            # full of "Error during LLM analysis" is worse than nothing if it
+            # reads as done). We still write the doc so the attendee keeps
+            # partial findings; the failure is surfaced loudly via warnings.
+            warnings: List[str] = []
+            if self.llm_enabled and self._llm_failures > 0:
+                if self._llm_failures >= expected_llm_skills:
+                    warnings.append(
+                        "All {} LLM research skills failed — no usable research "
+                        "was produced. Every section contains an 'Error during "
+                        "LLM analysis' placeholder. Verify the LLM provider is "
+                        "reachable and configured (ATHF_LLM_PROVIDER / API keys "
+                        "/ local Ollama), then re-run.".format(
+                            expected_llm_skills,
+                        )
+                    )
+                else:
+                    warnings.append(
+                        "{} of {} LLM research skills failed (e.g. the provider "
+                        "was unreachable or returned unparseable output). "
+                        "Affected sections contain 'Error during LLM analysis' "
+                        "placeholders.".format(
+                            self._llm_failures, expected_llm_skills,
+                        )
+                    )
+
             return AgentResult(
                 success=True,
                 data=output,
                 error=None,
-                warnings=[],
+                warnings=warnings,
                 metadata={
                     "research_id": research_id,
                     "duration_ms": total_duration_ms,
                     "web_searches": self._web_searches,
                     "llm_calls": self._llm_calls,
+                    "llm_failures": self._llm_failures,
                     "cost_usd": round(self._total_cost, 4),
                 },
             )
@@ -582,11 +616,12 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
                 ' "finding3"]\n}}'
             ).format(topic=topic, context=context)
 
-            response = self._call_llm(prompt, max_tokens=2048)
+            response = self._call_llm(prompt, max_tokens=2048, response_format="json")
             data = self._parse_json_response(response)
             return data["summary"], data["key_findings"]
 
         except Exception as e:
+            self._llm_failures += 1
             return (
                 "System research for {} (LLM error: {})".format(
                     topic, str(e)[:50],
@@ -643,11 +678,12 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
                 context=context,
             )
 
-            response = self._call_llm(prompt, max_tokens=2048)
+            response = self._call_llm(prompt, max_tokens=2048, response_format="json")
             data = self._parse_json_response(response)
             return data["summary"], data["key_findings"]
 
         except Exception as e:
+            self._llm_failures += 1
             return (
                 "Adversary tradecraft for {} (LLM error: {})".format(
                     topic, str(e)[:50],
@@ -691,11 +727,12 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
                 environment_data=environment_data[:1000],
             )
 
-            response = self._call_llm(prompt, max_tokens=2048)
+            response = self._call_llm(prompt, max_tokens=2048, response_format="json")
             data = self._parse_json_response(response)
             return data["summary"], data["key_findings"]
 
         except Exception as e:
+            self._llm_failures += 1
             return (
                 "Telemetry mapping for {} (LLM error: {})".format(
                     topic, str(e)[:50],
@@ -752,11 +789,12 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
                 context=context,
             )
 
-            response = self._call_llm(prompt, max_tokens=2048)
+            response = self._call_llm(prompt, max_tokens=2048, response_format="json")
             data = self._parse_json_response(response)
             return data["summary"], data["key_findings"]
 
         except Exception as e:
+            self._llm_failures += 1
             return (
                 "Research synthesis for {} (LLM error: {})".format(
                     topic, str(e)[:50],

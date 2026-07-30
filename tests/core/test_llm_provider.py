@@ -219,6 +219,32 @@ class TestOllamaProvider:
         assert sent_body["options"]["num_predict"] == 512
         assert sent_body["options"]["temperature"] == 0.3
         assert "api/chat" in sent_request.full_url
+        # Default (prose) callers must NOT get a format flag.
+        assert "format" not in sent_body
+
+    def test_ollama_provider_requests_json_format(self):
+        """response_format='json' sets Ollama's format option so the model
+        returns valid JSON instead of prose."""
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = json.dumps(
+            {
+                "message": {"content": "{}"},
+                "prompt_eval_count": 1,
+                "eval_count": 1,
+            }
+        ).encode("utf-8")
+        mock_resp.status = 200
+
+        with patch("urllib.request.urlopen", return_value=mock_resp) as mock_urlopen:
+            provider = OllamaProvider(model="llama3")
+            provider.complete(
+                messages=[{"role": "user", "content": "test"}],
+                response_format="json",
+            )
+
+        sent_request = mock_urlopen.call_args[0][0]
+        sent_body = json.loads(sent_request.data.decode("utf-8"))
+        assert sent_body["format"] == "json"
 
     def test_ollama_provider_connection_error(self):
         """ConnectionError is raised when Ollama is unreachable."""
@@ -352,15 +378,35 @@ class TestCreateProvider:
             assert isinstance(provider, OpenAICompatibleProvider)
 
     def test_create_provider_auto_detect_aws(self):
-        """AWS_PROFILE triggers BedrockProvider."""
+        """AWS_PROFILE triggers BedrockProvider when no local Ollama is up."""
         env = self._clean_env()
         env["AWS_PROFILE"] = "default"
 
         with patch(
             "athf.core.llm_provider._load_config_file", return_value={}
-        ), patch.dict("os.environ", env, clear=False):
+        ), patch.dict(
+            "os.environ", env, clear=False
+        ), patch(
+            "athf.core.llm_provider._ollama_is_running", return_value=False
+        ):
             provider = create_provider()
             assert isinstance(provider, BedrockProvider)
+
+    def test_create_provider_prefers_ollama_over_aws(self):
+        """A running Ollama wins over ambient AWS creds, so we never silently
+        pick Bedrock (which needs boto3) when a working local model is up."""
+        env = self._clean_env()
+        env["AWS_PROFILE"] = "default"
+
+        with patch(
+            "athf.core.llm_provider._load_config_file", return_value={}
+        ), patch.dict(
+            "os.environ", env, clear=False
+        ), patch(
+            "athf.core.llm_provider._ollama_is_running", return_value=True
+        ):
+            provider = create_provider()
+            assert isinstance(provider, OllamaProvider)
 
     def test_create_provider_auto_detect_ollama(self):
         """Running Ollama triggers OllamaProvider when no API keys set."""

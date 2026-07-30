@@ -114,7 +114,12 @@ class LLMAgent(Agent[InputT, OutputT]):
         self._provider = create_provider(llm_config if llm_config else None)
         return self._provider
 
-    def _call_llm(self, prompt: str, max_tokens: int = 4096) -> str:
+    def _call_llm(
+        self,
+        prompt: str,
+        max_tokens: int = 4096,
+        response_format: Optional[str] = None,
+    ) -> str:
         """Call the LLM and return response text.
 
         Provider-agnostic: works with any configured LLM backend.
@@ -122,6 +127,8 @@ class LLMAgent(Agent[InputT, OutputT]):
         Args:
             prompt: The prompt to send to the LLM.
             max_tokens: Maximum tokens to generate.
+            response_format: Pass ``"json"`` when the caller parses the
+                response as JSON so structured-output providers enforce it.
 
         Returns:
             The generated text content.
@@ -130,6 +137,7 @@ class LLMAgent(Agent[InputT, OutputT]):
         response = provider.complete(
             messages=[{"role": "user", "content": prompt}],
             max_tokens=max_tokens,
+            response_format=response_format,
         )
 
         self._log_llm_metrics(
@@ -150,6 +158,7 @@ class LLMAgent(Agent[InputT, OutputT]):
         validate_fn: Callable[[str], Optional[str]],
         max_retries: int = 2,
         max_tokens: int = 4096,
+        response_format: Optional[str] = None,
     ) -> str:
         """Call LLM with a validation-retry loop.
 
@@ -162,6 +171,7 @@ class LLMAgent(Agent[InputT, OutputT]):
                 None if valid, or an error string if invalid.
             max_retries: Maximum number of retry attempts.
             max_tokens: Maximum tokens to generate.
+            response_format: Pass ``"json"`` to request JSON output.
 
         Returns:
             The generated text (last attempt, even if imperfect).
@@ -170,7 +180,7 @@ class LLMAgent(Agent[InputT, OutputT]):
         result = ""
 
         for attempt in range(1 + max_retries):
-            result = self._call_llm(current_prompt, max_tokens=max_tokens)
+            result = self._call_llm(current_prompt, max_tokens=max_tokens, response_format=response_format)
             error = validate_fn(result)
             if error is None:
                 return result
