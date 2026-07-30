@@ -48,3 +48,31 @@ def test_llm_agent_emits_metric_event(tmp_path: Path, monkeypatch: pytest.Monkey
     assert evt["agent"] == "_StubAgent"
     assert evt["duration_ms"] == 50
     assert evt["cost_usd"] == pytest.approx(0.001)
+
+
+class _LegacyProvider:
+    """A third-party provider written before response_format existed: its
+    complete() has no such parameter and rejects the kwarg."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def complete(self, messages: Any, max_tokens: int = 4096) -> _StubResponse:
+        self.calls += 1
+        return _StubResponse()
+
+
+def test_call_llm_tolerates_legacy_provider_signature(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A JSON-requesting call must still work against a provider whose
+    complete() predates the response_format kwarg (retry without it)."""
+    monkeypatch.chdir(tmp_path)
+    provider = _LegacyProvider()
+    agent = _StubAgent(provider=provider)
+
+    # Would raise TypeError on the first attempt; the shim retries without it.
+    result = agent._call_llm("hello", response_format="json")  # type: ignore[attr-defined]
+
+    assert result == "stub"
+    assert provider.calls == 1

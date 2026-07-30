@@ -105,6 +105,11 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
         # Skills 1-4 run concurrently in a ThreadPoolExecutor and each mutate
         # these counters; guard every increment so no update is lost to a race.
         self._metrics_lock = threading.Lock()
+        # These per-run counters live on the instance, so two overlapping
+        # execute() calls on the same agent would clobber each other's metrics.
+        # Serialize whole runs to keep each run's cost/call/failure tally its
+        # own. (Production makes a fresh agent per run; this guards reuse.)
+        self._run_lock = threading.Lock()
 
     def _record_llm_failure(self) -> None:
         """Thread-safe increment of the failed-LLM-skill counter."""
@@ -143,12 +148,23 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
     ) -> AgentResult[ResearchOutput]:
         """Execute complete research workflow.
 
+        Serialized on ``_run_lock``: the per-run counters below are instance
+        state, so two overlapping calls on the same agent would clobber each
+        other's cost/call/failure tallies. Holding the lock for the whole run
+        keeps each run's metrics its own.
+
         Args:
             input_data: Research input with topic, technique, and depth
 
         Returns:
             AgentResult with complete research output or error
         """
+        with self._run_lock:
+            return self._execute_run(input_data)
+
+    def _execute_run(
+        self, input_data: ResearchInput,
+    ) -> AgentResult[ResearchOutput]:
         start_time = time.time()
         self._total_cost = 0.0
         self._llm_calls = 0
@@ -245,11 +261,13 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
             if self.llm_enabled and self._llm_failures > 0:
                 if self._llm_failures >= expected_llm_skills:
                     warnings.append(
-                        "All {} LLM research skills failed — no usable research "
-                        "was produced. Every section contains an 'Error during "
-                        "LLM analysis' placeholder. Verify the LLM provider is "
-                        "reachable and configured (ATHF_LLM_PROVIDER / API keys "
-                        "/ local Ollama), then re-run.".format(
+                        "All {} LLM research skills failed — no usable LLM "
+                        "research was produced. Every LLM-backed section "
+                        "contains an 'Error during LLM analysis' placeholder "
+                        "(the related-work section is a local similarity search "
+                        "and may still be populated). Verify the LLM provider "
+                        "is reachable and configured (ATHF_LLM_PROVIDER / API "
+                        "keys / local Ollama), then re-run.".format(
                             expected_llm_skills,
                         )
                     )
@@ -257,8 +275,8 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
                     warnings.append(
                         "{} of {} LLM research skills failed (e.g. the provider "
                         "was unreachable or returned unparseable output). "
-                        "Affected sections contain 'Error during LLM analysis' "
-                        "placeholders.".format(
+                        "Affected LLM-backed sections contain 'Error during LLM "
+                        "analysis' placeholders.".format(
                             self._llm_failures, expected_llm_skills,
                         )
                     )

@@ -617,21 +617,39 @@ def _load_config_file() -> Dict[str, Any]:
     return {}
 
 
-def _ollama_is_running(base_url: str = "http://localhost:11434") -> bool:
-    """Check whether an Ollama instance is reachable.
+def _ollama_is_running(base_url: str = "http://127.0.0.1:11434") -> bool:
+    """Check whether a local Ollama instance is reachable.
+
+    This is an unprompted auto-detection probe, so it is deliberately locked to
+    the loopback interface and cannot be rerouted off-host:
+      - defaults to the literal ``127.0.0.1`` address (no DNS for "localhost",
+        which a hosts-file entry could otherwise repoint);
+      - uses an opener with no proxy handler, so ``HTTP(S)_PROXY`` env vars
+        cannot funnel the probe through an external host;
+      - disables redirect following, so a response cannot bounce it off-loopback.
 
     Args:
-        base_url: Ollama HTTP API base URL.
+        base_url: Ollama HTTP API base URL. Auto-detect always passes the fixed
+            loopback default; an explicit non-default endpoint must be selected
+            via explicit provider config, not this probe.
 
     Returns:
         True if Ollama responds to a version request.
     """
     import urllib.request
-    import urllib.error
+
+    class _NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, *args: Any, **kwargs: Any) -> None:
+            return None
+
+    opener = urllib.request.build_opener(
+        urllib.request.ProxyHandler({}),  # empty map = ignore proxy env vars
+        _NoRedirect(),
+    )
 
     try:
         req = urllib.request.Request("{}/api/version".format(base_url))
-        resp = urllib.request.urlopen(req, timeout=2)
+        resp = opener.open(req, timeout=2)
         return bool(resp.status == 200)
     except Exception:
         return False
@@ -722,7 +740,7 @@ def create_provider(config: Optional[Dict[str, Any]] = None) -> LLMProvider:
     # process issue requests to an arbitrary host). A non-default Ollama endpoint
     # must be selected explicitly via provider="ollama" + base_url, which routes
     # through _build_provider above and skips this auto-probe.
-    default_ollama_url = "http://localhost:11434"
+    default_ollama_url = "http://127.0.0.1:11434"
     if _ollama_is_running(default_ollama_url):
         detected_model = model or "llama3"
         logger.info("Auto-detected local Ollama -> using Ollama provider with model %s", detected_model)

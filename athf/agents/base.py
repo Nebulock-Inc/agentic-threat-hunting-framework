@@ -134,11 +134,29 @@ class LLMAgent(Agent[InputT, OutputT]):
             The generated text content.
         """
         provider = self._get_provider()
-        response = provider.complete(
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=max_tokens,
-            response_format=response_format,
-        )
+        messages = [{"role": "user", "content": prompt}]
+
+        # response_format is a newer, optional kwarg. Only forward it when a
+        # caller actually requests a format, and fall back gracefully for any
+        # third-party provider still on the pre-response_format signature so it
+        # never raises TypeError on a plain text call.
+        if response_format is None:
+            response = provider.complete(messages=messages, max_tokens=max_tokens)
+        else:
+            try:
+                response = provider.complete(
+                    messages=messages,
+                    max_tokens=max_tokens,
+                    response_format=response_format,
+                )
+            except TypeError as exc:
+                if "response_format" not in str(exc):
+                    raise
+                logger.debug(
+                    "provider %s does not accept response_format; retrying "
+                    "without it", type(provider).__name__,
+                )
+                response = provider.complete(messages=messages, max_tokens=max_tokens)
 
         self._log_llm_metrics(
             agent_name=self.__class__.__name__,
