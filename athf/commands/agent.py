@@ -24,8 +24,12 @@ def _apply_workshop_mode(agent: Any, token_cap: int) -> None:
     """
     from pathlib import Path
 
-    log_path = Path.cwd() / ".athf" / "session.log"
-    log_path.parent.mkdir(parents=True, exist_ok=True)
+    session_log = Path.cwd() / ".athf" / "session.log"
+    try:
+        session_log.parent.mkdir(parents=True, exist_ok=True)
+        log_path: Optional[Path] = session_log
+    except OSError:
+        log_path = None  # logging unavailable — never block the LLM call
 
     original_call_llm = agent._call_llm
 
@@ -50,11 +54,12 @@ def _apply_workshop_mode(agent: Any, token_cap: int) -> None:
                 "duration_ms": round((time.time() - start) * 1000, 1),
                 "error": error,
             }
-            try:
-                with log_path.open("a", encoding="utf-8") as fh:
-                    fh.write(json.dumps(record) + "\n")
-            except Exception:
-                pass  # never let logging break a hunt
+            if log_path is not None:
+                try:
+                    with log_path.open("a", encoding="utf-8") as fh:
+                        fh.write(json.dumps(record) + "\n")
+                except OSError:
+                    pass  # never let logging break a hunt
 
     agent._call_llm = capped_call_llm
 
@@ -284,6 +289,9 @@ def run(  # noqa: C901
       # Fallback mode (no LLM)
       athf agent run hypothesis-generator --threat-intel "..." --no-llm
     """
+    if workshop and token_cap is not None and token_cap < 1:
+        raise click.BadParameter("--token-cap must be >= 1", param_hint="--token-cap")
+
     if agent_name == "hypothesis-generator":
         if not threat_intel:
             console.print("[red]Error: --threat-intel required for hypothesis-generator[/red]")
