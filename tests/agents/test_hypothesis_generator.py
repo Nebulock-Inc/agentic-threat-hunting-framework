@@ -41,7 +41,7 @@ class MockProvider(LLMProvider):
     def provider_name(self):
         return "mock"
 
-    def complete(self, messages, max_tokens=4096, temperature=0.7):
+    def complete(self, messages, max_tokens=4096, temperature=0.7, response_format=None):
         self.calls.append({"messages": messages, "max_tokens": max_tokens})
         return LLMResponse(
             text=self.response_text,
@@ -95,7 +95,7 @@ class TestHypothesisGeneratorAgent:
             def provider_name(self):
                 return "retry-mock"
 
-            def complete(self, messages, max_tokens=4096, temperature=0.7):
+            def complete(self, messages, max_tokens=4096, temperature=0.7, response_format=None):
                 nonlocal call_count
                 call_count += 1
                 text = original_text if call_count == 1 else VALID_HYPOTHESIS_JSON
@@ -123,7 +123,7 @@ class TestHypothesisGeneratorAgent:
             def provider_name(self):
                 return "error-mock"
 
-            def complete(self, messages, max_tokens=4096, temperature=0.7):
+            def complete(self, messages, max_tokens=4096, temperature=0.7, response_format=None):
                 raise RuntimeError("LLM is down")
 
         agent = HypothesisGeneratorAgent(provider=ErrorProvider(), llm_enabled=True)
@@ -224,7 +224,7 @@ class TestHypothesisGeneratorDuration:
             def provider_name(self):
                 return "error-mock"
 
-            def complete(self, messages, max_tokens=4096, temperature=0.7):
+            def complete(self, messages, max_tokens=4096, temperature=0.7, response_format=None):
                 raise RuntimeError("LLM is down")
 
         agent = HypothesisGeneratorAgent(provider=ErrorProvider(), llm_enabled=True)

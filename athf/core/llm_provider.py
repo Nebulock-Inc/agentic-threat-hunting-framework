@@ -127,6 +127,7 @@ class LLMProvider(ABC):
         messages: List[Dict[str, str]],
         max_tokens: int = 4096,
         temperature: float = 0.7,
+        response_format: Optional[str] = None,
     ) -> LLMResponse:
         """Send a chat-completion request to the LLM.
 
@@ -134,6 +135,11 @@ class LLMProvider(ABC):
             messages: List of message dicts with ``role`` and ``content`` keys.
             max_tokens: Maximum tokens to generate.
             temperature: Sampling temperature (0.0 - 1.0).
+            response_format: Optional output-format hint. Pass ``"json"`` when
+                the caller parses the response as JSON so providers that support
+                a structured-output mode (Ollama, OpenAI) can enforce it. Providers
+                that lack such a mode ignore it. Defaults to ``None`` (free-form
+                text) to preserve behavior for prose callers.
 
         Returns:
             An LLMResponse with the generated text and metadata.
@@ -175,6 +181,7 @@ class LiteLLMProvider(LLMProvider):
         messages: List[Dict[str, str]],
         max_tokens: int = 4096,
         temperature: float = 0.7,
+        response_format: Optional[str] = None,
     ) -> LLMResponse:
         """Complete a chat request via litellm.
 
@@ -182,6 +189,7 @@ class LiteLLMProvider(LLMProvider):
             messages: Chat messages.
             max_tokens: Maximum tokens to generate.
             temperature: Sampling temperature.
+            response_format: Pass ``"json"`` to request JSON output.
 
         Returns:
             LLMResponse with results and metrics.
@@ -196,12 +204,17 @@ class LiteLLMProvider(LLMProvider):
                 "litellm package is not installed. Install it with: pip install litellm"
             )
 
+        kwargs: Dict[str, Any] = {}
+        if response_format == "json":
+            kwargs["response_format"] = {"type": "json_object"}
+
         start = time.monotonic()
         response = litellm.completion(
             model=self.model,
             messages=messages,
             max_tokens=max_tokens,
             temperature=temperature,
+            **kwargs,
         )
         duration_ms = int((time.monotonic() - start) * 1000)
 
@@ -295,6 +308,7 @@ class BedrockProvider(LLMProvider):
         messages: List[Dict[str, str]],
         max_tokens: int = 4096,
         temperature: float = 0.7,
+        response_format: Optional[str] = None,
     ) -> LLMResponse:
         """Send a chat-completion request to AWS Bedrock.
 
@@ -302,6 +316,9 @@ class BedrockProvider(LLMProvider):
             messages: Chat messages.
             max_tokens: Maximum tokens to generate.
             temperature: Sampling temperature.
+            response_format: Accepted for interface parity. The Anthropic
+                Messages API has no format flag, so JSON output is steered via
+                the prompt; this argument is ignored here.
 
         Returns:
             LLMResponse with results and metrics.
@@ -377,6 +394,7 @@ class OllamaProvider(LLMProvider):
         messages: List[Dict[str, str]],
         max_tokens: int = 4096,
         temperature: float = 0.7,
+        response_format: Optional[str] = None,
     ) -> LLMResponse:
         """Send a chat request to the local Ollama API.
 
@@ -384,6 +402,8 @@ class OllamaProvider(LLMProvider):
             messages: Chat messages.
             max_tokens: Maximum tokens to generate.
             temperature: Sampling temperature.
+            response_format: Pass ``"json"`` to set Ollama's ``format`` option
+                so the model returns valid JSON instead of prose.
 
         Returns:
             LLMResponse with results and metrics.
@@ -395,7 +415,7 @@ class OllamaProvider(LLMProvider):
         import urllib.error
 
         url = "{}/api/chat".format(self.base_url)
-        payload = {
+        payload: Dict[str, Any] = {
             "model": self.model,
             "messages": messages,
             "stream": False,
@@ -404,6 +424,8 @@ class OllamaProvider(LLMProvider):
                 "temperature": temperature,
             },
         }
+        if response_format == "json":
+            payload["format"] = "json"
         data = json.dumps(payload).encode("utf-8")
         req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
 
@@ -501,6 +523,7 @@ class OpenAICompatibleProvider(LLMProvider):
         messages: List[Dict[str, str]],
         max_tokens: int = 4096,
         temperature: float = 0.7,
+        response_format: Optional[str] = None,
     ) -> LLMResponse:
         """Send a chat-completion request to an OpenAI-compatible API.
 
@@ -508,6 +531,7 @@ class OpenAICompatibleProvider(LLMProvider):
             messages: Chat messages.
             max_tokens: Maximum tokens to generate.
             temperature: Sampling temperature.
+            response_format: Pass ``"json"`` to request a JSON object response.
 
         Returns:
             LLMResponse with results and metrics.
@@ -517,12 +541,17 @@ class OpenAICompatibleProvider(LLMProvider):
         """
         client = self._get_client()
 
+        kwargs: Dict[str, Any] = {}
+        if response_format == "json":
+            kwargs["response_format"] = {"type": "json_object"}
+
         start = time.monotonic()
         response = client.chat.completions.create(
             model=self.model,
             messages=messages,
             max_tokens=max_tokens,
             temperature=temperature,
+            **kwargs,
         )
         duration_ms = int((time.monotonic() - start) * 1000)
 
@@ -588,21 +617,39 @@ def _load_config_file() -> Dict[str, Any]:
     return {}
 
 
-def _ollama_is_running(base_url: str = "http://localhost:11434") -> bool:
-    """Check whether an Ollama instance is reachable.
+def _ollama_is_running(base_url: str = "http://127.0.0.1:11434") -> bool:
+    """Check whether a local Ollama instance is reachable.
+
+    This is an unprompted auto-detection probe, so it is deliberately locked to
+    the loopback interface and cannot be rerouted off-host:
+      - defaults to the literal ``127.0.0.1`` address (no DNS for "localhost",
+        which a hosts-file entry could otherwise repoint);
+      - uses an opener with no proxy handler, so ``HTTP(S)_PROXY`` env vars
+        cannot funnel the probe through an external host;
+      - disables redirect following, so a response cannot bounce it off-loopback.
 
     Args:
-        base_url: Ollama HTTP API base URL.
+        base_url: Ollama HTTP API base URL. Auto-detect always passes the fixed
+            loopback default; an explicit non-default endpoint must be selected
+            via explicit provider config, not this probe.
 
     Returns:
         True if Ollama responds to a version request.
     """
     import urllib.request
-    import urllib.error
+
+    class _NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, *args: Any, **kwargs: Any) -> None:
+            return None
+
+    opener = urllib.request.build_opener(
+        urllib.request.ProxyHandler({}),  # empty map = ignore proxy env vars
+        _NoRedirect(),
+    )
 
     try:
         req = urllib.request.Request("{}/api/version".format(base_url))
-        resp = urllib.request.urlopen(req, timeout=2)
+        resp = opener.open(req, timeout=2)
         return bool(resp.status == 200)
     except Exception:
         return False
@@ -621,8 +668,8 @@ def create_provider(config: Optional[Dict[str, Any]] = None) -> LLMProvider:
     Auto-detection order:
         ``ANTHROPIC_API_KEY`` -> LiteLLM (Anthropic)
         ``OPENAI_API_KEY`` -> OpenAI-compatible
-        ``AWS_PROFILE`` or ``AWS_ACCESS_KEY_ID`` -> Bedrock
         Ollama running locally -> Ollama
+        ``AWS_PROFILE`` or ``AWS_ACCESS_KEY_ID`` -> Bedrock
         Otherwise -> raises RuntimeError
 
     Args:
@@ -681,6 +728,24 @@ def create_provider(config: Optional[Dict[str, Any]] = None) -> LLMProvider:
             base_url=effective.get("base_url"),
         )
 
+    # Ollama running locally -> prefer it over AWS-cred Bedrock. Bedrock needs
+    # boto3, which is an optional dependency; a machine can carry ambient AWS
+    # credentials (e.g. for unrelated tooling) without boto3 installed, so
+    # preferring detected-and-reachable Ollama avoids silently picking a
+    # provider that then fails to import.
+    #
+    # Probe ONLY the fixed loopback address, never a config-supplied base_url:
+    # auto-detect fires unprompted, and probing a config/env-controlled URL here
+    # would be an SSRF sink (an attacker who can influence config could make the
+    # process issue requests to an arbitrary host). A non-default Ollama endpoint
+    # must be selected explicitly via provider="ollama" + base_url, which routes
+    # through _build_provider above and skips this auto-probe.
+    default_ollama_url = "http://127.0.0.1:11434"
+    if _ollama_is_running(default_ollama_url):
+        detected_model = model or "llama3"
+        logger.info("Auto-detected local Ollama -> using Ollama provider with model %s", detected_model)
+        return OllamaProvider(model=detected_model, base_url=default_ollama_url)
+
     # AWS credentials -> Bedrock
     if os.getenv("AWS_PROFILE") or os.getenv("AWS_ACCESS_KEY_ID"):
         detected_model = model or "us.anthropic.claude-sonnet-4-5-20250929-v1:0"
@@ -689,13 +754,6 @@ def create_provider(config: Optional[Dict[str, Any]] = None) -> LLMProvider:
             model_id=detected_model,
             region=effective.get("region"),
         )
-
-    # Ollama running locally
-    ollama_url = effective.get("base_url", "http://localhost:11434")
-    if _ollama_is_running(ollama_url):
-        detected_model = model or "llama3"
-        logger.info("Auto-detected local Ollama -> using Ollama provider with model %s", detected_model)
-        return OllamaProvider(model=detected_model, base_url=ollama_url)
 
     raise RuntimeError(
         "No LLM provider could be determined. Set one of: "

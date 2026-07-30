@@ -9,6 +9,7 @@ Implements a structured 5-skill research methodology:
 """
 
 import os
+import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -100,6 +101,20 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
         self._total_cost = 0.0
         self._llm_calls = 0
         self._web_searches = 0
+        self._llm_failures = 0
+        # Skills 1-4 run concurrently in a ThreadPoolExecutor and each mutate
+        # these counters; guard every increment so no update is lost to a race.
+        self._metrics_lock = threading.Lock()
+        # These per-run counters live on the instance, so two overlapping
+        # execute() calls on the same agent would clobber each other's metrics.
+        # Serialize whole runs to keep each run's cost/call/failure tally its
+        # own. (Production makes a fresh agent per run; this guards reuse.)
+        self._run_lock = threading.Lock()
+
+    def _record_llm_failure(self) -> None:
+        """Thread-safe increment of the failed-LLM-skill counter."""
+        with self._metrics_lock:
+            self._llm_failures += 1
 
     def _log_llm_metrics(
         self,
@@ -111,8 +126,9 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
         duration_ms: int,
     ) -> None:
         """Track LLM call metrics for cost reporting."""
-        self._llm_calls += 1
-        self._total_cost += cost_usd
+        with self._metrics_lock:
+            self._llm_calls += 1
+            self._total_cost += cost_usd
 
     def _get_search_client(self) -> Optional[Any]:
         """Get or create Tavily search client."""
@@ -132,16 +148,28 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
     ) -> AgentResult[ResearchOutput]:
         """Execute complete research workflow.
 
+        Serialized on ``_run_lock``: the per-run counters below are instance
+        state, so two overlapping calls on the same agent would clobber each
+        other's cost/call/failure tallies. Holding the lock for the whole run
+        keeps each run's metrics its own.
+
         Args:
             input_data: Research input with topic, technique, and depth
 
         Returns:
             AgentResult with complete research output or error
         """
+        with self._run_lock:
+            return self._execute_run(input_data)
+
+    def _execute_run(
+        self, input_data: ResearchInput,
+    ) -> AgentResult[ResearchOutput]:
         start_time = time.time()
         self._total_cost = 0.0
         self._llm_calls = 0
         self._web_searches = 0
+        self._llm_failures = 0
 
         try:
             # Get next research ID
@@ -197,6 +225,10 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
             # Build output
             total_duration_ms = int((time.time() - start_time) * 1000)
 
+            # Skills 1, 2, 3, and 5 each make one LLM call when llm_enabled.
+            # Skill 4 (related work) is a local similarity search with no LLM.
+            expected_llm_skills = 4
+
             output = ResearchOutput(
                 research_id=research_id,
                 topic=input_data.topic,
@@ -220,16 +252,44 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
                 total_cost_usd=round(self._total_cost, 4),
             )
 
+            # A research run that produced no usable LLM output must not look
+            # like a clean success — the record has to be trustworthy (a stub
+            # full of "Error during LLM analysis" is worse than nothing if it
+            # reads as done). We still write the doc so the attendee keeps
+            # partial findings; the failure is surfaced loudly via warnings.
+            warnings: List[str] = []
+            if self.llm_enabled and self._llm_failures > 0:
+                if self._llm_failures >= expected_llm_skills:
+                    warnings.append(
+                        f"All {expected_llm_skills} LLM research skills failed "
+                        "— no usable LLM research was produced. Every LLM-backed "
+                        "section contains an 'Error during LLM analysis' "
+                        "placeholder (the related-work section is a local "
+                        "similarity search and may still be populated). Verify "
+                        "the LLM provider is reachable and configured "
+                        "(ATHF_LLM_PROVIDER / API keys / local Ollama), then "
+                        "re-run."
+                    )
+                else:
+                    warnings.append(
+                        f"{self._llm_failures} of {expected_llm_skills} LLM "
+                        "research skills failed (e.g. the provider was "
+                        "unreachable or returned unparseable output). Affected "
+                        "LLM-backed sections contain 'Error during LLM analysis' "
+                        "placeholders."
+                    )
+
             return AgentResult(
                 success=True,
                 data=output,
                 error=None,
-                warnings=[],
+                warnings=warnings,
                 metadata={
                     "research_id": research_id,
                     "duration_ms": total_duration_ms,
                     "web_searches": self._web_searches,
                     "llm_calls": self._llm_calls,
+                    "llm_failures": self._llm_failures,
                     "cost_usd": round(self._total_cost, 4),
                 },
             )
@@ -268,7 +328,8 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
                 search_results = search_client.search_system_internals(
                     topic, search_depth,
                 )
-                self._web_searches += 1
+                with self._metrics_lock:
+                    self._web_searches += 1
 
                 for result in search_results.results[:5]:
                     snippet = result.content
@@ -336,7 +397,8 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
                         topic, technique, search_depth,
                     )
                 )
-                self._web_searches += 1
+                with self._metrics_lock:
+                    self._web_searches += 1
 
                 for result in search_results.results[:7]:
                     snippet = result.content
@@ -582,11 +644,12 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
                 ' "finding3"]\n}}'
             ).format(topic=topic, context=context)
 
-            response = self._call_llm(prompt, max_tokens=2048)
+            response = self._call_llm(prompt, max_tokens=2048, response_format="json")
             data = self._parse_json_response(response)
             return data["summary"], data["key_findings"]
 
         except Exception as e:
+            self._record_llm_failure()
             return (
                 "System research for {} (LLM error: {})".format(
                     topic, str(e)[:50],
@@ -643,11 +706,12 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
                 context=context,
             )
 
-            response = self._call_llm(prompt, max_tokens=2048)
+            response = self._call_llm(prompt, max_tokens=2048, response_format="json")
             data = self._parse_json_response(response)
             return data["summary"], data["key_findings"]
 
         except Exception as e:
+            self._record_llm_failure()
             return (
                 "Adversary tradecraft for {} (LLM error: {})".format(
                     topic, str(e)[:50],
@@ -691,11 +755,12 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
                 environment_data=environment_data[:1000],
             )
 
-            response = self._call_llm(prompt, max_tokens=2048)
+            response = self._call_llm(prompt, max_tokens=2048, response_format="json")
             data = self._parse_json_response(response)
             return data["summary"], data["key_findings"]
 
         except Exception as e:
+            self._record_llm_failure()
             return (
                 "Telemetry mapping for {} (LLM error: {})".format(
                     topic, str(e)[:50],
@@ -752,11 +817,12 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
                 context=context,
             )
 
-            response = self._call_llm(prompt, max_tokens=2048)
+            response = self._call_llm(prompt, max_tokens=2048, response_format="json")
             data = self._parse_json_response(response)
             return data["summary"], data["key_findings"]
 
         except Exception as e:
+            self._record_llm_failure()
             return (
                 "Research synthesis for {} (LLM error: {})".format(
                     topic, str(e)[:50],
@@ -770,14 +836,17 @@ class HuntResearcherAgent(LLMAgent[ResearchInput, ResearchOutput]):
             Path.cwd() / "knowledge" / "OCSF_SCHEMA_REFERENCE.md"
         )
         if schema_path.exists():
-            return schema_path.read_text()[:5000]  # Limit size
+            # Explicit UTF-8: these knowledge files are UTF-8 on disk, and
+            # Windows would otherwise default to cp1252 and raise on any byte
+            # outside that codec, sinking the whole research run.
+            return schema_path.read_text(encoding="utf-8")[:5000]  # Limit size
         return "OCSF schema reference not found"
 
     def _load_environment(self) -> str:
         """Load environment.md content."""
         env_path = Path.cwd() / "environment.md"
         if env_path.exists():
-            return env_path.read_text()[:2000]  # Limit size
+            return env_path.read_text(encoding="utf-8")[:2000]  # Limit size
         return "Environment file not found"
 
     def _extract_hypothesis(

@@ -33,12 +33,12 @@ def _apply_workshop_mode(agent: Any, token_cap: int) -> None:
 
     original_call_llm = agent._call_llm
 
-    def capped_call_llm(prompt: str, max_tokens: int = 4096) -> str:
+    def capped_call_llm(prompt: str, max_tokens: int = 4096, **kwargs: Any) -> str:
         effective = min(max_tokens, token_cap)
         start = time.time()
         error = None
         try:
-            result: str = original_call_llm(prompt, max_tokens=effective)
+            result: str = original_call_llm(prompt, max_tokens=effective, **kwargs)
             return result
         except Exception as exc:  # log the failure, then re-raise unchanged
             error = str(exc)

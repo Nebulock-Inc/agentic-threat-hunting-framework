@@ -35,10 +35,22 @@ def serve(workspace: str, transport: str, port: int) -> None:
         }
       }
     """
+    # The mcp import happens lazily inside create_server(), so a missing or
+    # incompatible mcp surfaces as MCPDependencyError when mcp_main runs, not at
+    # the import above. Catch only that dedicated type so unrelated ImportErrors
+    # (a genuine bug in a tool module) still propagate with a real traceback.
+    from athf.mcp.server import MCPDependencyError
+
     try:
         from athf.mcp.server import main as mcp_main
-    except ImportError:
-        click.echo("Error: MCP dependencies not installed. Install with: pip install 'athf[mcp]'", err=True)
-        raise SystemExit(1) from None
 
-    mcp_main(workspace_path=workspace, transport=transport, port=port)
+        mcp_main(workspace_path=workspace, transport=transport, port=port)
+    except MCPDependencyError as exc:
+        click.echo(
+            f"Error starting the ATHF MCP server: {exc}\n"
+            "This usually means the mcp package is missing or an incompatible "
+            "version is installed (mcp 2.0.0 removed FastMCP). Install a supported "
+            "version with: pip install 'athf[mcp]' (pins mcp[cli]>=1.9.4,<2.0.0).",
+            err=True,
+        )
+        raise SystemExit(1) from exc

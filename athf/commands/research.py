@@ -143,6 +143,12 @@ def new(
         console.print("[red]Research failed: No output data[/red]")
         raise click.Abort()
 
+    # Surface partial-failure warnings so a run with stub "Error during LLM
+    # analysis" sections is not silently presented as a clean success.
+    if result.warnings:
+        for warning in result.warnings:
+            console.print(f"[yellow]Warning: {warning}[/yellow]")
+
     # Generate markdown content
     markdown_content = _generate_research_markdown(output)
 
@@ -151,12 +157,13 @@ def new(
         "research_id": output.research_id,
         "topic": output.topic,
         "mitre_techniques": output.mitre_techniques,
-        "status": "completed",
+        "status": "completed_with_errors" if result.warnings else "completed",
         "depth": depth,
         "duration_minutes": round(output.total_duration_ms / 60000, 1),
         "linked_hunts": [],
         "web_searches": output.web_searches_performed,
         "llm_calls": output.llm_calls,
+        "llm_failures": result.metadata.get("llm_failures", 0),
         "total_cost_usd": output.total_cost_usd,
         "data_source_availability": output.data_source_availability,
         "estimated_hunt_complexity": output.estimated_hunt_complexity,
