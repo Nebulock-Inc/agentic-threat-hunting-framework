@@ -560,9 +560,11 @@ class ResearchManager:
 
         file_path = Path(research_data["file_path"])
 
+        # Probe readability before rewriting: the parsed copy already lives in
+        # research_data, so the content itself is not needed here.
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                content = f.read()
+            with open(file_path, "r", encoding="utf-8"):
+                pass
         except OSError:
             return None
 
