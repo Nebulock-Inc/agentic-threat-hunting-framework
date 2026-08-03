@@ -8,9 +8,11 @@ Investigation parser is simpler than hunt parser:
 
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import yaml
+
+from athf.utils.validation import validate_investigation_id
 
 
 class InvestigationParser:
@@ -154,6 +156,41 @@ def validate_investigation_file(file_path: Path) -> Tuple[bool, List[str]]:
     return parser.validate()
 
 
+def find_investigation_file(investigations_dir: Path, investigation_id: str) -> Optional[Path]:
+    """Resolve an investigation ID to a file, searching subdirectories.
+
+    Mirrors HuntManager.find_hunt_file: prefer the flat path (where
+    `athf investigate new` writes), then fall back to a recursive search so
+    investigations organized into subdirectories stay reachable.
+
+    Args:
+        investigations_dir: Root investigations directory
+        investigation_id: Investigation ID (e.g. I-0001)
+
+    Returns:
+        Path to the investigation file, or None if it does not exist or
+        resolves outside investigations_dir.
+    """
+    if not validate_investigation_id(investigation_id):
+        return None
+
+    candidates = [investigations_dir / f"{investigation_id}.md"]
+    candidates.extend(sorted(investigations_dir.rglob(f"{investigation_id}.md")))
+
+    for candidate in candidates:
+        if not candidate.exists():
+            continue
+        # Keep the containment check: rglob cannot escape the root, but a
+        # symlinked subdirectory can.
+        try:
+            candidate.resolve().relative_to(investigations_dir.resolve())
+        except (ValueError, OSError):
+            continue
+        return candidate
+
+    return None
+
+
 def get_all_investigations(investigations_dir: Path) -> List[Dict[str, Any]]:
     """Get all investigation files from the investigations directory.
 
@@ -168,11 +205,14 @@ def get_all_investigations(investigations_dir: Path) -> List[Dict[str, Any]]:
     if not investigations_dir.exists():
         return []
 
-    # Find all I-*.md files
-    investigation_files = sorted(investigations_dir.glob("I-*.md"))
+    # Find all I-*.md files, including those organized into subdirectories
+    # (e.g. investigations/2026/Q3/I-0001.md). Hunts and research already
+    # recurse; investigations must too, or nested files become invisible to
+    # get_next_investigation_id() and their IDs get handed out a second time.
+    investigation_files = investigations_dir.rglob("I-*.md")
 
     investigations = []
-    for file_path in investigation_files:
+    for file_path in sorted(investigation_files):
         try:
             investigation = parse_investigation_file(file_path)
             investigations.append(investigation)
@@ -180,6 +220,9 @@ def get_all_investigations(investigations_dir: Path) -> List[Dict[str, Any]]:
             # Skip invalid files but log the error
             print(f"Warning: Failed to parse {file_path}: {e}")
             continue
+
+    # Sort by investigation_id, not by path, so nesting does not reorder results
+    investigations.sort(key=lambda i: i.get("investigation_id") or "")
 
     return investigations
 
