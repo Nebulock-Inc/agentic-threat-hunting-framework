@@ -6,7 +6,7 @@ ATHF includes its own MCP server that exposes hunting operations as tools for an
 
 **Install:**
 ```bash
-pip install 'athf[mcp]'
+pip install 'agentic-threat-hunting-framework[mcp]'
 ```
 
 **Configure for Claude Code** (`~/.claude/mcp-servers.json`):
