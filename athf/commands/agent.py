@@ -280,6 +280,7 @@ def run(  # noqa: C901
       athf agent run hypothesis-generator --threat-intel "APT29 targeting SaaS applications"
       athf agent run hypothesis-generator --threat-intel "Insider threat data exfiltration" --tactic collection
       athf agent run hypothesis-generator --threat-intel "Credential dumping" --research R-0001
+      athf agent run hypothesis-generator --research R-0001
 
       # Hunt Researcher
       athf agent run hunt-researcher --topic "LSASS dumping"
@@ -293,8 +294,8 @@ def run(  # noqa: C901
         raise click.BadParameter("--token-cap must be >= 1", param_hint="--token-cap")
 
     if agent_name == "hypothesis-generator":
-        if not threat_intel:
-            console.print("[red]Error: --threat-intel required for hypothesis-generator[/red]")
+        if not threat_intel and not research:
+            console.print("[red]Error: --threat-intel or --research required for hypothesis-generator[/red]")
             raise click.Abort()
 
         try:
@@ -327,6 +328,8 @@ def run(  # noqa: C901
                     if research_doc:
                         research_ctx = research_mgr.extract_research_context(research_doc)
                         console.print(f"[green]✓ Loaded research context from {research}[/green]\n")
+                        if not threat_intel:
+                            threat_intel = research_doc.get("frontmatter", {}).get("topic") or research
                     else:
                         console.print(f"[yellow]⚠ Research document {research} not found[/yellow]\n")
                 elif technique:
@@ -337,6 +340,10 @@ def run(  # noqa: C901
                         console.print(f"[green]✓ Auto-discovered research {rid} for {technique}[/green]\n")
             except Exception as e:
                 console.print(f"[yellow]⚠ Could not load research context: {e}[/yellow]\n")
+
+            if not threat_intel:
+                console.print(f"[red]Error: could not load {research}; provide --threat-intel[/red]")
+                raise click.Abort()
 
             # Try to load environment.md if it exists
             try:
@@ -378,6 +385,8 @@ def run(  # noqa: C901
                     console.print(f"[dim]Hypothesis generated in {duration_min} minutes[/dim]")
                     console.print(f"[dim]Use: athf hunt new --hypothesis-duration {duration_min} ...[/dim]\n")
 
+        except click.Abort:
+            raise
         except ImportError as e:
             console.print(f"[red]Error loading agent: {e}[/red]")
             console.print("\n[dim]Install an LLM provider:[/dim]")
@@ -567,6 +576,6 @@ def _display_research_result(result: Any) -> None:
     console.print("\n[bold]Next Steps:[/bold]")
     console.print("  1. Use standalone command for full research file:")
     console.print(f"     [cyan]athf research view {output.research_id}[/cyan]")
-    console.print("  2. Generate hypothesis: [cyan]athf agent run hypothesis-generator[/cyan]")
+    console.print(f"  2. Generate hypothesis: [cyan]athf agent run hypothesis-generator --research {output.research_id}[/cyan]")
     console.print(f"  3. Create hunt: [cyan]athf hunt new --research {output.research_id}[/cyan]")
     console.print()
