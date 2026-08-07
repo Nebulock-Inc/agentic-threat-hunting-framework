@@ -48,7 +48,7 @@ class TestLiteLLMProvider:
         mock_litellm.completion.return_value = mock_response
 
         with patch.dict(sys.modules, {"litellm": mock_litellm}):
-            provider = LiteLLMProvider(model="anthropic/claude-sonnet-4-5-20250514")
+            provider = LiteLLMProvider(model="anthropic/claude-sonnet-4-5")
             result = provider.complete(
                 messages=[{"role": "user", "content": "Hi"}]
             )
@@ -56,12 +56,12 @@ class TestLiteLLMProvider:
         assert result.text == "LiteLLM response"
         assert result.input_tokens == 80
         assert result.output_tokens == 40
-        assert result.model == "anthropic/claude-sonnet-4-5-20250514"
+        assert result.model == "anthropic/claude-sonnet-4-5"
         assert provider.provider_name == "litellm"
 
         # Verify the request was built correctly
         mock_litellm.completion.assert_called_once_with(
-            model="anthropic/claude-sonnet-4-5-20250514",
+            model="anthropic/claude-sonnet-4-5",
             messages=[{"role": "user", "content": "Hi"}],
             max_tokens=4096,
             temperature=0.7,

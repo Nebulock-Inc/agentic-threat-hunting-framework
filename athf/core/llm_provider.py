@@ -165,10 +165,10 @@ class LiteLLMProvider(LLMProvider):
     imported lazily so it is only required when this provider is actually used.
 
     Args:
-        model: A litellm-compatible model string (e.g. ``"anthropic/claude-sonnet-4-5-20250514"``).
+        model: A litellm-compatible model string (e.g. ``"anthropic/claude-sonnet-4-5"``).
     """
 
-    def __init__(self, model: str = "anthropic/claude-sonnet-4-5-20250514"):
+    def __init__(self, model: str = "anthropic/claude-sonnet-4-5"):
         self.model = model
 
     @property
@@ -714,7 +714,7 @@ def create_provider(config: Optional[Dict[str, Any]] = None) -> LLMProvider:
 
     # Anthropic API key -> LiteLLM with anthropic prefix
     if os.getenv("ANTHROPIC_API_KEY"):
-        detected_model = model or "anthropic/claude-sonnet-4-5-20250514"
+        detected_model = model or "anthropic/claude-sonnet-4-5"
         logger.info("Auto-detected ANTHROPIC_API_KEY -> using LiteLLM provider with model %s", detected_model)
         return LiteLLMProvider(model=detected_model)
 
@@ -785,7 +785,7 @@ def _build_provider(name: str, model: Optional[str], config: Dict[str, Any]) -> 
         )
 
     if name == "litellm":
-        return LiteLLMProvider(model=model or "anthropic/claude-sonnet-4-5-20250514")
+        return LiteLLMProvider(model=model or "anthropic/claude-sonnet-4-5")
 
     if name == "bedrock":
         return BedrockProvider(
