@@ -31,7 +31,7 @@ class MCPDependencyError(ImportError):
             f"Could not import mcp.server.fastmcp.FastMCP ({cause}). This "
             "usually means either the mcp package is not installed, or an "
             "incompatible version is installed: mcp 2.0.0 removed FastMCP. "
-            "Install a supported version with: pip install 'athf[mcp]' "
+            "Install a supported version with: pip install 'agentic-threat-hunting-framework[mcp]' "
             "(which pins mcp[cli]>=1.9.4,<2.0.0)."
         )
 
