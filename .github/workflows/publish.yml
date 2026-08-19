@@ -30,9 +30,10 @@ jobs:
 
     - name: Verify version matches tag
       run: |
-        # Extract version from pyproject.toml
-        PACKAGE_VERSION=$(grep '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
-        # Extract version from git tag
+        # athf/__version__.py is the single source: pyproject.toml declares the version
+        # dynamic and reads this attribute, so this is also what ends up in the artifact
+        # metadata and what `athf --version` reports.
+        PACKAGE_VERSION=$(python -c "import runpy; print(runpy.run_path('athf/__version__.py')['__version__'])")
         TAG_VERSION=${GITHUB_REF#refs/tags/v}
         echo "Package version: $PACKAGE_VERSION"
         echo "Tag version: $TAG_VERSION"
@@ -48,6 +49,32 @@ jobs:
     - name: Check package with twine
       run: |
         twine check dist/*
+
+    - name: Verify the artifact ships and imports every subpackage
+      run: |
+        python scripts/verify_packaging.py --dist-dir dist --repo-root .
+
+    - name: Verify built artifact version matches tag
+      run: |
+        # The metadata check that twine check does not do: assert the version baked into
+        # the wheel filename is the one being released, not merely the one in the source.
+        TAG_VERSION=${GITHUB_REF#refs/tags/v}
+        python - "$TAG_VERSION" <<'PY'
+        import glob, pathlib, sys, zipfile
+
+        tag = sys.argv[1]
+        wheel = glob.glob("dist/*.whl")[0]
+        archive = zipfile.ZipFile(wheel)
+        metadata = next(n for n in archive.namelist() if n.endswith(".dist-info/METADATA"))
+        version = next(
+            line.split(":", 1)[1].strip()
+            for line in archive.read(metadata).decode().splitlines()
+            if line.startswith("Version:")
+        )
+        print(f"Wheel {pathlib.Path(wheel).name} declares version {version}; tag is {tag}")
+        if version != tag:
+            sys.exit(f"Built artifact version ({version}) does not match tag ({tag})")
+        PY
 
     - name: Publish to Test PyPI
       if: github.event.release.prerelease
