@@ -151,59 +151,9 @@ jobs:
       run: |
         twine check dist/*
 
-    - name: Verify every source subpackage ships in the wheel
+    - name: Verify the artifact ships and imports every subpackage
       run: |
-        python - <<'PY'
-        import glob, pathlib, sys, zipfile
-
-        on_disk = {
-            str(p.parent).replace("/", ".")
-            for p in pathlib.Path("athf").rglob("__init__.py")
-        }
-        wheel = glob.glob("dist/*.whl")[0]
-        shipped = {
-            "/".join(n.split("/")[:-1]).replace("/", ".")
-            for n in zipfile.ZipFile(wheel).namelist()
-            if n.endswith("__init__.py")
-        }
-
-        missing = sorted(on_disk - shipped)
-        if missing:
-            print(f"Subpackages present in source but absent from {wheel}:")
-            for m in missing:
-                print(f"  - {m}")
-            sys.exit(1)
-        print(f"All {len(on_disk)} subpackages ship in the wheel.")
-        PY
-
-    - name: Import the built wheel in a clean environment
-      run: |
-        python -m venv /tmp/wheelcheck
-        /tmp/wheelcheck/bin/pip install --quiet dist/*.whl
-        # Names are collected here, inside the checkout, because the import must
-        # run from outside it: a stdin script puts the working directory first on
-        # sys.path, so running this from the repo root resolves athf against the
-        # source tree and passes even when the wheel ships nothing. The __file__
-        # assertion is what keeps the step from going hollow again.
-        python - <<'PY' > /tmp/subpackages.txt
-        import pathlib
-
-        for path in sorted(pathlib.Path("athf").rglob("__init__.py")):
-            print(str(path.parent).replace("/", "."))
-        PY
-        cd /tmp
-        /tmp/wheelcheck/bin/python - <<'PY'
-        import importlib, pathlib, sys
-
-        root = pathlib.Path("/tmp/wheelcheck").resolve()
-        names = pathlib.Path("/tmp/subpackages.txt").read_text().split()
-        for name in names:
-            module = importlib.import_module(name)
-            location = pathlib.Path(module.__file__).resolve()
-            if root not in location.parents:
-                sys.exit(f"{name} imported from {location}, not the installed wheel")
-        print(f"All {len(names)} subpackages import from the installed wheel.")
-        PY
+        python scripts/verify_packaging.py --dist-dir dist --repo-root .
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
