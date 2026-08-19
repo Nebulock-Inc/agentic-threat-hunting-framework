@@ -30,7 +30,9 @@ class TestVersionSingleSource:
         )
 
     def test_pyproject_has_no_literal_version(self):
-        assert not re.search(r'^version\s*=\s*"', _project_table(), re.MULTILINE), (
+        # Both quote styles: TOML accepts 'x' as readily as "x", and a single-quoted
+        # literal would reintroduce the second version source this test exists to prevent.
+        assert not re.search(r"^version\s*=\s*['\"]", _project_table(), re.MULTILINE), (
             "pyproject.toml [project] must not pin a literal version; a second literal can "
             "disagree with athf/__version__.py and the release pipeline only checks one"
         )

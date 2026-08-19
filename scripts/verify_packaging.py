@@ -3,10 +3,11 @@
 
 Runs three checks against the artifacts in a dist/ directory:
 
-1. Every subpackage present in the source tree is present in the wheel.
+1. The wheel's subpackages match the source tree exactly -- nothing missing, and nothing
+   shipped that the source tree no longer contains.
 2. Every one of those subpackages imports from the *installed* wheel, asserted via
    ``__file__``, with the interpreter's working directory outside this checkout.
-3. The sdist carries the same subpackages as the wheel.
+3. The sdist is held to the same parity requirement as the wheel.
 
 Check 2 needs the ``__file__`` assertion and the foreign working directory together.
 A bare ``import athf.metrics`` run from the repo root resolves against the source tree
@@ -65,15 +66,27 @@ def only(pattern, dist_dir, label):
     return matches[0]
 
 
-def report_missing(expected, actual, artifact, label):
-    missing = sorted(expected - actual)
-    if missing:
-        print(f"FAIL: subpackages in source but absent from {label} {pathlib.Path(artifact).name}:")
-        for name in missing:
-            print(f"  - {name}")
-        return False
-    print(f"OK: all {len(expected)} source subpackages ship in the {label}.")
-    return True
+def report_parity(expected, actual, artifact, label):
+    """Require the artifact's subpackages to match the source tree exactly, both directions.
+
+    Checking only for absences would pass an artifact that still carries a package deleted
+    from the source tree -- a stale build directory is enough to produce one, and the
+    resulting archive ships code that no longer exists anywhere in the repo.
+    """
+    name = pathlib.Path(artifact).name
+    ok = True
+    for difference, phrasing in (
+        (expected - actual, "in source but absent from"),
+        (actual - expected, "shipped in but absent from the source tree of"),
+    ):
+        if difference:
+            print(f"FAIL: subpackages {phrasing} {label} {name}:")
+            for dotted in sorted(difference):
+                print(f"  - {dotted}")
+            ok = False
+    if ok:
+        print(f"OK: the {label} carries exactly the {len(expected)} subpackages in the source tree.")
+    return ok
 
 
 def check_imports_from_wheel(wheel, expected):
@@ -144,8 +157,8 @@ def main():
     wheel = only("*.whl", dist_dir, "wheel")
     sdist = only("*.tar.gz", dist_dir, "sdist")
 
-    ok = report_missing(expected, wheel_subpackages(wheel), wheel, "wheel")
-    ok = report_missing(expected, sdist_subpackages(sdist), sdist, "sdist") and ok
+    ok = report_parity(expected, wheel_subpackages(wheel), wheel, "wheel")
+    ok = report_parity(expected, sdist_subpackages(sdist), sdist, "sdist") and ok
 
     if args.skip_import_check:
         print("Skipping clean-environment import check (--skip-import-check).")
