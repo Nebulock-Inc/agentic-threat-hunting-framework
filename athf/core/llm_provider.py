@@ -202,7 +202,7 @@ class LiteLLMProvider(LLMProvider):
             import litellm
         except ImportError:
             raise ImportError(
-                "litellm package is not installed. Install it with: pip install litellm"
+                "litellm package is not installed. Install it with: pip install 'agentic-threat-hunting-framework[litellm]'"
             )
 
         kwargs: Dict[str, Any] = {}
@@ -282,7 +282,7 @@ class BedrockProvider(LLMProvider):
             import boto3
             from botocore.config import Config
         except ImportError:
-            raise ImportError("boto3 package is not installed. Install it with: pip install boto3")
+            raise ImportError("boto3 package is not installed. Install it with: pip install 'agentic-threat-hunting-framework[bedrock]'")
 
         # Long-form generations (e.g. 8k-token reports) can exceed boto3's
         # default 60s read timeout on non-streaming invoke_model. Give the
@@ -507,7 +507,7 @@ class OpenAICompatibleProvider(LLMProvider):
             import openai
         except ImportError:
             raise ImportError(
-                "openai package is not installed. Install it with: pip install openai"
+                "openai package is not installed. Install it with: pip install 'agentic-threat-hunting-framework[openai]'"
             )
 
         kwargs = {}  # type: Dict[str, Any]
