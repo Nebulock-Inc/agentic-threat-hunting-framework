@@ -2185,7 +2185,7 @@ athf attack update [OPTIONS]
 
 Downloads the Enterprise ATT&CK STIX bundle from the official MITRE repository and caches it locally. Once downloaded, ATHF automatically switches from the hardcoded fallback data (14 tactics, approximate counts) to live STIX data (835+ techniques with full metadata including platforms, data sources, and sub-techniques).
 
-**Prerequisites:** Requires `mitreattack-python` — install with `pip install 'athf[attack]'`.
+**Prerequisites:** Requires `mitreattack-python` — install with `pip install 'agentic-threat-hunting-framework[attack]'`.
 
 **Cache locations (checked in order):**
 1. `ATHF_STIX_CACHE` environment variable

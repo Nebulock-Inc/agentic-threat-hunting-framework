@@ -31,7 +31,7 @@ class MCPDependencyError(ImportError):
             f"Could not import mcp.server.fastmcp.FastMCP ({cause}). This "
             "usually means either the mcp package is not installed, or an "
             "incompatible version is installed: mcp 2.0.0 removed FastMCP. "
-            "Install a supported version with: pip install 'athf[mcp]' "
+            "Install a supported version with: pip install 'agentic-threat-hunting-framework[mcp]' "
             "(which pins mcp[cli]>=1.9.4,<2.0.0)."
         )
 
@@ -52,9 +52,11 @@ def _discover_plugin_tools() -> list:
     """Discover MCP tool registration functions from installed plugins."""
     if sys.version_info >= (3, 10):
         from importlib.metadata import entry_points
+
         return list(entry_points(group="athf.mcp_tools"))
     else:
         from importlib.metadata import entry_points
+
         return list(entry_points().get("athf.mcp_tools", []))
 
 
@@ -121,11 +123,47 @@ def reset_server() -> None:
     _workspace = None
 
 
-def main(workspace_path: Optional[str] = None, transport: str = "stdio", port: int = 3100) -> None:
-    """Entry point for running the MCP server."""
+DEFAULT_HOST = "127.0.0.1"
+
+# Only these reach nothing beyond this machine. Everything else — a wildcard
+# bind, a LAN address, a public address — is treated as exposed. The MCP server
+# has no authentication and its tools read the full hunt corpus and can invoke
+# LLM agents, so anything outside this set needs an explicit opt-in.
+LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1", "[::1]"})
+
+
+def is_exposed_host(host: str) -> bool:
+    """Return True if `host` accepts connections from beyond this machine."""
+    return host.strip().lower() not in LOOPBACK_HOSTS
+
+
+def main(
+    workspace_path: Optional[str] = None,
+    transport: str = "stdio",
+    port: int = 3100,
+    host: str = DEFAULT_HOST,
+) -> None:
+    """Entry point for running the MCP server.
+
+    For the HTTP transports the server binds to loopback by default. It serves
+    unauthenticated tools over the whole workspace, so exposing it on a routable
+    interface requires passing `host` explicitly and putting an authenticating
+    proxy in front of it.
+    """
     server = create_server(workspace_path)
     if transport in ("sse", "streamable-http"):
-        server.settings.host = "0.0.0.0"
+        if is_exposed_host(host):
+            logger.warning(
+                "ATHF MCP server binding to %s:%s — reachable from outside this "
+                "machine. The server is UNAUTHENTICATED: anyone who can reach "
+                "this port can read every hunt, investigation, and research "
+                "document in the workspace and invoke LLM-backed tools at your "
+                "expense. Bind to %s and use an authenticating proxy instead.",
+                host,
+                port,
+                DEFAULT_HOST,
+            )
+        server.settings.host = host
         server.settings.port = port
     server.run(transport=transport)
 
@@ -138,5 +176,14 @@ def cli() -> None:
     parser.add_argument("--workspace", default=None, help="Workspace path")
     parser.add_argument("--transport", default="stdio", choices=["stdio", "sse", "streamable-http"])
     parser.add_argument("--port", type=int, default=3100, help="HTTP port for SSE/HTTP transport")
+    parser.add_argument(
+        "--host",
+        default=DEFAULT_HOST,
+        help=(
+            f"Bind address for SSE/HTTP transport (default: {DEFAULT_HOST}). "
+            "The server is unauthenticated; only change this behind an "
+            "authenticating proxy."
+        ),
+    )
     args = parser.parse_args()
-    main(workspace_path=args.workspace, transport=args.transport, port=args.port)
+    main(workspace_path=args.workspace, transport=args.transport, port=args.port, host=args.host)

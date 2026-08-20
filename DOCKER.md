@@ -81,11 +81,11 @@ ATHF agents auto-detect your LLM provider from environment variables. You can us
 
 | Provider | Required Env Var | Install Extra |
 |----------|-----------------|---------------|
-| Anthropic (Claude) | `ANTHROPIC_API_KEY` | `pip install 'athf[anthropic]'` |
-| OpenAI (GPT) | `OPENAI_API_KEY` | `pip install 'athf[openai]'` |
-| AWS Bedrock | `AWS_PROFILE` or `AWS_ACCESS_KEY_ID` | `pip install 'athf[bedrock]'` |
-| Ollama (local) | `OLLAMA_HOST` (default: localhost:11434) | `pip install 'athf[ollama]'` |
-| Any via LiteLLM | varies | `pip install 'athf[litellm]'` |
+| Anthropic (Claude) | `ANTHROPIC_API_KEY` | `pip install 'agentic-threat-hunting-framework[anthropic]'` |
+| OpenAI (GPT) | `OPENAI_API_KEY` | `pip install 'agentic-threat-hunting-framework[openai]'` |
+| AWS Bedrock | `AWS_PROFILE` or `AWS_ACCESS_KEY_ID` | `pip install 'agentic-threat-hunting-framework[bedrock]'` |
+| Ollama (local) | `OLLAMA_HOST` (default: localhost:11434) | `pip install 'agentic-threat-hunting-framework[ollama]'` |
+| Any via LiteLLM | varies | `pip install 'agentic-threat-hunting-framework[litellm]'` |
 
 ### Quick Setup
 
@@ -247,12 +247,12 @@ claude code "Review this Python function"
 ### Default Models
 
 Claude Code uses these Bedrock models by default:
-- **Primary:** `global.anthropic.claude-sonnet-4-5-20250929-v1:0`
+- **Primary:** `global.anthropic.claude-sonnet-4-6`
 - **Small/Fast:** `us.anthropic.claude-haiku-4-5-20251001-v1:0`
 
 To customize models, add to docker-compose.yml environment section:
 ```yaml
-- ANTHROPIC_MODEL=global.anthropic.claude-sonnet-4-5-20250929-v1:0
+- ANTHROPIC_MODEL=global.anthropic.claude-sonnet-4-6
 - ANTHROPIC_SMALL_FAST_MODEL=us.anthropic.claude-haiku-4-5-20251001-v1:0
 ```
 
@@ -269,7 +269,7 @@ athf research new --topic "Kerberoasting"
 **2. AWS CLI (direct Bedrock API, already installed):**
 ```bash
 aws bedrock-runtime invoke-model \
-    --model-id anthropic.claude-3-5-sonnet-20241022-v2:0 \
+    --model-id us.anthropic.claude-sonnet-4-6 \
     --body '{"anthropic_version":"bedrock-2023-05-31","max_tokens":1024,"messages":[{"role":"user","content":"Hello"}]}' \
     --region us-east-1 output.json
 ```

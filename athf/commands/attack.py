@@ -76,7 +76,7 @@ def update(force: bool) -> None:
         from mitreattack.stix20 import MitreAttackData  # noqa: F401
     except ImportError:
         console.print("[red]Error: mitreattack-python is not installed.[/red]")
-        console.print("[dim]Install it with: pip install 'athf[attack]'[/dim]")
+        console.print("[dim]Install it with: pip install 'agentic-threat-hunting-framework[attack]'[/dim]")
         raise click.Abort()
 
     from athf.core.attack_matrix import _get_stix_file_path, reset_provider
@@ -160,7 +160,7 @@ def status() -> None:
         console.print("  [cyan]Library:[/cyan]   mitreattack-python installed")
     except ImportError:
         console.print("  [cyan]Library:[/cyan]   [yellow]mitreattack-python not installed[/yellow]")
-        console.print("[dim]  Install with: pip install 'athf[attack]'[/dim]")
+        console.print("[dim]  Install with: pip install 'agentic-threat-hunting-framework[attack]'[/dim]")
 
     console.print()
 
@@ -205,7 +205,7 @@ def lookup(technique_id: str) -> None:
 
     if not is_using_stix():
         console.print("[yellow]STIX data not available. Technique lookup requires STIX.[/yellow]")
-        console.print("[dim]Install and update: pip install 'athf[attack]' && athf attack update[/dim]")
+        console.print("[dim]Install and update: pip install 'agentic-threat-hunting-framework[attack]' && athf attack update[/dim]")
         return
 
     tech = get_technique(technique_id)
@@ -248,7 +248,7 @@ def techniques(tactic_key: str) -> None:
 
     if not is_using_stix():
         console.print("[yellow]STIX data not available. Technique listing requires STIX.[/yellow]")
-        console.print("[dim]Install and update: pip install 'athf[attack]' && athf attack update[/dim]")
+        console.print("[dim]Install and update: pip install 'agentic-threat-hunting-framework[attack]' && athf attack update[/dim]")
         return
 
     techs = get_techniques_for_tactic(tactic_key)

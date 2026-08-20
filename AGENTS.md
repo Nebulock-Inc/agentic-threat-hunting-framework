@@ -413,7 +413,7 @@ athf research view R-0001             # View specific research
 athf research search "credential access"  # Search research documents
 athf research stats                   # Show research metrics
 
-# ATT&CK data management (optional: pip install 'athf[attack]')
+# ATT&CK data management (optional: pip install 'agentic-threat-hunting-framework[attack]')
 athf attack update                    # Download/refresh STIX data
 athf attack status                    # Show provider type, version, cache info
 athf attack lookup T1003.001          # Look up technique metadata
