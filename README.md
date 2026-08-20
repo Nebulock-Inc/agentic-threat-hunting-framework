@@ -189,7 +189,7 @@ athf research stats                 # Research metrics
 
 ```bash
 # Install STIX support (optional)
-pip install 'athf[attack]'
+pip install 'agentic-threat-hunting-framework[attack]'
 
 # Download live ATT&CK data (835+ techniques with full metadata)
 athf attack update
@@ -210,7 +210,7 @@ Without `mitreattack-python`, ATHF uses a hardcoded v14 fallback (14 tactics, ap
 
 ```bash
 # Install MCP dependencies
-pip install 'athf[mcp]'
+pip install 'agentic-threat-hunting-framework[mcp]'
 
 # Start MCP server (for Claude Code, Copilot, Cursor, etc.)
 athf mcp serve --workspace /path/to/hunts

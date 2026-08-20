@@ -81,11 +81,11 @@ ATHF agents auto-detect your LLM provider from environment variables. You can us
 
 | Provider | Required Env Var | Install Extra |
 |----------|-----------------|---------------|
-| Anthropic (Claude) | `ANTHROPIC_API_KEY` | `pip install 'athf[anthropic]'` |
-| OpenAI (GPT) | `OPENAI_API_KEY` | `pip install 'athf[openai]'` |
-| AWS Bedrock | `AWS_PROFILE` or `AWS_ACCESS_KEY_ID` | `pip install 'athf[bedrock]'` |
-| Ollama (local) | `OLLAMA_HOST` (default: localhost:11434) | `pip install 'athf[ollama]'` |
-| Any via LiteLLM | varies | `pip install 'athf[litellm]'` |
+| Anthropic (Claude) | `ANTHROPIC_API_KEY` | `pip install 'agentic-threat-hunting-framework[anthropic]'` |
+| OpenAI (GPT) | `OPENAI_API_KEY` | `pip install 'agentic-threat-hunting-framework[openai]'` |
+| AWS Bedrock | `AWS_PROFILE` or `AWS_ACCESS_KEY_ID` | `pip install 'agentic-threat-hunting-framework[bedrock]'` |
+| Ollama (local) | `OLLAMA_HOST` (default: localhost:11434) | `pip install 'agentic-threat-hunting-framework[ollama]'` |
+| Any via LiteLLM | varies | `pip install 'agentic-threat-hunting-framework[litellm]'` |
 
 ### Quick Setup
 
