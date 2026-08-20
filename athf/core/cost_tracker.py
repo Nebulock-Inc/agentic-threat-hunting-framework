@@ -34,8 +34,8 @@ MODEL_PRICING: Dict[str, Dict[str, float]] = {
 def _normalize_bedrock_model_id(model: str) -> str:
     """Strip Bedrock provider prefixes and version suffixes.
 
-    Converts IDs like 'us.anthropic.claude-sonnet-4-5-20250929-v1:0'
-    into 'claude-sonnet-4-5-20250929' for further matching.
+    Converts IDs like 'us.anthropic.claude-sonnet-4-6'
+    into 'claude-sonnet-4-6' for further matching.
 
     Args:
         model: Raw model identifier string.
@@ -122,7 +122,7 @@ def estimate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
 
     Args:
         model: Model identifier (e.g., "claude-sonnet-4", "gpt-4o",
-               or a full Bedrock ID like "us.anthropic.claude-sonnet-4-5-20250929-v1:0").
+               or a full Bedrock ID like "us.anthropic.claude-sonnet-4-6").
         input_tokens: Number of input (prompt) tokens.
         output_tokens: Number of output (completion) tokens.
 
