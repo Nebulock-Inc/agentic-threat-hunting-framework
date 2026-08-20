@@ -1,7 +1,5 @@
 """MITRE ATT&CK MCP tools."""
 
-from typing import Optional
-
 from athf.mcp.server import _json_result
 
 

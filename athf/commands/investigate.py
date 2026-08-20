@@ -12,7 +12,12 @@ from rich.console import Console
 from rich.prompt import Prompt
 from rich.table import Table
 
-from athf.core.investigation_parser import get_all_investigations, get_next_investigation_id, validate_investigation_file
+from athf.core.investigation_parser import (
+    find_investigation_file,
+    get_all_investigations,
+    get_next_investigation_id,
+    validate_investigation_file,
+)
 from athf.utils.validation import validate_investigation_id
 
 console = Console()
@@ -200,7 +205,7 @@ def new(
     console.print(f"  1. Edit [cyan]{investigation_file}[/cyan] to document your investigation")
     console.print("  2. Use LOCK pattern sections (optional/flexible)")
     console.print("  3. View all investigations: [cyan]athf investigate list[/cyan]")
-    console.print("  4. Promote to hunt if valuable: [cyan]athf investigate promote {investigation_id}[/cyan]")
+    console.print(f"  4. Promote to hunt if valuable: [cyan]athf investigate promote {investigation_id}[/cyan]")
 
 
 def _render_investigation_template(
@@ -500,7 +505,7 @@ def search(query: str) -> None:
       athf investigate search "baseline CloudTrail"
     """
     investigations_dir = Path("investigations")
-    investigation_files = sorted(investigations_dir.glob("I-*.md"))
+    investigation_files = sorted(investigations_dir.rglob("I-*.md"))
 
     if not investigation_files:
         console.print("[yellow]No investigation files found.[/yellow]")
@@ -563,17 +568,10 @@ def validate(investigation_id: str) -> None:
         return
 
     investigations_dir = Path("investigations")
-    investigation_file = investigations_dir / f"{investigation_id}.md"
+    investigation_file = find_investigation_file(investigations_dir, investigation_id)
 
-    # Validate path is within investigations directory (Python 3.8 compatible)
-    try:
-        investigation_file.resolve().relative_to(investigations_dir.resolve())
-    except (ValueError, OSError):
-        console.print("[red]Error: Invalid investigation file path[/red]")
-        return
-
-    if not investigation_file.exists():
-        console.print(f"[red]Error: Investigation file not found: {investigation_file}[/red]")
+    if investigation_file is None:
+        console.print(f"[red]Error: Investigation file not found: {investigation_id}[/red]")
         return
 
     is_valid, errors = validate_investigation_file(investigation_file)
@@ -639,19 +637,12 @@ def promote(
         console.print("[yellow]Expected format: I-0001[/yellow]")
         return
 
-    # Check investigation file exists
+    # Check investigation file exists (may live in a subdirectory)
     investigations_dir = Path("investigations")
-    investigation_file = investigations_dir / f"{investigation_id}.md"
+    investigation_file = find_investigation_file(investigations_dir, investigation_id)
 
-    # Validate path is within investigations directory (Python 3.8 compatible)
-    try:
-        investigation_file.resolve().relative_to(investigations_dir.resolve())
-    except (ValueError, OSError):
-        console.print("[red]Error: Invalid investigation file path[/red]")
-        return
-
-    if not investigation_file.exists():
-        console.print(f"[red]Error: Investigation file not found: {investigation_file}[/red]")
+    if investigation_file is None:
+        console.print(f"[red]Error: Investigation file not found: {investigation_id}[/red]")
         return
 
     # Parse investigation file
