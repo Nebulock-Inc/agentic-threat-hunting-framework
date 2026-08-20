@@ -175,7 +175,7 @@ def _find_similar_hunts(
         from sklearn.metrics.pairwise import cosine_similarity
     except ImportError:
         console.print("[red]Error: scikit-learn not installed[/red]")
-        console.print("[dim]Install with: pip install scikit-learn[/dim]")
+        console.print("[dim]Install with: pip install 'agentic-threat-hunting-framework[similarity]'[/dim]")
         raise click.Abort()
 
     # Load all hunts (HuntManager handles recursive search + deduplication)

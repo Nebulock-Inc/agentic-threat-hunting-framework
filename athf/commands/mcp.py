@@ -67,7 +67,7 @@ def serve(workspace: str, transport: str, port: int, host: str) -> None:
             f"Error starting the ATHF MCP server: {exc}\n"
             "This usually means the mcp package is missing or an incompatible "
             "version is installed (mcp 2.0.0 removed FastMCP). Install a supported "
-            "version with: pip install 'athf[mcp]' (pins mcp[cli]>=1.9.4,<2.0.0).",
+            "version with: pip install 'agentic-threat-hunting-framework[mcp]' (pins mcp[cli]>=1.9.4,<2.0.0).",
             err=True,
         )
         raise SystemExit(1) from exc

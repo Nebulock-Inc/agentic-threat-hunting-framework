@@ -42,7 +42,7 @@ def register_search_tools(mcp: "FastMCP") -> None:  # type: ignore[name-defined]
             from sklearn.feature_extraction.text import TfidfVectorizer
             from sklearn.metrics.pairwise import cosine_similarity
         except ImportError:
-            return _json_result({"error": "scikit-learn is required for similarity search. Install with: pip install 'athf[similarity]'"})
+            return _json_result({"error": "scikit-learn is required for similarity search. Install with: pip install 'agentic-threat-hunting-framework[similarity]'"})
 
         # Build corpus
         from athf.core.hunt_parser import parse_hunt_file
