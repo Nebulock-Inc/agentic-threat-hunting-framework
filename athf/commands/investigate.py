@@ -205,7 +205,7 @@ def new(
     console.print(f"  1. Edit [cyan]{investigation_file}[/cyan] to document your investigation")
     console.print("  2. Use LOCK pattern sections (optional/flexible)")
     console.print("  3. View all investigations: [cyan]athf investigate list[/cyan]")
-    console.print("  4. Promote to hunt if valuable: [cyan]athf investigate promote {investigation_id}[/cyan]")
+    console.print(f"  4. Promote to hunt if valuable: [cyan]athf investigate promote {investigation_id}[/cyan]")
 
 
 def _render_investigation_template(

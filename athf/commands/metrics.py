@@ -17,7 +17,6 @@ from rich.console import Console
 from rich.table import Table
 
 from athf.core.metrics import (
-    DEFAULT_AGGREGATES_PATH,
     EVENT_TYPES,
     Aggregator,
     EventStore,

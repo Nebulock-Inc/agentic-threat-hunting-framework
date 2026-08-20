@@ -63,6 +63,7 @@ def _apply_workshop_mode(agent: Any, token_cap: int) -> None:
 
     agent._call_llm = capped_call_llm
 
+
 AGENT_EPILOG = """
 \b
 Examples:
