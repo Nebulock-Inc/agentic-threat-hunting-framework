@@ -193,6 +193,10 @@ jobs:
       run: |
         twine check dist/*
 
+    - name: Verify the artifact ships and imports every subpackage
+      run: |
+        python scripts/verify_packaging.py --dist-dir dist --repo-root .
+
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
