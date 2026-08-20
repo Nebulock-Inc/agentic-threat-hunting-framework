@@ -491,7 +491,7 @@ def _display_research_summary(output: ResearchOutput, file_path: Path) -> None:
     # Next steps
     console.print("\n[bold]Next Steps:[/bold]")
     console.print(f"  1. Review full research: athf research view {output.research_id}")
-    console.print("  2. Generate hypothesis: athf agent run hypothesis-generator")
+    console.print(f"  2. Generate hypothesis: athf agent run hypothesis-generator --research {output.research_id}")
     console.print(f"  3. Create hunt: athf hunt new --research {output.research_id}")
 
 

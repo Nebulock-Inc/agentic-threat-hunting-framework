@@ -164,6 +164,6 @@ def register_research_tools(mcp: "FastMCP") -> None:  # type: ignore[name-define
             "next_steps": [
                 f"Review full research: athf research view {output.research_id}",
                 f"Create hunt: athf hunt new --research {output.research_id}",
-                "Generate hypothesis: athf agent run hypothesis-generator",
+                f"Generate hypothesis: athf agent run hypothesis-generator --research {output.research_id}",
             ],
         })
