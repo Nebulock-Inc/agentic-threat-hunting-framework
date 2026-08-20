@@ -4,7 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agentic-threat-hunting-framework"
-version = "0.18.0"
+# Single-sourced from athf/__version__.py, which is also what `athf --version` reports.
+# Two literals could disagree, and the release pipeline only ever checked this one.
+dynamic = ["version"]
 description = "Agentic Threat Hunting Framework - Memory and AI for threat hunters"
 readme = {file = "README.md", content-type = "text/markdown"}
 requires-python = ">=3.8"
@@ -127,8 +129,14 @@ Discussions = "https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/
 athf = "athf.cli:main"
 athf-mcp = "athf.mcp.server:cli"
 
-[tool.setuptools]
-packages = ["athf", "athf.agents", "athf.agents.llm", "athf.commands", "athf.core", "athf.data", "athf.mcp", "athf.mcp.tools", "athf.utils"]
+[tool.setuptools.dynamic]
+version = {attr = "athf.__version__.__version__"}
+
+[tool.setuptools.packages.find]
+# Discovered rather than listed: an explicit list silently drops any new
+# subpackage from the built artifact, which is invisible to `pip install -e .`
+# and to `twine check`. That is how athf.metrics went unshipped in 0.15.0-0.18.0.
+include = ["athf*"]
 
 [tool.setuptools.package-data]
 "athf.data" = [
