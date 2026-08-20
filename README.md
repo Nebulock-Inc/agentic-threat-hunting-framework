@@ -228,6 +228,8 @@ Configure in `~/.claude/mcp-servers.json`:
 
 The standalone `athf-mcp` entry point auto-detects your workspace from cwd or `ATHF_WORKSPACE` env var. Use `athf mcp serve --workspace /path` for explicit paths.
 
+> **Security note:** the `sse` and `streamable-http` transports bind to `127.0.0.1` and are **unauthenticated**. Every tool reads your whole workspace and some invoke LLM agents at your expense. Only pass `--host` to bind a routable interface, and put an authenticating proxy in front when you do. The default `stdio` transport opens no socket at all.
+
 Exposes 17 tools: hunt management, semantic search, ATT&CK coverage, research, investigations, and AI-powered hypothesis generation — all accessible directly from your AI coding assistant.
 
 **Full documentation:** [CLI Reference](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/blob/main/docs/CLI_REFERENCE.md)
