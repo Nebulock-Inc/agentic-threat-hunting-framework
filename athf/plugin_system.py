@@ -1,19 +1,9 @@
 """Plugin system for ATHF extensions."""
 
-import sys
+from importlib.metadata import entry_points
 from typing import Any, Dict, Optional, Type
 
 from click import Command
-
-# Handle importlib.metadata API changes across Python versions
-if sys.version_info >= (3, 10):
-    from importlib.metadata import entry_points
-else:
-    # Python 3.8-3.9: use importlib_metadata backport API
-    try:
-        from importlib.metadata import entry_points
-    except ImportError:
-        from importlib_metadata import entry_points  # type: ignore
 
 
 class PluginRegistry:
@@ -46,11 +36,7 @@ class PluginRegistry:
     def load_plugins(cls) -> None:
         """Auto-discover and load all installed plugins."""
         try:
-            # Python 3.10+ uses group= parameter, 3.8-3.9 uses dict-like access
-            if sys.version_info >= (3, 10):
-                eps = entry_points(group="athf.commands")
-            else:
-                eps = entry_points().get("athf.commands", [])
+            eps = entry_points(group="athf.commands")
 
             for ep in eps:
                 command = ep.load()
@@ -59,11 +45,7 @@ class PluginRegistry:
             pass  # No plugins installed yet
 
         try:
-            # Python 3.10+ uses group= parameter, 3.8-3.9 uses dict-like access
-            if sys.version_info >= (3, 10):
-                eps = entry_points(group="athf.agents")
-            else:
-                eps = entry_points().get("athf.agents", [])
+            eps = entry_points(group="athf.agents")
 
             for ep in eps:
                 agent = ep.load()

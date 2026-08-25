@@ -15,13 +15,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
-        exclude:
-          # Optional: Reduce matrix size by excluding some combinations
-          - os: macos-latest
-            python-version: '3.8'
-          - os: windows-latest
-            python-version: '3.8'
+        python-version: ['3.11', '3.12', '3.13']
 
     steps:
     - name: Checkout code
@@ -72,10 +66,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 3.11+ only: the "all" extra pulls mitreattack-python>=5.0.0, which
-        # declares Requires-Python >=3.11, so ".[dev,all]" cannot resolve on
-        # 3.8-3.10 even though pyproject still allows those interpreters.
-        python-version: ['3.11', '3.12']
+        python-version: ['3.11', '3.12', '3.13']
 
     steps:
     - name: Checkout code

@@ -4,7 +4,7 @@
 
 [![PyPI version](https://img.shields.io/pypi/v/agentic-threat-hunting-framework)](https://pypi.org/project/agentic-threat-hunting-framework/)
 [![PyPI downloads](https://img.shields.io/pypi/dm/agentic-threat-hunting-framework)](https://pypi.org/project/agentic-threat-hunting-framework/)
-[![Python Version](https://img.shields.io/badge/python-3.8%2B-blue)](https://www.python.org/downloads/)
+[![Python Version](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/blob/main/LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/Nebulock-Inc/agentic-threat-hunting-framework?style=social)](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/stargazers)
 
@@ -247,7 +247,7 @@ Watch ATHF in action: initialize a workspace, create hunts, and explore your thr
 See the [Quick Start](#-quick-start) section above for installation options (PyPI, source, or pure markdown).
 
 **Prerequisites:**
-- Python 3.8-3.13 (for CLI option)
+- Python 3.11-3.13 (for CLI option)
 - Your favorite AI code assistant
 
 ## Documentation
