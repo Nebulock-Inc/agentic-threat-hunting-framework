@@ -247,8 +247,12 @@ techniques: [T1003.001, T1005, etc.]
 data_sources: [SIEM, EDR, etc.]
 related_hunts: []
 findings_count: 0
-true_positives: 0
-false_positives: 0
+findings: []
+ruled_out: []
+# Legacy counters, kept for hunts predating the ladder. Leave commented out: an
+# explicit value overrides the counts derived from findings/ruled_out above.
+# true_positives: 0
+# false_positives: 0
 customer_deliverables: []
 tags: []
 ---
@@ -372,13 +376,29 @@ tags: []
 
 ### Findings
 
-| **Finding** | **Ticket** | **Description** |
-|-------------|-----------|-----------------|
-| True Positive | [Ticket] | [Description] |
-| False Positive | N/A | [Description] |
+Things you're reporting as malicious. Only `confirmed` and `suspected` belong here.
 
-**True Positives:** [Count]
-**False Positives:** [Count]
+| **Verdict** | **Subject** | **Ticket** | **Evidence** | **Independent Confirmation** |
+|-------------|-------------|-----------|--------------|------------------------------|
+| `confirmed` | [Host, account, or resource] | [INC-####] | [Telemetry that surfaced it] | [What established root cause outside the logs] |
+| `suspected` | [Host, account, or resource] | [INC-####] | [Telemetry that surfaced it] | None — telemetry only |
+
+**The evidence gate:** `confirmed` requires telemetry **plus** something from outside the log
+corpus — controlled reproduction, host forensics, or configuration review. Telemetry alone never
+reaches `confirmed`. If you couldn't confirm, the verdict is `suspected`.
+
+### Ruled Out
+
+Results that closed the question. `attempted_not_vulnerable` is often the most valuable row in a
+customer-facing report.
+
+| **Verdict** | **Subject** | **What Closed It** |
+|-------------|-------------|--------------------|
+| `attempted_not_vulnerable` | [Host, account, or resource] | [Name the control that held and how you verified it] |
+| `benign` | [Host, account, or resource] | [The legitimate activity that explains it] |
+| `inconclusive` | [Host, account, or resource] | [Which telemetry was missing or too sparse] |
+
+**Counts:** `confirmed` [N] · `suspected` [N] · `attempted_not_vulnerable` [N] · `benign` [N] · `inconclusive` [N]
 
 ### Detection Logic
 

@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional, Set
 
 from athf.core.attack_matrix import ATTACK_TACTICS, TOTAL_TECHNIQUES, get_sorted_tactics
 from athf.core.hunt_parser import parse_hunt_file
+from athf.core.verdicts import VERDICTS, precision_pair, tally_frontmatter_verdicts
 from athf.utils.validation import validate_file_path, validate_hunt_id
 
 # Documentation files to exclude when discovering hunt files at any directory level
@@ -117,22 +118,28 @@ class HuntManager:
                 else:
                     date_str = str(date_val) if date_val else None
 
-                hunts.append(
-                    {
-                        "hunt_id": frontmatter.get("hunt_id"),
-                        "title": frontmatter.get("title"),
-                        "status": frontmatter.get("status"),
-                        "date": date_str,
-                        "platform": frontmatter.get("platform", []),
-                        "tactics": frontmatter.get("tactics", []),
-                        "techniques": frontmatter.get("techniques", []),
-                        "findings_count": frontmatter.get("findings_count", 0),
-                        "true_positives": frontmatter.get("true_positives", 0),
-                        "false_positives": frontmatter.get("false_positives", 0),
-                        "file_path": str(hunt_file),
-                        "environment": environment,
-                    }
-                )
+                tiers = tally_frontmatter_verdicts(frontmatter) or {v: 0 for v in VERDICTS}
+                positives, negatives = precision_pair(tiers)
+
+                summary = {
+                    "hunt_id": frontmatter.get("hunt_id"),
+                    "title": frontmatter.get("title"),
+                    "status": frontmatter.get("status"),
+                    "date": date_str,
+                    "platform": frontmatter.get("platform", []),
+                    "tactics": frontmatter.get("tactics", []),
+                    "techniques": frontmatter.get("techniques", []),
+                    "findings_count": frontmatter.get("findings_count", 0),
+                    # A hand-typed legacy count always wins: it may record work
+                    # done before the ladder existed, and nothing here should
+                    # overwrite a number a hunter entered deliberately.
+                    "true_positives": frontmatter.get("true_positives", positives),
+                    "false_positives": frontmatter.get("false_positives", negatives),
+                    "file_path": str(hunt_file),
+                    "environment": environment,
+                }
+                summary.update(tiers)
+                hunts.append(summary)
 
             except Exception:
                 # Skip files that can't be parsed
@@ -247,7 +254,7 @@ class HuntManager:
         hunts = self.list_hunts()
 
         if not hunts:
-            return {
+            empty = {
                 "total_hunts": 0,
                 "completed_hunts": 0,
                 "total_findings": 0,
@@ -256,6 +263,8 @@ class HuntManager:
                 "success_rate": 0.0,
                 "tp_fp_ratio": 0.0,
             }
+            empty.update({verdict: 0 for verdict in VERDICTS})
+            return empty
 
         total_hunts = len(hunts)
         completed_hunts = len([h for h in hunts if h.get("status") == "completed"])
@@ -271,7 +280,7 @@ class HuntManager:
         # Calculate TP/FP ratio
         tp_fp_ratio = (total_tp / total_fp) if total_fp > 0 else float("inf")
 
-        return {
+        stats = {
             "total_hunts": total_hunts,
             "completed_hunts": completed_hunts,
             "total_findings": total_findings,
@@ -280,6 +289,10 @@ class HuntManager:
             "success_rate": round(success_rate, 1),
             "tp_fp_ratio": round(tp_fp_ratio, 2) if tp_fp_ratio != float("inf") else "∞",
         }
+        stats.update(
+            {verdict: sum(h.get(verdict, 0) for h in hunts) for verdict in VERDICTS}
+        )
+        return stats
 
     def calculate_attack_coverage(self) -> Dict[str, Any]:
         """Calculate MITRE ATT&CK technique coverage with hunt references.

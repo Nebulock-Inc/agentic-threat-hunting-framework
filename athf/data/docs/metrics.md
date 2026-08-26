@@ -11,7 +11,7 @@ This page is the canonical reference. If you're integrating a new tool or vault,
 You can't improve what you can't see. The metrics core answers:
 
 - **What did this hunt cost me?** — LLM tokens, dollar cost, query time, web searches, similarity searches.
-- **What did the program produce?** — true / false positives, hunts completed, coverage by tactic / technique / data source.
+- **What did the program produce?** — per-verdict outcome counts, hunts completed, coverage by tactic / technique / data source.
 - **Where is the time going?** — per-hunt and workspace-wide rollups.
 
 ATHF auto-records the things it owns (LLM calls, web search, similarity search). Anything else — query latency from your data source, manual outcomes, custom events — is one function call away.
@@ -47,7 +47,7 @@ Every event has an `event_type` from this closed set:
 | `query`              | Data-source query (Splunk, Elasticsearch, Athena, …) | Vault-side     |
 | `web_search`         | Tavily / web search                                 | Yes            |
 | `similarity_search`  | TF-IDF similarity (`athf similar`)                  | Yes            |
-| `hunt_outcome`       | Hunt-level TP / FP / inconclusive                   | Manual         |
+| `hunt_outcome`       | Hunt-level verdict (see the ladder below)           | Manual         |
 | `manual`             | Anything else (custom plugins, scripts)             | Manual         |
 
 Canonical fields (all optional except `event_type`):
@@ -72,12 +72,50 @@ events_analyzed   : int  | None
 rows_returned     : int  | None
 status            : str  | None  # success | error | timeout | inconclusive
 
-outcome           : str  | None  # tp | fp | inconclusive (hunt_outcome)
+outcome           : str  | None  # verdict for hunt_outcome events (see below);
+                                 # legacy tp | fp | inconclusive still accepted
 
 custom            : dict         # anything that doesn't fit the above
 ```
 
 Fields that are `None` are dropped from the JSONL line, keeping the file compact.
+
+---
+
+## Outcome Verdicts
+
+`outcome` on a `hunt_outcome` event takes one of five verdicts. The old `tp` / `fp` / `inconclusive` values still parse, so nothing in an existing workspace breaks.
+
+| Verdict | Counter in `totals` | Meaning |
+| ------- | ------------------- | ------- |
+| `confirmed` | `confirmed` | Malicious activity established — telemetry **plus** independent confirmation (reproduction, host forensics, or config review) |
+| `suspected` | `suspected` | Telemetry evidence only. The ceiling when you can't independently confirm |
+| `attempted_not_vulnerable` | `attempted_not_vulnerable` | Attack behavior observed; the named control held |
+| `benign` | `benign` | Explained as legitimate activity |
+| `inconclusive` | `inconclusive` | Insufficient telemetry to decide |
+
+Telemetry alone never records `confirmed`. See [FORMAT_GUIDELINES.md](../hunts/FORMAT_GUIDELINES.md) for the evidence gate and the routing rule.
+
+### Why `attempted_not_vulnerable` Gets Its Own Counter
+
+Because it's the number that used to disappear. Under `TP` / `FP`, a hunt that watched an adversary attempt credential theft and get stopped by SELinux recorded an `fp` — indistinguishable from a hunt that found nothing at all. For a managed-service report those are opposite results, and the first one is frequently the most valuable thing in the deliverable. Now it counts as itself.
+
+### Precision Is Deliberately Narrow
+
+`suspected` and `attempted_not_vulnerable` are **not** folded into precision:
+
+```text
+precision = positives / (positives + negatives)
+          = confirmed  / (confirmed  + benign)
+```
+
+Only verdicts that made an actual malicious/not-malicious call participate. Rationale:
+
+- **`suspected` never passed the evidence gate.** Counting it as a positive imports unverified findings into a quality number, which is exactly the laundering the gate exists to stop.
+- **`attempted_not_vulnerable` isn't a hunting error.** The behavior was really there — the hunt was right. Scoring it as a false positive would punish hunters for a control working, and the fastest way to make people stop reporting blocked attacks is to make reporting them look bad on a dashboard.
+- **`inconclusive` is a telemetry problem, not a precision problem.** It belongs in coverage and data-quality reporting, not in the ratio.
+
+Track the other three tiers as their own counters and read them alongside precision. A program with 40 `attempted_not_vulnerable` results is in good shape; a diluted precision figure would have hidden that.
 
 ---
 
@@ -108,7 +146,10 @@ m.record_web_search(query="lsass dumping", duration_ms=900, result_count=5)
 m.record_similarity_search(query="kerberoast", duration_ms=12)
 
 # Hunt outcomes — call this when you close a hunt
-m.record_hunt_outcome(hunt_id="H-0019", outcome="TP")
+m.record_hunt_outcome(hunt_id="H-0019", outcome="confirmed")
+
+# The control held — this is a result, not an absence of one
+m.record_hunt_outcome(hunt_id="H-0020", outcome="attempted_not_vulnerable")
 
 # Generic escape hatch
 m.record("manual", hunt_id="H-0019", duration_ms=300, custom={"step": "triage"})
@@ -120,7 +161,7 @@ m.record("manual", hunt_id="H-0019", duration_ms=300, custom={"step": "triage"})
 - **Active-session lookup.** If `hunt_id` / `session_id` are omitted, the helpers ask whatever context provider was registered via `athf.metrics.register_context_provider` for the active session and fill them in. Plugins register their own session manager at import time; ATHF core ships no provider, so without a registration the helpers leave both fields `None`.
 - **Cost is automatic.** `record_llm_call` defers to `athf.core.cost_tracker.estimate_cost` when `cost_usd` is not passed.
 - **Search text is hashed, not stored.** `record_query`, `record_web_search`, and `record_similarity_search` write a SHA-256 prefix of the input text (`custom.sql_hash` / `custom.query_hash`) so patterns can be grouped without leaking hunt content, IOCs, or user prose into the metrics log.
-- **Outcomes are canonicalized.** `record_hunt_outcome` accepts `TP`, `tp`, `FP`, `fp`, or `inconclusive` and stores lowercase.
+- **Outcomes are canonicalized.** `record_hunt_outcome` lowercases whatever it's given. The five ladder verdicts (`confirmed`, `suspected`, `attempted_not_vulnerable`, `benign`, `inconclusive`) and the legacy values (`TP`, `tp`, `FP`, `fp`, `inconclusive`) are all accepted. Legacy `tp` is counted as legacy — it is **not** silently rewritten to `confirmed`, because those events predate the evidence gate.
 
 ---
 
@@ -173,6 +214,16 @@ Vault plugins are responsible for `record_query` (every vault has its own data-s
     "events_analyzed": 1_840_000,
     "web_searches": 11,
     "similarity_searches": 6,
+
+    // verdict ladder counters
+    "confirmed": 3,
+    "suspected": 5,
+    "attempted_not_vulnerable": 4,
+    "benign": 9,
+    "inconclusive": 2,
+
+    // legacy counters — still populated from older hunts, never derived
+    // from the ladder counters above
     "true_positives": 3,
     "false_positives": 4
   },
@@ -191,7 +242,9 @@ Vault plugins are responsible for `record_query` (every vault has its own data-s
 The extractor blends two sources:
 
 1. **`events.jsonl`** — sums per-hunt `llm_calls`, `queries`, etc.
-2. **Hunt files** — pulls frontmatter (`true_positives`, `events_analyzed`, etc.) and falls back to body regexes (`**Total Queries Executed:** N`) for older hunts. Frontmatter wins when both are present.
+2. **Hunt files** — pulls frontmatter (`findings`, `ruled_out`, `true_positives`, `events_analyzed`, etc.) and falls back to body regexes (`**Total Queries Executed:** N`) for older hunts. Frontmatter wins when both are present.
+
+Verdict counters come from the `findings` and `ruled_out` frontmatter lists: each entry's `verdict` increments its counter. Hunts that only carry `true_positives` / `false_positives` contribute to the legacy counters only — the two sets sit side by side rather than one being inferred from the other.
 
 `extract` is idempotent and uses an atomic `mkstemp` + `os.replace` write, so it's safe to run while other processes are reading the file.
 
@@ -222,6 +275,13 @@ If you have an older workspace with a legacy `metrics/execution_metrics.json`:
 - `aggregates.json` replaces it. The numbers should match within rounding.
 - New code should call `athf.metrics.record_*` directly. Vault plugins that previously shipped a `MetricsTracker` class can keep one as a thin in-plugin shim, but ATHF core no longer provides one.
 - `events.jsonl` is the new source of truth — if you want to backfill from a legacy execution log, `Aggregator.extract_from_hunt_file()` reads the same hunt-file regexes the old tracker used.
+
+If you're moving a workspace onto the verdict ladder:
+
+- Nothing needs to change. `true_positives` / `false_positives` keep working and keep aggregating.
+- Start writing `findings` / `ruled_out` on new hunts. Old hunts can stay as they are indefinitely.
+- Do **not** script a bulk `true_positives → confirmed` migration. Those findings never passed the evidence gate, so promoting them would put unverified results in the top tier. Re-read the hunts you care about and assign verdicts by hand; most legacy TPs are honestly `suspected`.
+- Legacy `false_positives` mixes `benign` with `attempted_not_vulnerable`. Splitting it requires reading the hunt — that's the whole reason the ladder exists.
 
 ---
 

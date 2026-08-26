@@ -252,8 +252,15 @@ techniques: [T1053.003]
 data_sources: [Auditd, Syslog]
 related_hunts: []
 findings_count: 3
-true_positives: 1
-false_positives: 1
+findings:
+  - subject: web-prod-04
+    verdict: confirmed
+    evidence: auditd execve showed sh writing /var/spool/cron/crontabs/svc_deploy
+    confirmation: host triage recovered the crontab entry and the dropper on disk
+ruled_out:
+  - subject: svc_backup
+    verdict: benign
+    reason: nightly backup job, matched the change-management window
 customer_deliverables: []
 tags: [linux, cron, persistence]
 ---

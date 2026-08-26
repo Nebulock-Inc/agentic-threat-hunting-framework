@@ -730,8 +730,8 @@ data_sources:
   - edr-telemetry
 severity: high
 tags: []
-true_positives: 0
-false_positives: 0
+findings: []
+ruled_out: []
 ---
 
 ## LEARN
@@ -941,6 +941,14 @@ Summary: 3 valid, 1 invalid
 
 **Status values**:
 - Must be one of: `in-progress`, `completed`, `paused`, `archived`
+
+**Verdicts** (when `findings` / `ruled_out` are present):
+- Every entry must carry a `verdict` from: `confirmed`, `suspected`, `attempted_not_vulnerable`, `benign`, `inconclusive`
+- **Evidence gate:** `verdict: confirmed` requires a non-empty `confirmation` field. Telemetry in `evidence` alone caps the entry at `suspected`
+- **Routing rule:** `attempted_not_vulnerable` and `benign` must appear in `ruled_out`, never in `findings`
+- `attempted_not_vulnerable` entries must name the control that held
+
+See [FORMAT_GUIDELINES.md](../hunts/FORMAT_GUIDELINES.md) → The Verdict Ladder for entry shapes.
 
 ### Exit Codes
 

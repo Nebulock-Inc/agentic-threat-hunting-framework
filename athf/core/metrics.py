@@ -27,7 +27,16 @@ import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Iterable, Iterator, Optional, Union
+from typing import Any, Dict, Iterable, Iterator, List, Optional, Union
+
+from athf.core.verdicts import (
+    VERDICTS,
+    VerdictError,
+    counts_as_negative,
+    counts_as_positive,
+    normalize_verdict,
+    tally_frontmatter_verdicts,
+)
 
 # ---------------------------------------------------------------------------
 # Schema
@@ -80,7 +89,8 @@ class MetricEvent:
     rows_returned: Optional[int] = None
     status: Optional[str] = None  # success | error | timeout | inconclusive
 
-    outcome: Optional[str] = None  # TP | FP | inconclusive (for hunt_outcome)
+    # Verdict ladder value for hunt_outcome events; legacy tp | fp also accepted.
+    outcome: Optional[str] = None
 
     custom: Dict[str, Any] = field(default_factory=dict)
 
@@ -223,6 +233,14 @@ _HUNT_BODY_TP_RE = re.compile(r"\*\*True Positives:\*\*\s*(\d+)")
 _HUNT_BODY_FP_RE = re.compile(r"\*\*False Positives:\*\*\s*(\d+)")
 _FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---", re.DOTALL)
 
+# Per-verdict counts line from the LOCK template's KEEP section, e.g.
+#   **Counts:** `confirmed` 3 · `suspected` 2 · `benign` 1
+# Unfilled `[N]` placeholders don't match, so a blank template counts as zero.
+_HUNT_BODY_VERDICT_RES = {
+    verdict: re.compile(r"`" + verdict + r"`\s*(\d+)")
+    for verdict in VERDICTS
+}
+
 _NUMERIC_FRONTMATTER_FIELDS = (
     "events_analyzed",
     "total_queries",
@@ -238,6 +256,18 @@ _NUMERIC_FRONTMATTER_FIELDS = (
     "false_positives",
     "findings_count",
 )
+
+
+def _verdict_counts_from_body(content: str) -> Optional[Dict[str, int]]:
+    """Read the KEEP section's per-verdict counts line, if a hunter filled it in."""
+    found = False
+    counts = {verdict: 0 for verdict in VERDICTS}
+    for verdict, pattern in _HUNT_BODY_VERDICT_RES.items():
+        m = pattern.search(content)
+        if m:
+            counts[verdict] = int(m.group(1))
+            found = True
+    return counts if found else None
 
 
 class Aggregator:
@@ -442,6 +472,20 @@ class Aggregator:
                     num *= 1_000
                 out["events_analyzed"] = int(num)
 
+        tier_counts = tally_frontmatter_verdicts(frontmatter)
+        if tier_counts is None:
+            tier_counts = _verdict_counts_from_body(content)
+        if tier_counts is not None:
+            out.update(tier_counts)
+            out.setdefault(
+                "true_positives",
+                sum(n for v, n in tier_counts.items() if counts_as_positive(v)),
+            )
+            out.setdefault(
+                "false_positives",
+                sum(n for v, n in tier_counts.items() if counts_as_negative(v)),
+            )
+
         if "true_positives" not in out:
             m = _HUNT_BODY_TP_RE.search(content)
             if m:
@@ -463,7 +507,7 @@ class Aggregator:
 
 
 def _empty_hunt_bucket() -> Dict[str, Any]:
-    return {
+    bucket: Dict[str, Any] = {
         "llm_calls": 0,
         "input_tokens": 0,
         "output_tokens": 0,
@@ -479,6 +523,27 @@ def _empty_hunt_bucket() -> Dict[str, Any]:
         "events": [],
         "outcomes": [],
     }
+    bucket.update({verdict: 0 for verdict in VERDICTS})
+    return bucket
+
+
+def _accumulate_verdict(bucket: Dict[str, Any], raw_verdict: str) -> None:
+    """Increment the per-tier counter plus the legacy precision buckets.
+
+    Unrecognized verdicts are dropped rather than raised: aggregation runs over
+    historical event logs that may predate any given vocabulary change, and a
+    stale row must not break `athf metrics extract`.
+    """
+    try:
+        verdict = normalize_verdict(raw_verdict)
+    except VerdictError:
+        return
+    if verdict in bucket:
+        bucket[verdict] += 1
+    if counts_as_positive(verdict):
+        bucket["true_positives"] += 1
+    elif counts_as_negative(verdict):
+        bucket["false_positives"] += 1
 
 
 def _accumulate(bucket: Dict[str, Any], evt: MetricEvent) -> None:
@@ -499,11 +564,7 @@ def _accumulate(bucket: Dict[str, Any], evt: MetricEvent) -> None:
     elif evt.event_type == "hunt_outcome":
         if evt.outcome:
             bucket["outcomes"].append(evt.outcome)
-            normalized = evt.outcome.strip().upper()
-            if normalized == "TP":
-                bucket["true_positives"] += 1
-            elif normalized == "FP":
-                bucket["false_positives"] += 1
+            _accumulate_verdict(bucket, evt.outcome)
     bucket["events"].append({"id": evt.event_id, "type": evt.event_type, "ts": evt.timestamp})
 
 
@@ -525,6 +586,7 @@ def _aggregate_workspace(per_hunt: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
         "true_positives": 0,
         "false_positives": 0,
     }
+    totals.update({verdict: 0 for verdict in VERDICTS})
     for bucket in per_hunt.values():
         for k in (
             "llm_calls",
@@ -534,7 +596,7 @@ def _aggregate_workspace(per_hunt: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
             "query_duration_ms",
             "web_searches",
             "similarity_searches",
-        ):
+        ) + VERDICTS:
             totals[k] += int(bucket.get(k, 0) or 0)
         totals["cost_usd"] = round(totals["cost_usd"] + float(bucket.get("cost_usd", 0.0) or 0.0), 6)
         totals["events_analyzed"] += int(bucket.get("events_analyzed", 0) or 0)

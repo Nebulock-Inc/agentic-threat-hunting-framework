@@ -731,8 +731,8 @@ data_sources:
   - edr-telemetry
 severity: high
 tags: []
-true_positives: 0
-false_positives: 0
+findings: []      # confirmed | suspected (populate during KEEP)
+ruled_out: []     # attempted_not_vulnerable | benign (populate during KEEP)
 ---
 
 ## LEARN
@@ -933,6 +933,14 @@ Summary: 3 valid, 1 invalid
 
 **Status values**:
 - Must be one of: `in-progress`, `completed`, `paused`, `archived`
+
+**Verdicts** (when `findings` / `ruled_out` are present):
+- Every entry must carry a `verdict` from: `confirmed`, `suspected`, `attempted_not_vulnerable`, `benign`, `inconclusive`
+- **Evidence gate:** `verdict: confirmed` requires a non-empty `confirmation` field. Telemetry in `evidence` alone caps the entry at `suspected`
+- **Routing rule:** `attempted_not_vulnerable` and `benign` must appear in `ruled_out`, never in `findings`
+- `attempted_not_vulnerable` entries must name the control that held
+
+See [FORMAT_GUIDELINES.md](../hunts/FORMAT_GUIDELINES.md) → The Verdict Ladder for entry shapes.
 
 ### Exit Codes
 
@@ -2213,9 +2221,14 @@ athf metrics extract --output /tmp/snapshot.json      # capture a snapshot
 
 Append a single event manually. Useful for closing out hunts (TP / FP) and for plugin / scripting use.
 
+Valid `outcome` values are the five verdicts — `confirmed`, `suspected`, `attempted_not_vulnerable`, `benign`, `inconclusive`. Legacy `tp` / `fp` still parse.
+
 ```bash
 # Record a hunt outcome
-athf metrics record --type hunt_outcome --hunt H-0019 --field outcome=tp
+athf metrics record --type hunt_outcome --hunt H-0019 --field outcome=confirmed
+
+# The control held — record it, don't drop it
+athf metrics record --type hunt_outcome --hunt H-0020 --field outcome=attempted_not_vulnerable
 
 # Record a custom step
 athf metrics record --type manual --hunt H-0019 \
@@ -2234,7 +2247,7 @@ athf metrics record --type query --hunt H-0019 --field duration_ms=42 --field ro
 athf metrics extract                       # refresh aggregates
 athf metrics summary                       # overall view
 athf metrics show --hunt H-0019            # zoom into one hunt
-athf metrics record --type hunt_outcome --hunt H-0019 --field outcome=tp
+athf metrics record --type hunt_outcome --hunt H-0019 --field outcome=confirmed
 ```
 
 ### Exit Codes

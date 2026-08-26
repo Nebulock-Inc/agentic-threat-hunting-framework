@@ -148,6 +148,52 @@ class TestMetricsShow:
 
 
 @pytest.mark.unit
+class TestVerdictLadderDisplay:
+    """The ladder is only useful if a hunter can see each tier from the CLI."""
+
+    def _seed_ladder(self, workspace: Path) -> None:
+        store = EventStore(workspace / "metrics" / "events.jsonl")
+        for outcome in ("confirmed", "suspected", "attempted_not_vulnerable", "benign"):
+            store.append(
+                MetricEvent(event_type="hunt_outcome", hunt_id="H-0020", outcome=outcome)
+            )
+
+    def test_show_renders_every_tier(self, tmp_path: Path) -> None:
+        self._seed_ladder(tmp_path)
+
+        runner = CliRunner()
+        result = runner.invoke(
+            metrics, ["show", "--hunt", "H-0020", "--workspace", str(tmp_path)]
+        )
+
+        assert result.exit_code == 0, result.output
+        for label in ("Confirmed", "Suspected", "Benign", "Inconclusive"):
+            assert label in result.output
+        assert "Attempted" in result.output
+
+    def test_summary_renders_every_tier(self, tmp_path: Path) -> None:
+        self._seed_ladder(tmp_path)
+
+        runner = CliRunner()
+        result = runner.invoke(metrics, ["summary", "--workspace", str(tmp_path)])
+
+        assert result.exit_code == 0, result.output
+        for label in ("Confirmed", "Suspected", "Benign", "Inconclusive"):
+            assert label in result.output
+
+    def test_legacy_only_hunt_still_shows_legacy_counters(self, tmp_path: Path) -> None:
+        _seed_events(tmp_path)
+
+        runner = CliRunner()
+        result = runner.invoke(
+            metrics, ["show", "--hunt", "H-0019", "--workspace", str(tmp_path)]
+        )
+
+        assert result.exit_code == 0, result.output
+        assert "True positives" in result.output
+
+
+@pytest.mark.unit
 class TestMetricsSummary:
     def test_summary_table(self, tmp_path: Path) -> None:
         _seed_events(tmp_path)

@@ -2,9 +2,24 @@
 
 import re
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 
 import yaml
+
+from athf.core.verdicts import (
+    ATTEMPTED_NOT_VULNERABLE,
+    CONFIRMED,
+    EXPECTED_LIST,
+    LEGACY_VERDICTS,
+    VERDICTS,
+    VerdictError,
+    is_self_referential,
+    is_substantive,
+    normalize_verdict,
+    requires_evidence,
+)
+
+LADDER_KEYS = ("findings", "ruled_out")
 
 
 class HuntParser:
@@ -16,6 +31,8 @@ class HuntParser:
         self.frontmatter: Dict = {}
         self.content = ""
         self.lock_sections: Dict = {}
+        self.findings: List = []
+        self.ruled_out: List = []
 
     def parse(self) -> Dict:
         """Parse hunt file and return structured data.
@@ -38,13 +55,27 @@ class HuntParser:
         # Parse LOCK sections
         self.lock_sections = self._parse_lock_sections(self.content)
 
+        # Verdict ladder. Malformed values surface as validation errors, so
+        # parsing keeps them out of the exposed lists rather than raising here.
+        self.findings = self._ladder_entries("findings")
+        self.ruled_out = self._ladder_entries("ruled_out")
+
         return {
             "file_path": str(self.file_path),
             "hunt_id": self.frontmatter.get("hunt_id"),
             "frontmatter": self.frontmatter,
             "content": self.content,
             "lock_sections": self.lock_sections,
+            "findings": self.findings,
+            "ruled_out": self.ruled_out,
         }
+
+    def _ladder_entries(self, key: str) -> List:
+        """Return the well-formed entries under ``key``, tolerating junk."""
+        raw = self.frontmatter.get(key)
+        if not isinstance(raw, list):
+            return []
+        return [entry for entry in raw if isinstance(entry, dict)]
 
     def _parse_frontmatter(self, content: str) -> Dict:
         """Extract and parse YAML frontmatter.
@@ -139,7 +170,89 @@ class HuntParser:
             if section not in self.lock_sections:
                 errors.append(f"Missing LOCK section: {section.upper()}")
 
+        errors.extend(self._validate_verdicts())
+
         return (len(errors) == 0, errors)
+
+    def _validate_verdicts(self) -> List[str]:
+        """Check the verdict ladder in ``findings`` and ``ruled_out``.
+
+        Absent keys and empty lists are valid: hunts predating the ladder, and
+        hunts that found nothing, must both validate clean.
+        """
+        errors: List[str] = []
+
+        for key in LADDER_KEYS:
+            raw = self.frontmatter.get(key)
+            if raw is None:
+                continue
+            if not isinstance(raw, list):
+                errors.append(f"{key} must be a list of verdict entries; got {type(raw).__name__}")
+                continue
+
+            for index, entry in enumerate(raw):
+                if not isinstance(entry, dict):
+                    errors.append(f"{key}[{index}] must be a mapping; got {type(entry).__name__}")
+                    continue
+                errors.extend(self._validate_entry(key, index, entry))
+
+        return errors
+
+    def _validate_entry(self, key: str, index: int, entry: Dict) -> List[str]:
+        errors: List[str] = []
+        subject = entry.get("subject") or f"{key}[{index}]"
+
+        if "verdict" not in entry:
+            return [f"{key}[{index}] ({subject}) is missing required field: verdict"]
+
+        try:
+            verdict = normalize_verdict(entry["verdict"])
+        except VerdictError as exc:
+            return [f"{key}[{index}] ({subject}): {exc}"]
+
+        if verdict in LEGACY_VERDICTS:
+            return [
+                f"{key}[{index}] ({subject}) uses the legacy verdict '{verdict}', which has no "
+                f"place on the ladder; assign one of {', '.join(VERDICTS)} or keep the count "
+                "in the legacy true_positives / false_positives keys"
+            ]
+
+        expected = EXPECTED_LIST[verdict]
+        if expected != key:
+            errors.append(
+                f"{key}[{index}] ({subject}) has verdict '{verdict}', which belongs in {expected}"
+            )
+
+        # The evidence gate: telemetry alone never reaches confirmed. An
+        # independent confirmation from outside the log corpus is mandatory, and
+        # it has to say what was checked — 'n/a' and 'ok' are how you spell
+        # "I didn't confirm this" while still satisfying a truthiness check.
+        if requires_evidence(verdict):
+            missing = [
+                f for f in ("evidence", "confirmation") if not is_substantive(entry.get(f))
+            ]
+            if missing:
+                errors.append(
+                    f"{key}[{index}] ({subject}) claims verdict '{CONFIRMED}' but has no usable "
+                    f"{' or '.join(missing)}; confirmed requires telemetry evidence plus a "
+                    "description of the independent confirmation performed outside the log "
+                    "corpus (controlled reproduction, host forensics, or configuration review)"
+                )
+            elif is_self_referential(entry.get("confirmation")):
+                errors.append(
+                    f"{key}[{index}] ({subject}) confirms verdict '{CONFIRMED}' by pointing back "
+                    "at the log corpus; the corpus cannot confirm itself. Describe what you did "
+                    "outside it — reproduced the behavior, imaged the host, reviewed the config"
+                )
+
+        if verdict == ATTEMPTED_NOT_VULNERABLE and not is_substantive(entry.get("control")):
+            errors.append(
+                f"{key}[{index}] ({subject}) has verdict '{ATTEMPTED_NOT_VULNERABLE}' but does "
+                "not name the control that held; set 'control' to the specific control and how "
+                "you verified it held"
+            )
+
+        return errors
 
 
 def parse_hunt_file(file_path: Path) -> Dict:

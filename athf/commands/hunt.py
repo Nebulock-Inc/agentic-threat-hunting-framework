@@ -17,6 +17,7 @@ from athf.core.attack_matrix import get_technique
 from athf.core.hunt_manager import HuntManager
 from athf.core.hunt_parser import validate_hunt_file
 from athf.core.template_engine import render_hunt_template
+from athf.core.verdicts import VERDICTS
 from athf.utils.validation import validate_hunt_id, validate_research_id
 
 console = Console()
@@ -582,6 +583,8 @@ def stats() -> None:
     table.add_row("Total Hunts", str(stats["total_hunts"]))
     table.add_row("Completed Hunts", str(stats["completed_hunts"]))
     table.add_row("Total Findings", str(stats["total_findings"]))
+    for verdict in VERDICTS:
+        table.add_row(verdict.replace("_", " ").capitalize(), str(stats.get(verdict, 0)))
     table.add_row("True Positives", str(stats["true_positives"]))
     table.add_row("False Positives", str(stats["false_positives"]))
     table.add_row("Success Rate", f"{stats['success_rate']}%")
@@ -1150,6 +1153,8 @@ def _build_export_dict(
         "related_hunts": frontmatter.get("related_hunts", []),
         "spawned_from": frontmatter.get("spawned_from"),
         "findings_count": frontmatter.get("findings_count", 0),
+        "findings": hunt_data.get("findings", []),
+        "ruled_out": hunt_data.get("ruled_out", []),
         "true_positives": frontmatter.get("true_positives", 0),
         "false_positives": frontmatter.get("false_positives", 0),
         "events_scanned": frontmatter.get("events_scanned"),

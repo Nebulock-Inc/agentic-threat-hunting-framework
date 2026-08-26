@@ -250,7 +250,7 @@ This repository follows the **LOCK pattern**:
 | Aspect | Hunts (H-XXXX) | Investigations (I-XXXX) |
 |--------|----------------|-------------------------|
 | **Purpose** | Hypothesis-driven hunting | Exploratory analysis |
-| **Metrics** | Tracked (TP/FP/costs) | **NOT tracked** |
+| **Metrics** | Tracked (per-verdict counts, costs) | **NOT tracked** |
 | **Directory** | `hunts/` | `investigations/` |
 | **Validation** | Strict (CI/CD enforced) | Lightweight |
 
@@ -311,6 +311,49 @@ Query syntax, field naming, and performance optimization vary by data source. Re
 - **Capture negative results** - Hunts that found nothing are still valuable
 - **Record lessons learned** - What worked, what didn't, what to try next
 - **Link related hunts** - Reference past work
+
+---
+
+## Verdicts: How to Classify What You Found
+
+Every result gets one of five verdicts. `TP` / `FP` is no longer sufficient — it collapses "the attack happened and our control stopped it" together with "the thing wasn't there," and those are different answers.
+
+| Verdict | Assign when | Goes in |
+|---------|-------------|---------|
+| `confirmed` | Telemetry evidence **plus** independent confirmation outside the log corpus | `findings` |
+| `suspected` | Telemetry evidence only — you could not independently confirm | `findings` |
+| `attempted_not_vulnerable` | Attack behavior observed and the control demonstrably held (**name the control**) | `ruled_out` |
+| `benign` | Explained by specific legitimate activity | `ruled_out` |
+| `inconclusive` | Telemetry too sparse or missing to decide (**name the field/source**) | `ruled_out` |
+
+### 🚨 The Evidence Gate — Non-Negotiable
+
+**Query results are not confirmation.** You MUST NOT write `verdict: confirmed` on the strength of telemetry alone, no matter how convincing the query output looks. Reading logs back and reporting what they say is not verification — it's restating the input.
+
+`confirmed` requires one of these, from **outside** the log corpus:
+
+| Confirmation type | What it means |
+|-------------------|---------------|
+| **Controlled reproduction** | Behavior reproduced in an attack range / lab |
+| **Host forensics** | The artifact recovered — crontab entry, plist, binary on disk, registry key |
+| **Configuration review** | The actual config inspected, proving the activity was possible and occurred |
+
+If you have none of these, the verdict is `suspected`. That is the correct, complete answer — not a downgrade, and not something to apologize for or work around. Escalate to the user that confirmation is needed; do not promote the verdict yourself.
+
+### Routing Rules for AI Assistants
+
+| ❌ Wrong | ✅ Correct |
+|---------|-----------|
+| `verdict: confirmed` backed only by query output | `verdict: suspected` + note what confirmation would take |
+| `attempted_not_vulnerable` listed under `findings` | Put it in `ruled_out` — it closed the question |
+| `benign` listed under `findings` | Put it in `ruled_out` |
+| "No findings" when controls held | `ruled_out` entries naming each control that held |
+| `attempted_not_vulnerable` with no control named | Name the control and how you verified it held |
+| Promoting legacy `true_positives` to `confirmed` | Leave legacy counts alone — they never passed the gate |
+
+**Verify before closeout:** `athf hunt validate H-XXXX` enforces the evidence gate and the routing rule. Run it after writing findings.
+
+**Full field reference:** [athf/data/hunts/FORMAT_GUIDELINES.md](athf/data/hunts/FORMAT_GUIDELINES.md) → The Verdict Ladder
 
 ---
 
@@ -389,7 +432,7 @@ athf --version
 6. **Present hypothesis to user** - ABLE scoping table + threat context
 7. **Execute queries** - Use appropriate data source tools (SIEM interface, query CLI, etc.)
 8. **STOP after each query** - Wait for user feedback before next query
-9. **Document findings** - Update hunt file with results and conclusions
+9. **Document findings** - Update hunt file with results, assign a verdict to each (see [Verdicts](#verdicts-how-to-classify-what-you-found)), then run `athf hunt validate H-XXXX`
 
 ---
 

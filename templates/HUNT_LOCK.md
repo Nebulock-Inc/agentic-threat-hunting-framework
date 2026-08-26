@@ -10,8 +10,13 @@ techniques: [T1003.001, T1005, etc.]
 data_sources: [SIEM, EDR, etc.]
 related_hunts: []
 findings_count: 0
-true_positives: 0
-false_positives: 0
+findings: []  # confirmed | suspected — each entry: subject, verdict, evidence, confirmation
+ruled_out: []  # attempted_not_vulnerable | benign — each entry: subject, verdict, reason
+# Legacy counters, kept for hunts predating the ladder. Leave commented out: an
+# explicit value overrides the counts derived from findings/ruled_out above, so
+# `true_positives: 0` would mask a real confirmed finding.
+# true_positives: 0
+# false_positives: 0
 customer_deliverables: []
 tags: []
 ---
@@ -135,13 +140,26 @@ tags: []
 
 ### Findings
 
-| **Finding** | **Ticket** | **Description** |
-|-------------|-----------|-----------------|
-| True Positive | [Ticket] | [Description] |
-| False Positive | N/A | [Description] |
+Only `confirmed` and `suspected` belong here.
 
-**True Positives:** [Count]
-**False Positives:** [Count]
+| **Verdict** | **Subject** | **Ticket** | **Evidence** | **Independent Confirmation** |
+|-------------|-------------|-----------|--------------|------------------------------|
+| `confirmed` | [Host/account] | [Ticket] | [Telemetry — source and fields] | [Reproduction, host forensics, or config review] |
+| `suspected` | [Host/account] | [Ticket] | [Telemetry — source and fields] | None — telemetry only |
+
+`confirmed` needs telemetry **plus** confirmation from outside the log corpus. Telemetry alone caps at `suspected`.
+
+### Ruled Out
+
+| **Verdict** | **Subject** | **What Closed It** |
+|-------------|-------------|--------------------|
+| `attempted_not_vulnerable` | [Host/account] | [Name the control that held and how you verified it] |
+| `benign` | [Host/account] | [Legitimate activity that explains it] |
+| `inconclusive` | [Host/account] | [Telemetry that was missing] |
+
+`attempted_not_vulnerable` and `benign` always go here, never in Findings.
+
+**Counts:** `confirmed` [N] · `suspected` [N] · `attempted_not_vulnerable` [N] · `benign` [N] · `inconclusive` [N]
 
 ### Detection Logic
 
