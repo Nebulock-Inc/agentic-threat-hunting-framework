@@ -420,9 +420,6 @@ def _provenance_failures(confirmation: Any, registry: Any) -> List[Tuple[str, An
     """
     from athf.core.provenance import CORPUS_ONLY_CAPABILITIES, SELF_DECLARATION_KEYS
 
-    if not isinstance(confirmation, Mapping):
-        return [(MISSING_PROVENANCE, confirmation)]
-
     failures: List[Tuple[str, Any]] = []
 
     # Capability declared inside the finding is the forgeable field this gate
