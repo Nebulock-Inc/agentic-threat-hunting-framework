@@ -436,7 +436,7 @@ If all commands work, you're ready to go!
 3. Add to PATH:
    ```bash
    # macOS (add to ~/.zshrc or ~/.bashrc)
-   export PATH="$HOME/Library/Python/3.11/bin:$PATH"
+   export PATH="$(python3 -m site --user-base)/bin:$PATH"
 
    # Linux
    export PATH="$HOME/.local/bin:$PATH"
