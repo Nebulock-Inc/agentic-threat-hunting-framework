@@ -363,6 +363,8 @@ findings:
 
 **No producers declared means no `confirmed`.** A workspace with no `provenance` section refuses every `confirmed` entry. That is intended: the absence of a declaration is not permission.
 
+**Do not write a config inside `hunts/`.** Only the workspace-root config is read; one placed beside a hunt file is ignored. Writing a producer declaration next to your own finding is self-certification, and it will not work.
+
 ### Routing Rules for AI Assistants
 
 | ❌ Wrong | ✅ Correct |

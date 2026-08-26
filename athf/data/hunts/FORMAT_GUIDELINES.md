@@ -199,6 +199,8 @@ Six ways a `confirmed` entry fails this gate:
 
 **Restrictive by default.** A workspace with no `provenance` section declares no producers, so nothing reaches `confirmed`. An unparseable config yields an empty registry for the same reason — a broken config must not become the reason `confirmed` starts passing.
 
+**Config must live above `hunts/`.** Either `.athfconfig.yaml` or `config/.athfconfig.yaml` at the workspace root. A config placed *inside* the hunt tree is ignored, because that directory is somewhere the finding author writes — a producer declared next to `H-0042.md` would be a self-declaration with a different filename, and the grant has to sit somewhere the claim cannot reach.
+
 **What remains forgeable.** A human can edit `.athfconfig.yaml` to declare a capability their producer doesn't have. That is the accepted residual: the lie moves out of unfalsifiable prose into a separate file, in its own commit, contradicted by source an auditor can read.
 
 ### Entry Shapes

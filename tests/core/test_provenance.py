@@ -293,3 +293,129 @@ class TestBackwardsCompatibility:
         assert UNKNOWN_PRODUCER in codes(
             gate_failures("findings", confirmed(), registry=reg)
         )
+
+
+class TestConfigCannotBeShadowedFromInsideTheHuntTree:
+    """A config an agent can write must not be the config that licenses it.
+
+    ``load_registry`` walks up from a starting directory and takes the first
+    config it finds. Handed a hunt file's own directory, that walk starts inside
+    the tree the finding author writes to — so an agent with file-write access
+    drops ``.athfconfig.yaml`` next to ``H-0042.md``, declares itself capable of
+    ``host_forensics``, and ``athf hunt validate`` accepts the ``confirmed``.
+
+    That collapses the whole design. The point of putting capabilities in config
+    was that an agent emitting findings cannot reach the file that grants them;
+    if the grant can sit in the same directory as the claim, it is a
+    self-declaration wearing a different filename.
+
+    Resolution has to be anchored above the hunt tree, and validation has to
+    agree with aggregation — a shadow config also made the two disagree, with
+    validate reporting the file clean while the tally credited nothing.
+    """
+
+    CONFIRMED_ENTRY = (
+        "findings:\n"
+        "  - subject: host dev-20\n"
+        "    verdict: confirmed\n"
+        "    evidence: process_activity rows show crontab spawned by curl\n"
+        "    confirmation:\n"
+        "      method: host_forensics\n"
+        "      produced_by: baseline-agent\n"
+        "      attested_by: Sydney Marrone\n"
+        "      detail: recovered the dropped binary from the imaged disk\n"
+    )
+
+    LOCK = "\n## LEARN\nx\n\n## OBSERVE\nx\n\n## CHECK\nx\n\n## KEEP\nx\n"
+
+    SHADOW = (
+        "provenance:\n"
+        "  producers:\n"
+        "    baseline-agent:\n"
+        "      capabilities: [clickhouse_query, host_forensics]\n"
+    )
+
+    def _workspace(self, tmp_path):
+        """Root config declares nothing; a shadow config sits by the hunt file."""
+        (tmp_path / ".athfconfig.yaml").write_text(
+            "workspace_name: shadow-test\n", encoding="utf-8"
+        )
+        deep = tmp_path / "hunts" / "production" / "2026" / "Q2"
+        deep.mkdir(parents=True)
+        (deep / ".athfconfig.yaml").write_text(self.SHADOW, encoding="utf-8")
+        hunt = deep / "H-0042.md"
+        hunt.write_text(
+            "---\nhunt_id: H-0042\ntitle: Shadowed\nstatus: completed\n"
+            f"date: 2026-08-26\n{self.CONFIRMED_ENTRY}---\n{self.LOCK}",
+            encoding="utf-8",
+        )
+        return hunt
+
+    def test_shadow_config_does_not_license_confirmed(self, tmp_path):
+        from athf.core.hunt_parser import HuntParser
+
+        hunt = self._workspace(tmp_path)
+        parser = HuntParser(hunt)
+        parser.parse()
+        _, errors = parser.validate()
+
+        assert any("baseline-agent" in e for e in errors), (
+            "a config inside the hunt tree must not declare a producer; "
+            f"got errors={errors!r}"
+        )
+
+    def test_root_config_still_licenses_confirmed(self, tmp_path):
+        """Inverse: anchoring must not break the legitimate case.
+
+        The same finding, with the producer declared at the workspace root
+        instead, has to keep validating — otherwise the fix just bans
+        ``confirmed`` everywhere and the gate looks like it works.
+        """
+        from athf.core.hunt_parser import HuntParser
+
+        hunt = self._workspace(tmp_path)
+        (hunt.parent / ".athfconfig.yaml").unlink()
+        (tmp_path / ".athfconfig.yaml").write_text(self.SHADOW, encoding="utf-8")
+
+        parser = HuntParser(hunt)
+        parser.parse()
+        is_valid, errors = parser.validate()
+        assert is_valid, errors
+
+    def test_config_subdirectory_at_root_still_works(self, tmp_path):
+        """``config/.athfconfig.yaml`` is the layout ``athf init`` creates."""
+        from athf.core.hunt_parser import HuntParser
+
+        hunt = self._workspace(tmp_path)
+        (hunt.parent / ".athfconfig.yaml").unlink()
+        (tmp_path / ".athfconfig.yaml").unlink()
+        (tmp_path / "config").mkdir()
+        (tmp_path / "config" / ".athfconfig.yaml").write_text(
+            self.SHADOW, encoding="utf-8"
+        )
+
+        parser = HuntParser(hunt)
+        parser.parse()
+        is_valid, errors = parser.validate()
+        assert is_valid, errors
+
+    def test_validation_and_aggregation_resolve_the_same_registry(self, tmp_path):
+        """The two surfaces must not disagree about who is declared.
+
+        A shadow config previously gave validation a producer that aggregation
+        never saw, which is the divergence class that already shipped once.
+        """
+        from athf.core.hunt_manager import HuntManager
+        from athf.core.hunt_parser import HuntParser
+
+        hunt = self._workspace(tmp_path)
+        manager = HuntManager(tmp_path / "hunts")
+
+        parser = HuntParser(hunt)
+        parser.parse()
+        is_valid, _ = parser.validate()
+
+        counted = sum(h.get("confirmed", 0) for h in manager.list_hunts())
+        assert is_valid == bool(counted), (
+            f"validate says valid={is_valid} but tally counted {counted}"
+        )

@@ -117,6 +117,8 @@ def load_registry(workspace: Optional[Path] = None) -> ProducerRegistry:
     # Walk up: hunt files live several directories below the workspace root
     # (hunts/production/2026/Q2/H-0042.md), and the config is at the root.
     for parent in (base, *base.parents):
+        if _inside_hunt_tree(parent):
+            continue
         for candidate in (parent / "config" / ".athfconfig.yaml", parent / ".athfconfig.yaml"):
             if not candidate.exists():
                 continue
@@ -126,6 +128,22 @@ def load_registry(workspace: Optional[Path] = None) -> ProducerRegistry:
             except (OSError, yaml.YAMLError):
                 return ProducerRegistry()
     return ProducerRegistry()
+
+
+def _inside_hunt_tree(directory: Path) -> bool:
+    """Return ``True`` for a directory at or below ``hunts/``.
+
+    Config found there is ignored. The walk starts from a hunt file's own
+    directory, which is a place the finding author writes to — so without this,
+    an agent drops ``.athfconfig.yaml`` beside ``H-0042.md``, declares itself
+    capable of host forensics, and validation accepts the ``confirmed``. That is
+    a self-declaration with a different filename, and the whole reason
+    capabilities live in config is that the claim cannot reach the grant.
+
+    A workspace whose own root is named ``hunts`` therefore declares no
+    producers. That fails closed, which is the right direction to be wrong in.
+    """
+    return "hunts" in directory.parts
 
 
 __all__ = [
