@@ -20,7 +20,7 @@ Telemetry alone never reaches ``confirmed``. See
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, Mapping, Optional, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Tuple
 
 CONFIRMED = "confirmed"
 SUSPECTED = "suspected"
@@ -226,15 +226,91 @@ def is_self_referential(value: Any) -> bool:
     return any(pattern.search(candidate) for pattern in _SELF_REFERENCE_PATTERNS)
 
 
+# Reason codes returned by :func:`gate_failures`. Callers render these however
+# suits them — ``athf hunt validate`` as hunter-facing messages, aggregation as
+# "do not count this entry".
+NOT_A_MAPPING = "not_a_mapping"
+MISSING_VERDICT = "missing_verdict"
+INVALID_VERDICT = "invalid_verdict"
+LEGACY_VERDICT = "legacy_verdict"
+MISROUTED = "misrouted"
+UNSUPPORTED_CONFIRMATION = "unsupported_confirmation"
+CIRCULAR_CONFIRMATION = "circular_confirmation"
+UNNAMED_CONTROL = "unnamed_control"
+
+
+def gate_failures(key: str, entry: Any) -> List[Tuple[str, Any]]:
+    """Return the reasons ``entry`` in list ``key`` does not earn its verdict.
+
+    The single source of truth behind both enforcement surfaces. Validation
+    renders these as messages; aggregation treats a non-empty result as "do not
+    count". They used to decide this separately — the tally consulted routing
+    alone — so a ``confirmed`` entry whose confirmation read ``ok`` was rejected
+    by validate and credited by the dashboard in the same breath.
+
+    Only the verdicts that carry gates today are checked: ``confirmed`` needs
+    substantive evidence plus non-circular confirmation, and
+    ``attempted_not_vulnerable`` needs a named control. ``benign`` and
+    ``inconclusive`` pass on shape alone — a known asymmetry with its own fix,
+    since widening it here would silently drop existing counts.
+
+    Each item is ``(code, detail)``. ``detail`` carries whatever the renderer
+    needs: the offending value, or the list of unusable fields.
+    """
+    if not isinstance(entry, Mapping):
+        return [(NOT_A_MAPPING, type(entry).__name__)]
+
+    if "verdict" not in entry:
+        return [(MISSING_VERDICT, None)]
+
+    try:
+        verdict = normalize_verdict(entry["verdict"])
+    except VerdictError as exc:
+        return [(INVALID_VERDICT, exc)]
+
+    if verdict in LEGACY_VERDICTS:
+        return [(LEGACY_VERDICT, verdict)]
+
+    failures: List[Tuple[str, Any]] = []
+
+    expected = EXPECTED_LIST[verdict]
+    if expected != key:
+        failures.append((MISROUTED, (verdict, expected)))
+
+    # The evidence gate: telemetry alone never reaches confirmed. An independent
+    # confirmation from outside the log corpus is mandatory, and it has to say
+    # what was checked — 'n/a' and 'ok' are how you spell "I didn't confirm this"
+    # while still satisfying a truthiness check.
+    if requires_evidence(verdict):
+        unusable = [f for f in ("evidence", "confirmation") if not is_substantive(entry.get(f))]
+        if unusable:
+            failures.append((UNSUPPORTED_CONFIRMATION, unusable))
+        elif is_self_referential(entry.get("confirmation")):
+            failures.append((CIRCULAR_CONFIRMATION, entry.get("confirmation")))
+
+    if verdict == ATTEMPTED_NOT_VULNERABLE and not is_substantive(entry.get("control")):
+        failures.append((UNNAMED_CONTROL, entry.get("control")))
+
+    return failures
+
+
+def entry_fails_gate(key: str, entry: Any) -> bool:
+    """Return ``True`` when ``entry`` in list ``key`` does not earn its verdict."""
+    return bool(gate_failures(key, entry))
+
+
 def tally_frontmatter_verdicts(
     frontmatter: Mapping[str, Any]
 ) -> Optional[Dict[str, int]]:
     """Tally verdicts across the ``findings`` / ``ruled_out`` frontmatter lists.
 
     Returns ``None`` when neither key holds a non-empty list, letting callers
-    fall back to legacy counters. Malformed entries are skipped rather than
-    raised: ``athf hunt validate`` is where a hunter is told their file is
-    wrong, so reporting must survive anything already on disk.
+    fall back to legacy counters. Entries that fail the gate are counted as
+    zero rather than raising: ``athf hunt validate`` is where a hunter is told
+    their file is wrong, so reporting must survive anything already on disk.
+    A present-but-rejected list still returns counts, because falling back to
+    legacy counters would let an ungated ``confirmed`` reappear as a legacy
+    true positive.
     """
     found = False
     counts = {verdict: 0 for verdict in VERDICTS}
@@ -245,15 +321,9 @@ def tally_frontmatter_verdicts(
             continue
         found = found or bool(value)
         for entry in value:
-            if not isinstance(entry, Mapping):
+            if entry_fails_gate(key, entry):
                 continue
-            candidate = _soften(entry.get("verdict"))
-            # A verdict is only counted from the list it belongs in. Otherwise a
-            # `confirmed` entry parked in ``ruled_out`` would be credited as a
-            # positive, which is the report separation collapsing quietly —
-            # `athf hunt validate` rejects that shape, so drop it here.
-            if EXPECTED_LIST.get(candidate) == key:
-                counts[candidate] += 1
+            counts[_soften(entry.get("verdict"))] += 1
 
     return counts if found else None
 
@@ -281,6 +351,16 @@ __all__ = [
     "EXPECTED_LIST",
     "is_substantive",
     "is_self_referential",
+    "gate_failures",
+    "entry_fails_gate",
+    "NOT_A_MAPPING",
+    "MISSING_VERDICT",
+    "INVALID_VERDICT",
+    "LEGACY_VERDICT",
+    "MISROUTED",
+    "UNSUPPORTED_CONFIRMATION",
+    "CIRCULAR_CONFIRMATION",
+    "UNNAMED_CONTROL",
     "tally_frontmatter_verdicts",
     "precision_pair",
 ]

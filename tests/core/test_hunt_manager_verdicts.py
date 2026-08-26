@@ -110,6 +110,38 @@ class TestListHunts:
         assert len(hunts) == 1
         assert all(hunts[0][tier] == 0 for tier in LADDER)
 
+    def test_rollup_does_not_credit_what_validate_rejects(self, tmp_path: Path) -> None:
+        """The rollup and `athf hunt validate` must agree on what counts.
+
+        Previously validate reported two errors on this file while list_hunts
+        reported confirmed=2 / true_positives=2 — the dashboard credited
+        findings the gate had already refused.
+        """
+        from athf.core.hunt_parser import HuntParser
+
+        ungated = (
+            "findings:\n"
+            "  - subject: host-a\n"
+            "    verdict: confirmed\n"
+            "    evidence: process_activity rows show crontab spawned by curl\n"
+            "    confirmation: ok\n"
+            "  - subject: host-b\n"
+            "    verdict: confirmed\n"
+            "    evidence: process_activity rows show crontab spawned by curl\n"
+            "    confirmation: tbd\n"
+        )
+        _write(tmp_path / "hunts", "H-0006", ungated)
+        hunt_file = tmp_path / "hunts" / "H-0006.md"
+
+        parser = HuntParser(hunt_file)
+        parser.parse()
+        ok, _ = parser.validate()
+        assert not ok, "fixture must be a file validate rejects"
+
+        hunt = HuntManager(tmp_path / "hunts").list_hunts()[0]
+        assert hunt["confirmed"] == 0
+        assert hunt["true_positives"] == 0
+
 
 class TestCalculateStats:
     def test_tiers_roll_up_across_hunts(self, tmp_path: Path) -> None:
@@ -152,3 +184,36 @@ class TestCalculateStats:
         stats = HuntManager(hunts).calculate_stats()
         assert stats["completed_hunts"] == 2
         assert stats["success_rate"] == pytest.approx(50.0)
+
+    def test_non_numeric_legacy_counter_does_not_crash(self, tmp_path: Path) -> None:
+        """`athf hunt stats` runs right after validate in CI, over old files.
+
+        A hand-typed `true_positives: "three"` is malformed, but aggregation
+        reports over whatever is already on disk — only validate is allowed to
+        object, so this must degrade rather than raise.
+        """
+        hunts = tmp_path / "hunts"
+        _write(hunts, "H-0001", 'true_positives: "three"\nfalse_positives: 1')
+        _write(hunts, "H-0002", "true_positives: 2\nfalse_positives: 1")
+
+        stats = HuntManager(hunts).calculate_stats()
+        assert stats["true_positives"] == 2
+        assert stats["false_positives"] == 2
+
+    def test_null_legacy_counter_does_not_crash(self, tmp_path: Path) -> None:
+        _write(tmp_path / "hunts", "H-0003", "true_positives:\nfalse_positives:")
+
+        stats = HuntManager(tmp_path / "hunts").calculate_stats()
+        assert stats["true_positives"] == 0
+        assert stats["false_positives"] == 0
+
+    def test_numeric_string_legacy_counter_is_honored(self, tmp_path: Path) -> None:
+        """Inverse case: coercion must not discard a recoverable number.
+
+        YAML quoting is a common hand-editing artifact, so `"3"` is a real count
+        typed by a hunter, not junk to zero out.
+        """
+        _write(tmp_path / "hunts", "H-0004", 'true_positives: "3"')
+
+        stats = HuntManager(tmp_path / "hunts").calculate_stats()
+        assert stats["true_positives"] == 3

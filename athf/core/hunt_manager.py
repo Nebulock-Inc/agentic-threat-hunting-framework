@@ -13,6 +13,28 @@ from athf.utils.validation import validate_file_path, validate_hunt_id
 EXCLUDED_DOC_FILES = {"README.md", "FORMAT_GUIDELINES.md", "INDEX.md", "AGENTS.md", "WEEKLY_SUMMARY_TEMPLATE.md"}
 
 
+def _as_count(value: Any) -> int:
+    """Coerce a frontmatter counter to a non-negative int, defaulting to 0.
+
+    Hand-edited hunt files carry quoted numbers, empty keys, and occasionally
+    prose. Rollup runs over whatever is on disk and `athf hunt stats` runs right
+    after validate in CI, so a malformed counter must degrade to 0 rather than
+    raise — only `athf hunt validate` gets to object to a file.
+    """
+    if isinstance(value, bool):
+        return 0
+    if isinstance(value, int):
+        return max(value, 0)
+    if isinstance(value, float):
+        return max(int(value), 0)
+    if isinstance(value, str):
+        try:
+            return max(int(value.strip()), 0)
+        except ValueError:
+            return 0
+    return 0
+
+
 class HuntManager:
     """Manage hunt files and operations."""
 
@@ -269,12 +291,12 @@ class HuntManager:
         total_hunts = len(hunts)
         completed_hunts = len([h for h in hunts if h.get("status") == "completed"])
 
-        total_findings = sum(h.get("findings_count", 0) for h in hunts)
-        total_tp = sum(h.get("true_positives", 0) for h in hunts)
-        total_fp = sum(h.get("false_positives", 0) for h in hunts)
+        total_findings = sum(_as_count(h.get("findings_count")) for h in hunts)
+        total_tp = sum(_as_count(h.get("true_positives")) for h in hunts)
+        total_fp = sum(_as_count(h.get("false_positives")) for h in hunts)
 
         # Calculate success rate (hunts with TP / completed hunts)
-        hunts_with_tp = len([h for h in hunts if h.get("true_positives", 0) > 0])
+        hunts_with_tp = len([h for h in hunts if _as_count(h.get("true_positives")) > 0])
         success_rate = (hunts_with_tp / completed_hunts * 100) if completed_hunts > 0 else 0.0
 
         # Calculate TP/FP ratio

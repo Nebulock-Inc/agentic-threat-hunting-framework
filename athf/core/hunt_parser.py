@@ -8,15 +8,16 @@ import yaml
 
 from athf.core.verdicts import (
     ATTEMPTED_NOT_VULNERABLE,
+    CIRCULAR_CONFIRMATION,
     CONFIRMED,
-    EXPECTED_LIST,
-    LEGACY_VERDICTS,
+    INVALID_VERDICT,
+    LEGACY_VERDICT,
+    MISROUTED,
+    MISSING_VERDICT,
+    UNNAMED_CONTROL,
+    UNSUPPORTED_CONFIRMATION,
     VERDICTS,
-    VerdictError,
-    is_self_referential,
-    is_substantive,
-    normalize_verdict,
-    requires_evidence,
+    gate_failures,
 )
 
 LADDER_KEYS = ("findings", "ruled_out")
@@ -199,58 +200,50 @@ class HuntParser:
         return errors
 
     def _validate_entry(self, key: str, index: int, entry: Dict) -> List[str]:
-        errors: List[str] = []
+        """Render :func:`gate_failures` as hunter-facing messages.
+
+        The rules themselves live in ``athf.core.verdicts`` so that validation
+        and aggregation cannot disagree about what earns a verdict.
+        """
         subject = entry.get("subject") or f"{key}[{index}]"
+        where = f"{key}[{index}] ({subject})"
+        errors: List[str] = []
 
-        if "verdict" not in entry:
-            return [f"{key}[{index}] ({subject}) is missing required field: verdict"]
-
-        try:
-            verdict = normalize_verdict(entry["verdict"])
-        except VerdictError as exc:
-            return [f"{key}[{index}] ({subject}): {exc}"]
-
-        if verdict in LEGACY_VERDICTS:
-            return [
-                f"{key}[{index}] ({subject}) uses the legacy verdict '{verdict}', which has no "
-                f"place on the ladder; assign one of {', '.join(VERDICTS)} or keep the count "
-                "in the legacy true_positives / false_positives keys"
-            ]
-
-        expected = EXPECTED_LIST[verdict]
-        if expected != key:
-            errors.append(
-                f"{key}[{index}] ({subject}) has verdict '{verdict}', which belongs in {expected}"
-            )
-
-        # The evidence gate: telemetry alone never reaches confirmed. An
-        # independent confirmation from outside the log corpus is mandatory, and
-        # it has to say what was checked — 'n/a' and 'ok' are how you spell
-        # "I didn't confirm this" while still satisfying a truthiness check.
-        if requires_evidence(verdict):
-            missing = [
-                f for f in ("evidence", "confirmation") if not is_substantive(entry.get(f))
-            ]
-            if missing:
+        for code, detail in gate_failures(key, entry):
+            if code == MISSING_VERDICT:
+                errors.append(f"{where} is missing required field: verdict")
+            elif code == INVALID_VERDICT:
+                errors.append(f"{where}: {detail}")
+            elif code == LEGACY_VERDICT:
                 errors.append(
-                    f"{key}[{index}] ({subject}) claims verdict '{CONFIRMED}' but has no usable "
-                    f"{' or '.join(missing)}; confirmed requires telemetry evidence plus a "
+                    f"{where} uses the legacy verdict '{detail}', which has no "
+                    f"place on the ladder; assign one of {', '.join(VERDICTS)} or keep the count "
+                    "in the legacy true_positives / false_positives keys"
+                )
+            elif code == MISROUTED:
+                verdict, expected = detail
+                errors.append(
+                    f"{where} has verdict '{verdict}', which belongs in {expected}"
+                )
+            elif code == UNSUPPORTED_CONFIRMATION:
+                errors.append(
+                    f"{where} claims verdict '{CONFIRMED}' but has no usable "
+                    f"{' or '.join(detail)}; confirmed requires telemetry evidence plus a "
                     "description of the independent confirmation performed outside the log "
                     "corpus (controlled reproduction, host forensics, or configuration review)"
                 )
-            elif is_self_referential(entry.get("confirmation")):
+            elif code == CIRCULAR_CONFIRMATION:
                 errors.append(
-                    f"{key}[{index}] ({subject}) confirms verdict '{CONFIRMED}' by pointing back "
+                    f"{where} confirms verdict '{CONFIRMED}' by pointing back "
                     "at the log corpus; the corpus cannot confirm itself. Describe what you did "
                     "outside it — reproduced the behavior, imaged the host, reviewed the config"
                 )
-
-        if verdict == ATTEMPTED_NOT_VULNERABLE and not is_substantive(entry.get("control")):
-            errors.append(
-                f"{key}[{index}] ({subject}) has verdict '{ATTEMPTED_NOT_VULNERABLE}' but does "
-                "not name the control that held; set 'control' to the specific control and how "
-                "you verified it held"
-            )
+            elif code == UNNAMED_CONTROL:
+                errors.append(
+                    f"{where} has verdict '{ATTEMPTED_NOT_VULNERABLE}' but does "
+                    "not name the control that held; set 'control' to the specific control and how "
+                    "you verified it held"
+                )
 
         return errors
 

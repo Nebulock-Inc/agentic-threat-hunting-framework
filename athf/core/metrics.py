@@ -236,8 +236,10 @@ _FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---", re.DOTALL)
 # Per-verdict counts line from the LOCK template's KEEP section, e.g.
 #   **Counts:** `confirmed` 3 · `suspected` 2 · `benign` 1
 # Unfilled `[N]` placeholders don't match, so a blank template counts as zero.
+# Six digits is well past any real hunt and keeps a pasted-in tracking number
+# from landing in an aggregate as a million findings.
 _HUNT_BODY_VERDICT_RES = {
-    verdict: re.compile(r"`" + verdict + r"`\s*(\d+)")
+    verdict: re.compile(r"`" + verdict + r"`\s*(\d{1,6})(?!\d)")
     for verdict in VERDICTS
 }
 

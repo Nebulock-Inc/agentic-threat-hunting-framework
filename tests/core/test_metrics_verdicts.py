@@ -249,11 +249,55 @@ class TestBodyCounts:
             "findings:\n"
             "  - subject: host-a\n"
             "    verdict: confirmed\n"
-            "    evidence: telemetry\n"
-            "    confirmation: forensics\n"
+            "    evidence: process_activity rows show crontab spawned by curl\n"
+            "    confirmation: host triage recovered the crontab entry from disk\n"
             "---\n\n"
             "**Counts:** `confirmed` 9 · `suspected` 0 · "
             "`attempted_not_vulnerable` 0 · `benign` 0 · `inconclusive` 0\n"
         )
         out = Aggregator.extract_from_hunt_file(content)
         assert out["confirmed"] == 1
+
+    def test_absurd_body_count_is_not_credited(self) -> None:
+        """An over-wide number is a paste artifact, not a finding count."""
+        content = (
+            "---\nhunt_id: H-0013\ntitle: Huge\n---\n\n"
+            "**Counts:** `confirmed` 99999999999999999999999 · `suspected` 0 · "
+            "`attempted_not_vulnerable` 0 · `benign` 0 · `inconclusive` 0\n"
+        )
+        out = Aggregator.extract_from_hunt_file(content)
+        assert out.get("confirmed", 0) == 0
+
+    def test_realistic_body_count_still_parses(self) -> None:
+        """Inverse case: the digit cap must not clip a real count."""
+        content = (
+            "---\nhunt_id: H-0014\ntitle: Normal\n---\n\n"
+            "**Counts:** `confirmed` 3 · `suspected` 127 · "
+            "`attempted_not_vulnerable` 0 · `benign` 4096 · `inconclusive` 0\n"
+        )
+        out = Aggregator.extract_from_hunt_file(content)
+        assert out["confirmed"] == 3
+        assert out["suspected"] == 127
+        assert out["benign"] == 4096
+
+    def test_body_counts_do_not_resurrect_an_ungated_entry(self) -> None:
+        """A rejected entry must not fall through to the body-count scraper.
+
+        Frontmatter presence is what suppresses the body counts, so a `confirmed`
+        entry that fails the gate has to report zero rather than handing the file
+        to a markdown line claiming nine.
+        """
+        content = (
+            "---\nhunt_id: H-0012\ntitle: Ungated\n"
+            "findings:\n"
+            "  - subject: host-a\n"
+            "    verdict: confirmed\n"
+            "    evidence: process_activity rows show crontab spawned by curl\n"
+            "    confirmation: ok\n"
+            "---\n\n"
+            "**Counts:** `confirmed` 9 · `suspected` 0 · "
+            "`attempted_not_vulnerable` 0 · `benign` 0 · `inconclusive` 0\n"
+        )
+        out = Aggregator.extract_from_hunt_file(content)
+        assert out["confirmed"] == 0
+        assert out["true_positives"] == 0
