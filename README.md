@@ -247,7 +247,7 @@ Watch ATHF in action: initialize a workspace, create hunts, and explore your thr
 See the [Quick Start](#-quick-start) section above for installation options (PyPI, source, or pure markdown).
 
 **Prerequisites:**
-- Python 3.11-3.13 (for CLI option)
+- Python 3.11 or higher (for CLI option)
 - Your favorite AI code assistant
 
 ## Documentation

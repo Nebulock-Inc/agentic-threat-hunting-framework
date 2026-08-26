@@ -2496,7 +2496,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.9'
+          python-version: '3.11'
       - run: pip install agentic-threat-hunting-framework
       - run: athf hunt validate
 ```

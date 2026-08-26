@@ -6,10 +6,15 @@ on:
   pull_request:
     branches: [ main, develop ]
 
+# Zero out inherited GITHUB_TOKEN defaults; each job grants only what it needs.
+permissions: {}
+
 jobs:
   test:
     name: Test on ${{ matrix.os }} - Python ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
 
     strategy:
       fail-fast: false
@@ -62,6 +67,8 @@ jobs:
   test-extras:
     name: Test with optional extras - Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     strategy:
       fail-fast: false
@@ -98,6 +105,8 @@ jobs:
   validate-hunts:
     name: Validate Hunt Examples
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
     - name: Checkout code
@@ -125,6 +134,8 @@ jobs:
   docs:
     name: Build Documentation
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
     - name: Checkout code
@@ -160,6 +171,8 @@ jobs:
   build:
     name: Build Package
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
     - name: Checkout code

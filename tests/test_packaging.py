@@ -12,8 +12,8 @@ PYPROJECT = REPO_ROOT / "pyproject.toml"
 def _project_table():
     """Return the text of pyproject.toml's [project] table.
 
-    Parsed with a regex rather than tomllib because the test suite runs on Python 3.8,
-    where tomllib does not exist and no TOML library is a declared dependency.
+    Parsed with a regex rather than tomllib because callers assert against the raw
+    text of the table, including formatting tomllib would discard.
     """
     text = PYPROJECT.read_text(encoding="utf-8")
     match = re.search(r"^\[project\]\s*$(.*?)^\[", text, re.MULTILINE | re.DOTALL)

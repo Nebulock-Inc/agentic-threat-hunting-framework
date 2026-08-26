@@ -33,7 +33,7 @@ athf init
 ```
 
 **Requirements**:
-- Python 3.8 or higher
+- Python 3.11 or higher
 - pip (comes with Python)
 
 **Virtual Environment (Recommended)**:
@@ -304,7 +304,7 @@ athf hunt list --status completed --output json | \
 
 ATHF includes a GitHub Actions workflow ([.github/workflows/tests.yml](../../../.github/workflows/tests.yml)) that runs:
 
-- Tests across Python 3.8-3.12 on Ubuntu, macOS, Windows
+- Tests across Python 3.11-3.13 on Ubuntu, macOS, Windows
 - Linting with flake8
 - Type checking with mypy
 - Hunt validation
@@ -316,7 +316,7 @@ Customize the workflow for your organization's needs.
 
 All tools are configured in `pyproject.toml`:
 
-- **Black**: Line length 127, targets Python 3.8-3.12
+- **Black**: Line length 127, targets Python 3.11-3.13
 - **isort**: Black-compatible profile
 - **mypy**: Strict type checking enabled
 - **pytest**: Test discovery, coverage reporting
@@ -436,7 +436,7 @@ If all commands work, you're ready to go!
 3. Add to PATH:
    ```bash
    # macOS/Linux (add to ~/.zshrc or ~/.bashrc)
-   export PATH="$HOME/Library/Python/3.9/bin:$PATH"
+   export PATH="$HOME/Library/Python/3.11/bin:$PATH"
 
    # Windows (use System Properties > Environment Variables)
    ```
@@ -465,7 +465,7 @@ python --version
 
 ### "ERROR: Could not find a version that satisfies the requirement"
 
-**Cause**: Python version too old (< 3.8).
+**Cause**: Python version too old (< 3.11).
 
 **Solution**:
 
@@ -473,7 +473,7 @@ python --version
 # Check Python version
 python --version
 
-# Upgrade Python to 3.8 or higher
+# Upgrade Python to 3.11 or higher
 # - macOS: brew install python3
 # - Linux: sudo apt install python3.11
 # - Windows: Download from python.org
@@ -587,7 +587,7 @@ After installation:
 
 ## System Requirements
 
-- **Python**: 3.8 or higher
+- **Python**: 3.11 or higher
 - **OS**: macOS, Linux, or Windows
 - **Disk Space**: ~5 MB for package, more for your hunt data
 - **Memory**: Minimal (< 50 MB)

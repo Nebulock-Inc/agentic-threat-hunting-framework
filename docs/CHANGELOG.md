@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `tests/core/test_envelope.py` — full coverage of both gates, the threshold boundary, metadata pass-through, error cases, and idempotent absolute-path output.
 
 ### Changed
+- **BREAKING: minimum supported Python is now 3.11** (`requires-python` raised from `>=3.8`). `pip install 'agentic-threat-hunting-framework[attack]'` could never resolve on 3.8–3.10: the `attack` extra requires `mitreattack-python>=5.0.0`, which declares `Requires-Python >=3.11`. No pin recovers 3.8/3.9 — the `MitreAttackData` API that `athf/core/attack_matrix.py` imports does not exist in the versions those interpreters can install. CI, mypy, and Black targets move to 3.11–3.13 to match. Users on 3.10 or older must upgrade; 3.8 and 3.9 are already EOL.
 - `athf_agent_run_hypothesis` MCP response (PR #30 shape) now carries the contract's core fields (`preview`, `path`, `byte_count`) **in addition to** its existing fields (`research_id`, `file_path`, `hypothesis_preview`, `mitre_techniques`, `data_sources`, `persisted`, `metadata`). PR #30's regression test (`tests/core/test_research_manager_hypothesis.py`) passes unchanged. The shape is now described as a strict superset of the contract.
 
 ### Notes
