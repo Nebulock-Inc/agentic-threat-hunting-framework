@@ -561,6 +561,8 @@ Results, lessons, and follow-up actions.
 
 **Counts:** one per verdict — see [The Verdict Ladder](#the-verdict-ladder)
 
+The counts line is a human summary. Metrics read `suspected`, `attempted_not_vulnerable`, `benign`, and `inconclusive` from it when a hunt has no `findings` / `ruled_out` frontmatter, but **`confirmed` is never counted from the body** — a markdown sentence carries no producer to check against, so honoring it would be a route around [Rule 3](#rule-3-confirmed-requires-provenance-not-prose). To have a `confirmed` counted, put it in `findings` with its `confirmation` mapping.
+
 **Detection Logic:**
 
 - Could this become automated detection?

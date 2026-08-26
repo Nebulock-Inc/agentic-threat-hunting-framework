@@ -234,18 +234,25 @@ class TestBodyCounts:
         assert out["precision"] == pytest.approx(0.75)
 
     def test_new_per_verdict_body_format(self) -> None:
+        """Body counts parse — except ``confirmed``, which is gate-only.
+
+        This test previously asserted ``confirmed == 3`` from the body. That was
+        the bypass: an agent with query-only access could skip the `findings`
+        list entirely and have the aggregate credit a number nobody gated, while
+        `athf hunt validate` reported the file clean. See
+        TestBodyCountsCannotBypassTheGate.
+        """
         content = (
             "---\nhunt_id: H-0008\ntitle: New format\n---\n\n"
             "**Counts:** `confirmed` 3 · `suspected` 2 · "
             "`attempted_not_vulnerable` 4 · `benign` 1 · `inconclusive` 5\n"
         )
         out = Aggregator.extract_from_hunt_file(content)
-        assert out["confirmed"] == 3
+        assert out["confirmed"] == 0
         assert out["suspected"] == 2
         assert out["attempted_not_vulnerable"] == 4
         assert out["benign"] == 1
         assert out["inconclusive"] == 5
-        assert out["precision"] == pytest.approx(0.75)
 
     def test_body_with_neither_format(self) -> None:
         content = (
@@ -307,9 +314,91 @@ class TestBodyCounts:
             "`attempted_not_vulnerable` 0 · `benign` 4096 · `inconclusive` 0\n"
         )
         out = Aggregator.extract_from_hunt_file(content)
-        assert out["confirmed"] == 3
         assert out["suspected"] == 127
         assert out["benign"] == 4096
+
+
+class TestBodyCountsCannotBypassTheGate:
+    """A prose line in the body is not a route around provenance.
+
+    The body counter reads a number a hunter typed in the KEEP section. Every
+    other verdict is a summary of work; ``confirmed`` is a claim that work
+    happened outside the log corpus, and there is no producer attached to a
+    markdown sentence to check that against. An agent that can only run queries
+    writes no ``findings`` list at all, types ```confirmed`` 3`` in the body, and
+    the aggregate credits it while ``athf hunt validate`` reports the file clean
+    — the exact validate/aggregate divergence 18272e8 closed for frontmatter.
+    """
+
+    def test_body_confirmed_is_never_credited(self) -> None:
+        content = (
+            "---\nhunt_id: H-0015\ntitle: Body-only confirmed\n---\n\n"
+            "## KEEP\n\n**Counts:** `confirmed` 3 · `suspected` 0 · "
+            "`attempted_not_vulnerable` 0 · `benign` 0 · `inconclusive` 0\n"
+        )
+        out = Aggregator.extract_from_hunt_file(content)
+        assert out.get("confirmed", 0) == 0
+        assert out.get("true_positives", 0) == 0
+
+    def test_body_confirmed_ignored_even_with_a_full_registry(self) -> None:
+        """A declared producer does not rescue it — nothing names a producer."""
+        content = (
+            "---\nhunt_id: H-0016\ntitle: Body-only confirmed\n---\n\n"
+            "**Counts:** `confirmed` 5 · `suspected` 0 · "
+            "`attempted_not_vulnerable` 0 · `benign` 0 · `inconclusive` 0\n"
+        )
+        out = Aggregator.extract_from_hunt_file(
+            content, ProducerRegistry.from_config(PRODUCER_CONFIG)
+        )
+        assert out.get("confirmed", 0) == 0
+
+    def test_other_verdicts_in_the_body_still_count(self) -> None:
+        """Inverse: only ``confirmed`` is gated, so the format stays usable.
+
+        Dropping the whole body format would punish hunters recording honest
+        negative results, which is the output this ladder exists to make
+        first-class.
+        """
+        content = (
+            "---\nhunt_id: H-0017\ntitle: Body counts\n---\n\n"
+            "**Counts:** `confirmed` 0 · `suspected` 7 · "
+            "`attempted_not_vulnerable` 2 · `benign` 4 · `inconclusive` 1\n"
+        )
+        out = Aggregator.extract_from_hunt_file(content)
+        assert out["suspected"] == 7
+        assert out["attempted_not_vulnerable"] == 2
+        assert out["benign"] == 4
+        assert out["inconclusive"] == 1
+
+    def test_body_confirmed_alone_does_not_fabricate_a_tally(self) -> None:
+        """A body whose only verdict line is ``confirmed`` yields no counts.
+
+        Otherwise suppressing the number would still leave a zeroed ladder
+        asserting the hunt was tallied, and ``precision`` computed off it.
+        """
+        content = (
+            "---\nhunt_id: H-0018\ntitle: Only confirmed\n---\n\n"
+            "**Counts:** `confirmed` 4\n"
+        )
+        out = Aggregator.extract_from_hunt_file(content)
+        for tier in LADDER:
+            assert tier not in out
+        assert "precision" not in out
+
+    def test_gated_body_count_does_not_become_a_legacy_positive(self) -> None:
+        """The refused number must not reappear through the legacy key.
+
+        Same reasoning as tally_frontmatter_verdicts: falling back to a legacy
+        counter is how an ungated ``confirmed`` gets laundered into a true
+        positive.
+        """
+        content = (
+            "---\nhunt_id: H-0019\ntitle: Laundering attempt\n---\n\n"
+            "**Counts:** `confirmed` 6 · `suspected` 1 · "
+            "`attempted_not_vulnerable` 0 · `benign` 0 · `inconclusive` 0\n"
+        )
+        out = Aggregator.extract_from_hunt_file(content)
+        assert out.get("true_positives", 0) == 0
 
     def test_body_counts_do_not_resurrect_an_ungated_entry(self) -> None:
         """A rejected entry must not fall through to the body-count scraper.

@@ -30,6 +30,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, Iterator, List, Optional, Union
 
 from athf.core.verdicts import (
+    CONFIRMED,
     VERDICTS,
     VerdictError,
     counts_as_negative,
@@ -261,10 +262,20 @@ _NUMERIC_FRONTMATTER_FIELDS = (
 
 
 def _verdict_counts_from_body(content: str) -> Optional[Dict[str, int]]:
-    """Read the KEEP section's per-verdict counts line, if a hunter filled it in."""
+    """Read the KEEP section's per-verdict counts line, if a hunter filled it in.
+
+    ``confirmed`` is deliberately not readable from the body. Every other verdict
+    summarizes work the hunt did; ``confirmed`` asserts that work happened
+    outside the log corpus, and a markdown sentence carries no producer to check
+    that against. Honoring it here would hand a query-only agent a route around
+    the provenance gate that ``athf hunt validate`` cannot even see, since a hunt
+    with no ``findings`` list has nothing to reject.
+    """
     found = False
     counts = {verdict: 0 for verdict in VERDICTS}
     for verdict, pattern in _HUNT_BODY_VERDICT_RES.items():
+        if verdict == CONFIRMED:
+            continue
         m = pattern.search(content)
         if m:
             counts[verdict] = int(m.group(1))
