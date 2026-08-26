@@ -7,6 +7,11 @@ on:
 # Zero out inherited GITHUB_TOKEN defaults; each job grants only what it needs.
 permissions: {}
 
+# Serialize per release tag: a PyPI upload must never be cancelled mid-flight.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
 jobs:
   build-and-publish:
     name: Build and Publish to PyPI

@@ -9,6 +9,11 @@ on:
 # Zero out inherited GITHUB_TOKEN defaults; each job grants only what it needs.
 permissions: {}
 
+# A newer push obsoletes the older 3-OS x 3-Python matrix, so cancel it rather than pay for it.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     name: Test on ${{ matrix.os }} - Python ${{ matrix.python-version }}

@@ -435,8 +435,11 @@ If all commands work, you're ready to go!
 
 3. Add to PATH:
    ```bash
-   # macOS/Linux (add to ~/.zshrc or ~/.bashrc)
+   # macOS (add to ~/.zshrc or ~/.bashrc)
    export PATH="$HOME/Library/Python/3.11/bin:$PATH"
+
+   # Linux
+   export PATH="$HOME/.local/bin:$PATH"
 
    # Windows (use System Properties > Environment Variables)
    ```
