@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from athf.core.metrics import Aggregator, EventStore, MetricEvent
+from athf.core.provenance import ProducerRegistry
 
 LADDER = (
     "confirmed",
@@ -16,10 +17,35 @@ LADDER = (
     "inconclusive",
 )
 
+# Producer capabilities as workspace config supplies them. Aggregation consults
+# the same registry as `athf hunt validate`, so a hunt whose producer the config
+# never declared tallies zero here — the reason these fixtures write the config
+# rather than putting capabilities in the hunt file.
+PRODUCER_CONFIG = {
+    "provenance": {"producers": {"analyst": {"capabilities": ["host_forensics"]}}}
+}
+
+WORKSPACE_CONFIG = """provenance:
+  producers:
+    analyst:
+      capabilities:
+        - host_forensics
+"""
+
+# The confirmation mapping in frontmatter YAML, indented for a `findings` entry.
+CONFIRMATION = (
+    "    confirmation:\n"
+    "      method: host_forensics\n"
+    "      produced_by: analyst\n"
+    "      attested_by: Sydney Marrone\n"
+    "      detail: host triage recovered the crontab entry from disk\n"
+)
+
 
 def _write_hunt(workspace: Path, hunt_id: str, frontmatter: str, body: str = "") -> None:
     hunts = workspace / "hunts"
     hunts.mkdir(parents=True, exist_ok=True)
+    (workspace / ".athfconfig.yaml").write_text(WORKSPACE_CONFIG, encoding="utf-8")
     (hunts / f"{hunt_id}.md").write_text(
         f"---\n{frontmatter}\n---\n\n{body}\n",
         encoding="utf-8",
@@ -128,8 +154,8 @@ class TestFrontmatterVerdicts:
             "  - subject: web-prod-04\n"
             "    verdict: confirmed\n"
             "    evidence: process_activity\n"
-            "    confirmation: host triage recovered the crontab\n"
-            "  - subject: fin-laptop-11\n"
+            + CONFIRMATION
+            + "  - subject: fin-laptop-11\n"
             "    verdict: suspected\n"
             "    evidence: authentication burst\n"
             "ruled_out:\n"
@@ -250,12 +276,17 @@ class TestBodyCounts:
             "  - subject: host-a\n"
             "    verdict: confirmed\n"
             "    evidence: process_activity rows show crontab spawned by curl\n"
-            "    confirmation: host triage recovered the crontab entry from disk\n"
-            "---\n\n"
+            + CONFIRMATION
+            + "---\n\n"
             "**Counts:** `confirmed` 9 · `suspected` 0 · "
             "`attempted_not_vulnerable` 0 · `benign` 0 · `inconclusive` 0\n"
         )
-        out = Aggregator.extract_from_hunt_file(content)
+        # Called directly rather than through a workspace, so the registry is
+        # passed in — the entry has to clear the gate for the frontmatter count to
+        # be the one that wins.
+        out = Aggregator.extract_from_hunt_file(
+            content, ProducerRegistry.from_config(PRODUCER_CONFIG)
+        )
         assert out["confirmed"] == 1
 
     def test_absurd_body_count_is_not_credited(self) -> None:

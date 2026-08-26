@@ -21,7 +21,11 @@ LADDER_FRONTMATTER = (
     "  - subject: web-prod-04\n"
     "    verdict: confirmed\n"
     "    evidence: OCSF process_activity\n"
-    "    confirmation: host triage recovered the crontab\n"
+    "    confirmation:\n"
+    "      method: host_forensics\n"
+    "      produced_by: analyst\n"
+    "      attested_by: Sydney Marrone\n"
+    "      detail: host triage recovered the crontab entry from disk\n"
     "  - subject: fin-laptop-11\n"
     "    verdict: suspected\n"
     "    evidence: authentication burst\n"
@@ -34,9 +38,22 @@ LADDER_FRONTMATTER = (
     "    reason: nightly Veeam agent"
 )
 
+# Workspace config at the root above ``hunts/``, which is where the rollup loads
+# producer capabilities from. Declared here rather than in the hunt file on
+# purpose: an agent writing a finding can emit the confirmation mapping but cannot
+# grant its producer the reach that makes ``confirmed`` available.
+WORKSPACE_CONFIG = """provenance:
+  producers:
+    analyst:
+      capabilities:
+        - clickhouse_query
+        - host_forensics
+"""
+
 
 def _write(hunts: Path, hunt_id: str, extra: str = "") -> None:
     hunts.mkdir(parents=True, exist_ok=True)
+    (hunts.parent / ".athfconfig.yaml").write_text(WORKSPACE_CONFIG, encoding="utf-8")
     body = (
         f"hunt_id: {hunt_id}\ntitle: {hunt_id}\nstatus: completed\ndate: 2026-08-25"
         + (f"\n{extra}" if extra else "")

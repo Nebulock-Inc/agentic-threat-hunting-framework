@@ -45,6 +45,7 @@ class HuntManager:
             hunts_dir: Directory containing hunt files (default: ./hunts)
         """
         self.hunts_dir = Path(hunts_dir) if hunts_dir else Path.cwd() / "hunts"
+        self._registry: Any = None
 
         if not self.hunts_dir.exists():
             self.hunts_dir.mkdir(parents=True, exist_ok=True)
@@ -80,6 +81,19 @@ class HuntManager:
             Sorted list of hunt file Paths
         """
         return sorted(f for f in self.hunts_dir.rglob("*.md") if f.name not in EXCLUDED_DOC_FILES)
+
+    @property
+    def registry(self) -> Any:
+        """Declared producer capabilities, loaded once per manager.
+
+        Aggregation consults the same registry as validation so the tally cannot
+        credit a ``confirmed`` entry that ``athf hunt validate`` rejects.
+        """
+        if self._registry is None:
+            from athf.core.provenance import load_registry
+
+            self._registry = load_registry(self.hunts_dir)
+        return self._registry
 
     def list_hunts(
         self,
@@ -140,7 +154,9 @@ class HuntManager:
                 else:
                     date_str = str(date_val) if date_val else None
 
-                tiers = tally_frontmatter_verdicts(frontmatter) or {v: 0 for v in VERDICTS}
+                tiers = tally_frontmatter_verdicts(frontmatter, self.registry) or {
+                    v: 0 for v in VERDICTS
+                }
                 positives, negatives = precision_pair(tiers)
 
                 summary = {

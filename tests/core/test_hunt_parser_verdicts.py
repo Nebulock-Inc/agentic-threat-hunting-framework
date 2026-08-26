@@ -29,7 +29,23 @@ Summary.
 """
 
 
+# Workspace config, written next to the hunt file so the parser loads it the way
+# it would in a real workspace. Capabilities live here and never in the hunt file:
+# an agent authoring a finding can emit `confirmation`, but it cannot grant itself
+# the reach that makes `confirmed` available.
+WORKSPACE_CONFIG = """provenance:
+  producers:
+    analyst:
+      capabilities:
+        - clickhouse_query
+        - host_forensics
+        - range_reproduction
+        - configuration_review
+"""
+
+
 def _hunt(tmp_path: Path, frontmatter: str) -> HuntParser:
+    (tmp_path / ".athfconfig.yaml").write_text(WORKSPACE_CONFIG, encoding="utf-8")
     path = tmp_path / "H-0100.md"
     path.write_text(f"---\n{frontmatter}\n---\n{LOCK_BODY}", encoding="utf-8")
     parser = HuntParser(path)
@@ -38,6 +54,22 @@ def _hunt(tmp_path: Path, frontmatter: str) -> HuntParser:
 
 
 BASE = "hunt_id: H-0100\ntitle: Ladder hunt\nstatus: completed\ndate: 2026-08-25"
+
+
+def _confirmation(detail: str, method: str = "host_forensics", indent: str = "    ") -> str:
+    """Render a confirmation mapping as hunt frontmatter YAML.
+
+    ``produced_by`` has to name a producer the config above declared, and the
+    method has to be one that producer can reach — that pairing is what the gate
+    checks instead of grading ``detail``.
+    """
+    return (
+        f"{indent}confirmation:\n"
+        f"{indent}  method: {method}\n"
+        f"{indent}  produced_by: analyst\n"
+        f"{indent}  attested_by: Sydney Marrone\n"
+        f"{indent}  detail: {detail}\n"
+    )
 
 
 def _errors(tmp_path: Path, frontmatter: str) -> list[str]:
@@ -118,7 +150,7 @@ class TestEvidenceGate:
             "  - subject: host-a\n"
             "    verdict: confirmed\n"
             "    evidence: OCSF process_activity showed the spawn chain\n"
-            "    confirmation: recovered the dropper binary from disk",
+            + _confirmation("recovered the dropper binary from disk"),
         ).validate()
         assert ok, errors
 
@@ -227,18 +259,29 @@ class TestEvidenceGate:
         assert any("host-a" in e for e in errors), f"{value!r} slipped through the gate"
 
     @pytest.mark.parametrize(
-        "value",
+        "method,value",
         [
-            "host triage recovered the dropper binary from disk",
-            "reproduced the spawn chain in the attack range",
-            "config review confirmed the cron entry was writable",
-            "forensic image shows the crontab entry matching the process_activity log",
+            ("host_forensics", "host triage recovered the dropper binary from disk"),
+            ("range_reproduction", "reproduced the spawn chain in the attack range"),
+            (
+                "configuration_review",
+                "config review confirmed the cron entry was writable",
+            ),
+            (
+                "host_forensics",
+                "forensic image shows the crontab entry matching the process_activity log",
+            ),
         ],
     )
     def test_genuine_independent_confirmation_passes(
-        self, tmp_path: Path, value: str
+        self, tmp_path: Path, method: str, value: str
     ) -> None:
-        """The gate must not block real work, including mentioning telemetry."""
+        """The gate must not block real work, including mentioning telemetry.
+
+        Each detail is paired with the method that actually produced it, declared
+        by a producer the workspace config says can reach it. Real work has to keep
+        passing — a gate that refuses everything is not a gate.
+        """
         ok, errors = _hunt(
             tmp_path,
             BASE
@@ -246,7 +289,7 @@ class TestEvidenceGate:
             "  - subject: host-a\n"
             "    verdict: confirmed\n"
             "    evidence: OCSF process_activity showed the spawn chain\n"
-            f'    confirmation: "{value}"',
+            + _confirmation(value, method=method),
         ).validate()
         assert ok, errors
 

@@ -2,6 +2,7 @@
 
 import pytest
 
+from athf.core.provenance import ProducerRegistry
 from athf.core.verdicts import (
     CIRCULAR_CONFIRMATION,
     CONFIRMED,
@@ -20,6 +21,42 @@ from athf.core.verdicts import (
     requires_evidence,
     tally_frontmatter_verdicts,
 )
+
+# Capabilities live in workspace config, never in the finding — an agent can emit
+# a confirmation mapping but cannot rewrite this. Shaped the way
+# ``.athfconfig.yaml`` supplies it so these tests exercise the real gate input.
+PRODUCER_CONFIG = {
+    "provenance": {
+        "producers": {
+            "analyst": {
+                "capabilities": [
+                    "clickhouse_query",
+                    "host_forensics",
+                    "range_reproduction",
+                ]
+            }
+        }
+    }
+}
+
+
+@pytest.fixture
+def registry():
+    return ProducerRegistry.from_config(PRODUCER_CONFIG)
+
+
+def provenance(detail: str, method: str = "host_forensics") -> dict:
+    """A confirmation mapping whose producer really declared ``method``.
+
+    ``detail`` still carries the prose account, so the circularity and deferral
+    checks apply to it exactly as they did to the old string field.
+    """
+    return {
+        "method": method,
+        "produced_by": "analyst",
+        "attested_by": "Sydney Marrone",
+        "detail": detail,
+    }
 
 
 class TestVocabulary:
@@ -358,6 +395,14 @@ class TestTheResidualIsAcknowledged:
     that made the gate worth routing around in the first place. Closing this needs
     provenance — what the producer was capable of, and who attests to it — not a
     fifteenth pattern.
+
+    Provenance moved this residual; it did not delete it. Prose on its own no
+    longer reaches ``confirmed`` at all, so the strings below can only slip
+    through inside a ``confirmation.detail`` whose producer was declared capable
+    of out-of-corpus work. What remains forgeable is that declaration — a human
+    editing ``.athfconfig.yaml`` — which is the accepted residual, because the lie
+    now lives in a separate file an auditor can read instead of in unfalsifiable
+    prose. These stay pinned so nobody tries to close the gap with more regex.
     """
 
     @pytest.mark.parametrize(
@@ -375,12 +420,19 @@ class TestTheResidualIsAcknowledged:
         assert cites_the_corpus(value) is False
         assert defers_confirmation(value) is False
 
-    def test_a_passing_confirmation_is_not_a_confirmed_verdict(self):
+    def test_a_passing_confirmation_is_not_a_confirmed_verdict(self, registry):
         """What the gate actually promises.
 
-        An empty failure list means no known bad phrasing was recognized. It does
-        not mean the confirmation happened. Anything reading `gate_failures` as
-        proof of rigor has the contract backwards.
+        An empty failure list means no known bad phrasing was recognized and the
+        producer was declared capable of the method it claimed. It does not mean
+        the confirmation happened. Anything reading `gate_failures` as proof of
+        rigor has the contract backwards.
+
+        The detail here describes a second query while the method claims host
+        forensics — the two contradict each other and the gate cannot see it,
+        because it reads capability from config and never audits the prose against
+        it. That is the residual provenance accepts, stated as a passing test so it
+        stays visible.
         """
         assert (
             gate_failures(
@@ -388,9 +440,11 @@ class TestTheResidualIsAcknowledged:
                 {
                     "verdict": "confirmed",
                     "evidence": "process_activity rows show crontab spawned by curl",
-                    "confirmation": "Cross-validated by running a second query "
-                    "against the same table.",
+                    "confirmation": provenance(
+                        "Cross-validated by running a second query against the same table."
+                    ),
                 },
+                registry=registry,
             )
             == []
         )
@@ -461,16 +515,28 @@ class TestGateDistinguishesCircularFromDeferred:
         assert DEFERRED_CONFIRMATION in codes
         assert CIRCULAR_CONFIRMATION not in codes
 
-    def test_real_confirmation_reports_nothing(self):
+    def test_real_confirmation_reports_nothing(self, registry):
+        """The inverse: genuine confirmation reports no failure at all.
+
+        The two tests above pass the prose as a string, which is the
+        pre-provenance shape — still checked for circularity and deferral so the
+        hunter gets the specific reason, then refused for carrying no producer.
+        Real confirmation has to come through the mapping, because that is the
+        only shape that says who did the work.
+        """
         assert (
             gate_failures(
                 "findings",
                 {
                     "verdict": "confirmed",
                     "evidence": "process_activity rows show crontab spawned by curl",
-                    "confirmation": "As documented in the range runbook, we replayed the "
-                    "technique on a sacrificial host and observed the same registry writes.",
+                    "confirmation": provenance(
+                        "As documented in the range runbook, we replayed the technique on a "
+                        "sacrificial host and observed the same registry writes.",
+                        method="range_reproduction",
+                    ),
                 },
+                registry=registry,
             )
             == []
         )
@@ -505,15 +571,18 @@ class TestEntryFailsGate:
     validate had just rejected. Both now consult this.
     """
 
-    def test_confirmed_entry_with_real_confirmation_passes(self):
+    def test_confirmed_entry_with_real_confirmation_passes(self, registry):
         assert (
             entry_fails_gate(
                 "findings",
                 {
                     "verdict": "confirmed",
                     "evidence": "process_activity rows show crontab spawned by curl",
-                    "confirmation": "host triage recovered the crontab entry from disk",
+                    "confirmation": provenance(
+                        "host triage recovered the crontab entry from disk"
+                    ),
                 },
+                registry=registry,
             )
             is False
         )
@@ -613,7 +682,7 @@ class TestTallyRespectsTheGate:
         )
         assert counts["confirmed"] == 0
 
-    def test_gated_and_ungated_entries_are_counted_separately(self):
+    def test_gated_and_ungated_entries_are_counted_separately(self, registry):
         counts = tally_frontmatter_verdicts(
             {
                 "findings": [
@@ -621,7 +690,9 @@ class TestTallyRespectsTheGate:
                         "subject": "host-a",
                         "verdict": "confirmed",
                         "evidence": "process_activity rows show crontab spawned by curl",
-                        "confirmation": "host triage recovered the crontab entry from disk",
+                        "confirmation": provenance(
+                            "host triage recovered the crontab entry from disk"
+                        ),
                     },
                     {
                         "subject": "host-b",
@@ -630,7 +701,8 @@ class TestTallyRespectsTheGate:
                         "confirmation": "n/a",
                     },
                 ]
-            }
+            },
+            registry,
         )
         assert counts["confirmed"] == 1
 

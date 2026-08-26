@@ -358,29 +358,155 @@ UNSUPPORTED_CONFIRMATION = "unsupported_confirmation"
 CIRCULAR_CONFIRMATION = "circular_confirmation"
 DEFERRED_CONFIRMATION = "deferred_confirmation"
 UNNAMED_CONTROL = "unnamed_control"
+MISSING_PROVENANCE = "missing_provenance"
+UNKNOWN_PRODUCER = "unknown_producer"
+METHOD_EXCEEDS_CAPABILITY = "method_exceeds_capability"
+CORPUS_ONLY_METHOD = "corpus_only_method"
+SELF_DECLARED_CAPABILITY = "self_declared_capability"
+UNATTESTED = "unattested"
+
+# Ways of filling ``attested_by`` without naming anyone answerable. The first is
+# not hypothetical: ``athf hunt new`` defaults ``--hunter`` to "AI Assistant", so
+# the placeholder ships with the tool. A role, a team, or the automation itself
+# cannot vouch for out-of-corpus work — only a person can.
+_UNATTRIBUTABLE = frozenset(
+    {
+        "agent",
+        "ai",
+        "ai assistant",
+        "assistant",
+        "athf",
+        "automation",
+        "bot",
+        "claude",
+        "llm",
+        "pipeline",
+        "robot",
+        "script",
+        "system",
+        "team",
+        "the team",
+    }
+)
+
+# Shortest string that can name a person. "Jo" is two.
+_MIN_NAME_LEN = 2
 
 
-def _evidence_gate_failures(entry: Mapping[str, Any]) -> List[Tuple[str, Any]]:
+def is_attributable(value: Any) -> bool:
+    """Return ``True`` when ``value`` names someone who could be asked about it.
+
+    Deliberately permissive about *shape* — "J. Halloran" and an email address
+    both name a person, and a name-shaped pattern would reject real people. It
+    only refuses the placeholders and role words that name nobody.
+    """
+    if not isinstance(value, str):
+        return False
+    candidate = " ".join(value.split())
+    if len(candidate) < _MIN_NAME_LEN:
+        return False
+    folded = candidate.lower().rstrip(".")
+    return folded not in _UNATTRIBUTABLE and folded not in _PLACEHOLDERS
+
+
+def _provenance_failures(confirmation: Any, registry: Any) -> List[Tuple[str, Any]]:
+    """Return why ``confirmation`` does not establish out-of-corpus provenance.
+
+    Net-new ``confirmed`` requires a confirmation mapping: ``method``,
+    ``produced_by``, ``attested_by``, ``detail``. Prose alone carries no producer,
+    so it cannot clear this gate however well it reads — that is the point. The
+    measured ceiling on reading confirmations is why the producer, not the
+    sentence, decides whether ``confirmed`` is reachable.
+    """
+    from athf.core.provenance import CORPUS_ONLY_CAPABILITIES, SELF_DECLARATION_KEYS
+
+    if not isinstance(confirmation, Mapping):
+        return [(MISSING_PROVENANCE, confirmation)]
+
+    failures: List[Tuple[str, Any]] = []
+
+    # Capability declared inside the finding is the forgeable field this gate
+    # replaces. Refused rather than ignored, so nobody believes it counted.
+    self_declared = [k for k in SELF_DECLARATION_KEYS if k in confirmation]
+    if self_declared:
+        failures.append((SELF_DECLARED_CAPABILITY, self_declared))
+
+    producer = confirmation.get("produced_by")
+    method = confirmation.get("method")
+
+    if not is_substantive(confirmation.get("detail")):
+        failures.append((UNSUPPORTED_CONFIRMATION, ["confirmation.detail"]))
+    else:
+        detail = confirmation["detail"]
+        if cites_the_corpus(detail):
+            failures.append((CIRCULAR_CONFIRMATION, detail))
+        elif defers_confirmation(detail):
+            failures.append((DEFERRED_CONFIRMATION, detail))
+
+    if not is_attributable(confirmation.get("attested_by")):
+        failures.append((UNATTESTED, confirmation.get("attested_by")))
+
+    if not isinstance(method, str) or not method.strip():
+        failures.append((MISSING_PROVENANCE, "confirmation.method"))
+        return failures
+
+    normalized = method.strip().lower()
+
+    # Querying is real work and still cannot confirm: the corpus cannot
+    # corroborate itself. Checked before capability so that declaring a
+    # corpus-only capability never unlocks ``confirmed``.
+    if normalized in CORPUS_ONLY_CAPABILITIES:
+        failures.append((CORPUS_ONLY_METHOD, method))
+        return failures
+
+    if registry is None or not registry.knows(producer):
+        failures.append((UNKNOWN_PRODUCER, producer))
+        return failures
+
+    if normalized not in registry.capabilities_for(producer):
+        failures.append((METHOD_EXCEEDS_CAPABILITY, (producer, method)))
+
+    return failures
+
+
+def _evidence_gate_failures(
+    entry: Mapping[str, Any], registry: Any = None
+) -> List[Tuple[str, Any]]:
     """Return why ``entry`` does not carry independent confirmation.
 
     The evidence gate: telemetry alone never reaches ``confirmed``. Confirmation
     from outside the log corpus is mandatory, and it has to say what was checked —
     ``n/a`` and ``ok`` are how you spell "I didn't confirm this" while still
     satisfying a truthiness check.
+
+    Net-new ``confirmed`` carries a confirmation *mapping* and is judged on
+    provenance. A string confirmation is the pre-provenance shape: it is held to
+    the prose check it was written against, and cannot reach ``confirmed``,
+    because no sentence identifies who produced it.
     """
-    unusable = [f for f in ("evidence", "confirmation") if not is_substantive(entry.get(f))]
-    if unusable:
-        return [(UNSUPPORTED_CONFIRMATION, unusable)]
+    if not is_substantive(entry.get("evidence")):
+        return [(UNSUPPORTED_CONFIRMATION, ["evidence"])]
 
     confirmation = entry.get("confirmation")
+
+    if isinstance(confirmation, Mapping):
+        return _provenance_failures(confirmation, registry)
+
+    if not is_substantive(confirmation):
+        return [(UNSUPPORTED_CONFIRMATION, ["confirmation"])]
+
+    # Prose confirmation. Still checked for circularity and deferral so the
+    # hunter gets the specific reason, then refused for lacking provenance.
+    failures: List[Tuple[str, Any]] = []
     if cites_the_corpus(confirmation):
-        return [(CIRCULAR_CONFIRMATION, confirmation)]
-    if defers_confirmation(confirmation):
-        return [(DEFERRED_CONFIRMATION, confirmation)]
-    return []
+        failures.append((CIRCULAR_CONFIRMATION, confirmation))
+    elif defers_confirmation(confirmation):
+        failures.append((DEFERRED_CONFIRMATION, confirmation))
+    failures.append((MISSING_PROVENANCE, confirmation))
+    return failures
 
 
-def gate_failures(key: str, entry: Any) -> List[Tuple[str, Any]]:
+def gate_failures(key: str, entry: Any, registry: Any = None) -> List[Tuple[str, Any]]:
     """Return the reasons ``entry`` in list ``key`` does not earn its verdict.
 
     The single source of truth behind both enforcement surfaces. Validation
@@ -419,21 +545,30 @@ def gate_failures(key: str, entry: Any) -> List[Tuple[str, Any]]:
         failures.append((MISROUTED, (verdict, expected)))
 
     if requires_evidence(verdict):
-        failures.extend(_evidence_gate_failures(entry))
+        failures.extend(_evidence_gate_failures(entry, registry))
 
     if verdict == ATTEMPTED_NOT_VULNERABLE and not is_substantive(entry.get("control")):
         failures.append((UNNAMED_CONTROL, entry.get("control")))
 
+    # Capability declared at the top level of the finding, rather than inside the
+    # confirmation. Same forgery, one level up.
+    if requires_evidence(verdict):
+        from athf.core.provenance import SELF_DECLARATION_KEYS
+
+        stray = [k for k in SELF_DECLARATION_KEYS if k in entry]
+        if stray and not any(code == SELF_DECLARED_CAPABILITY for code, _ in failures):
+            failures.append((SELF_DECLARED_CAPABILITY, stray))
+
     return failures
 
 
-def entry_fails_gate(key: str, entry: Any) -> bool:
+def entry_fails_gate(key: str, entry: Any, registry: Any = None) -> bool:
     """Return ``True`` when ``entry`` in list ``key`` does not earn its verdict."""
-    return bool(gate_failures(key, entry))
+    return bool(gate_failures(key, entry, registry))
 
 
 def tally_frontmatter_verdicts(
-    frontmatter: Mapping[str, Any]
+    frontmatter: Mapping[str, Any], registry: Any = None
 ) -> Optional[Dict[str, int]]:
     """Tally verdicts across the ``findings`` / ``ruled_out`` frontmatter lists.
 
@@ -454,7 +589,7 @@ def tally_frontmatter_verdicts(
             continue
         found = found or bool(value)
         for entry in value:
-            if entry_fails_gate(key, entry):
+            if entry_fails_gate(key, entry, registry):
                 continue
             counts[_soften(entry.get("verdict"))] += 1
 
@@ -496,6 +631,13 @@ __all__ = [
     "CIRCULAR_CONFIRMATION",
     "DEFERRED_CONFIRMATION",
     "UNNAMED_CONTROL",
+    "MISSING_PROVENANCE",
+    "UNKNOWN_PRODUCER",
+    "METHOD_EXCEEDS_CAPABILITY",
+    "CORPUS_ONLY_METHOD",
+    "SELF_DECLARED_CAPABILITY",
+    "UNATTESTED",
+    "is_attributable",
     "tally_frontmatter_verdicts",
     "precision_pair",
 ]

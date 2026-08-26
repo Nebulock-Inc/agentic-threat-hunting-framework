@@ -399,6 +399,20 @@ class Aggregator:
             per_hunt["_workspace"] = workspace_bucket
         return per_hunt
 
+    def _provenance_registry(self) -> Any:
+        """Declared producer capabilities for this workspace, loaded once.
+
+        Metrics consults the same registry as ``athf hunt validate`` so a
+        ``confirmed`` entry validation rejects is never credited here.
+        """
+        cached = getattr(self, "_registry_cache", None)
+        if cached is None:
+            from athf.core.provenance import load_registry
+
+            cached = load_registry(self.workspace)
+            self._registry_cache = cached
+        return cached
+
     def _scan_hunt_files(self) -> Dict[str, Dict[str, Any]]:
         """Walk ``hunts/`` and extract per-hunt metrics from frontmatter+body."""
         result: Dict[str, Dict[str, Any]] = {}
@@ -416,14 +430,14 @@ class Aggregator:
             except OSError:
                 continue
 
-            metrics = self.extract_from_hunt_file(content)
+            metrics = self.extract_from_hunt_file(content, self._provenance_registry())
             hunt_id = metrics.get("hunt_id") or hunt_file.stem
             metrics.pop("hunt_id", None)
             result[str(hunt_id)] = metrics
         return result
 
     @staticmethod
-    def extract_from_hunt_file(content: str) -> Dict[str, Any]:
+    def extract_from_hunt_file(content: str, registry: Any = None) -> Dict[str, Any]:
         """Pull metrics from a hunt markdown file.
 
         Frontmatter (YAML) wins over body regexes when both are present.
@@ -474,7 +488,7 @@ class Aggregator:
                     num *= 1_000
                 out["events_analyzed"] = int(num)
 
-        tier_counts = tally_frontmatter_verdicts(frontmatter)
+        tier_counts = tally_frontmatter_verdicts(frontmatter, registry)
         if tier_counts is None:
             tier_counts = _verdict_counts_from_body(content)
         if tier_counts is not None:

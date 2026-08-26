@@ -10,11 +10,17 @@ from athf.core.verdicts import (
     ATTEMPTED_NOT_VULNERABLE,
     CIRCULAR_CONFIRMATION,
     CONFIRMED,
+    CORPUS_ONLY_METHOD,
     DEFERRED_CONFIRMATION,
     INVALID_VERDICT,
     LEGACY_VERDICT,
+    METHOD_EXCEEDS_CAPABILITY,
     MISROUTED,
+    MISSING_PROVENANCE,
     MISSING_VERDICT,
+    SELF_DECLARED_CAPABILITY,
+    UNATTESTED,
+    UNKNOWN_PRODUCER,
     UNNAMED_CONTROL,
     UNSUPPORTED_CONFIRMATION,
     VERDICTS,
@@ -27,9 +33,15 @@ LADDER_KEYS = ("findings", "ruled_out")
 class HuntParser:
     """Parser for ATHF hunt files."""
 
-    def __init__(self, file_path: Path):
-        """Initialize parser with hunt file path."""
+    def __init__(self, file_path: Path, registry: Any = None):
+        """Initialize parser with hunt file path.
+
+        ``registry`` supplies declared producer capabilities. Left unset it is
+        loaded from workspace config on first use, so every caller gets the same
+        answer as the aggregation path without having to know it exists.
+        """
         self.file_path = Path(file_path)
+        self._registry = registry
         self.frontmatter: Dict = {}
         self.content = ""
         self.lock_sections: Dict = {}
@@ -210,7 +222,12 @@ class HuntParser:
         where = f"{key}[{index}] ({subject})"
         errors: List[str] = []
 
-        for code, detail in gate_failures(key, entry):
+        if self._registry is None:
+            from athf.core.provenance import load_registry
+
+            self._registry = load_registry(self.file_path.parent)
+
+        for code, detail in gate_failures(key, entry, self._registry):
             if code == MISSING_VERDICT:
                 errors.append(f"{where} is missing required field: verdict")
             elif code == INVALID_VERDICT:
@@ -251,6 +268,45 @@ class HuntParser:
                     f"{where} has verdict '{ATTEMPTED_NOT_VULNERABLE}' but does "
                     "not name the control that held; set 'control' to the specific control and how "
                     "you verified it held"
+                )
+            elif code == MISSING_PROVENANCE:
+                errors.append(
+                    f"{where} claims verdict '{CONFIRMED}' without provenance. "
+                    "Confirmation must be a mapping with 'method', 'produced_by', 'attested_by' "
+                    "and 'detail' — reading a confirmation cannot establish that the work behind "
+                    "it happened, so who produced it is what the gate checks"
+                )
+            elif code == UNKNOWN_PRODUCER:
+                errors.append(
+                    f"{where} names producer '{detail}', which is not declared in "
+                    ".athfconfig.yaml under provenance.producers. Declare it with the capabilities "
+                    "it can actually reach; an undeclared producer cannot reach 'confirmed'"
+                )
+            elif code == METHOD_EXCEEDS_CAPABILITY:
+                producer, method = detail
+                errors.append(
+                    f"{where} claims confirmation method '{method}', which "
+                    f"'{producer}' has not declared in .athfconfig.yaml. A producer cannot confirm "
+                    "by a means it has no access to — either declare the capability or downgrade "
+                    "the verdict to 'suspected'"
+                )
+            elif code == CORPUS_ONLY_METHOD:
+                errors.append(
+                    f"{where} offers '{detail}' as its confirmation method, but "
+                    "that only reads the log corpus, and the corpus cannot corroborate itself. "
+                    "Querying is real work and still caps at 'suspected'"
+                )
+            elif code == SELF_DECLARED_CAPABILITY:
+                errors.append(
+                    f"{where} declares its own capabilities in "
+                    f"{', '.join(detail)}. Capabilities are declared in .athfconfig.yaml, never in "
+                    "the finding — a claim and the licence to make it cannot travel together"
+                )
+            elif code == UNATTESTED:
+                errors.append(
+                    f"{where} claims verdict '{CONFIRMED}' but 'attested_by' does "
+                    f"not name a person ({detail!r}). Out-of-corpus work needs someone answerable "
+                    "for it; a role, a team, or the automation itself cannot vouch for it"
                 )
 
         return errors
