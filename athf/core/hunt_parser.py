@@ -10,6 +10,7 @@ from athf.core.verdicts import (
     ATTEMPTED_NOT_VULNERABLE,
     CIRCULAR_CONFIRMATION,
     CONFIRMED,
+    DEFERRED_CONFIRMATION,
     INVALID_VERDICT,
     LEGACY_VERDICT,
     MISROUTED,
@@ -237,6 +238,13 @@ class HuntParser:
                     f"{where} confirms verdict '{CONFIRMED}' by pointing back "
                     "at the log corpus; the corpus cannot confirm itself. Describe what you did "
                     "outside it — reproduced the behavior, imaged the host, reviewed the config"
+                )
+            elif code == DEFERRED_CONFIRMATION:
+                errors.append(
+                    f"{where} claims verdict '{CONFIRMED}' but its confirmation "
+                    "says the work has not happened yet; that is a 'suspected' finding until it "
+                    "does. Downgrade the verdict and keep the note — flagging what confirmation "
+                    "would take is the right answer, not a lesser one"
                 )
             elif code == UNNAMED_CONTROL:
                 errors.append(

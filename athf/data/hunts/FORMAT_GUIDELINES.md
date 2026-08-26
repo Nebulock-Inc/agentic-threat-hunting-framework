@@ -210,7 +210,11 @@ ruled_out:
 
 `evidence` and `confirmation` on a `confirmed` finding must actually describe what was checked. Validation rejects placeholders (`n/a`, `none`, `tbd`, `ok`, `-`), non-string values, and anything too short to be an account — `confirmation: n/a` is how you spell "I did not confirm this," so it fails the gate rather than satisfying it.
 
-`confirmation` must also point somewhere other than the logs. Validation rejects self-referential answers — `see telemetry above`, `as shown in the logs`, `per the query results`, `confirmed by the telemetry`, `same as evidence` — because the corpus cannot confirm itself; citing it is restating the evidence field, not corroborating it. Mentioning telemetry is fine when you did work outside it: `forensic image shows the crontab entry matching the process_activity log` passes, because the forensic image is the independent source.
+`confirmation` must also point somewhere other than the logs. Validation rejects answers that cite the corpus as their own source — `see telemetry above`, `as shown in the logs`, `per the query results`, `confirmed by the telemetry`, `same as evidence` — because the corpus cannot confirm itself; citing it is restating the evidence field, not corroborating it. What matters is whether the thing being cited is the corpus, not how the sentence opens: `as documented in the range runbook, we replayed the technique on a sacrificial host` passes, and so does `forensic image shows the crontab entry matching the process_activity log`. Both name an independent source, and mentioning telemetry alongside it is fine.
+
+Validation separately rejects a `confirmation` that says the work hasn't happened — `pending host forensics`, `unable to confirm independently`, `will confirm once the host is available`, `assumed confirmed based on prior hunts`. That note is accurate and worth keeping; it's the verdict that's wrong. Downgrade to `suspected` and leave the note in place.
+
+**What this check cannot do:** it reads phrasing, so it catches the cheap ways of writing a circular confirmation and misses the careful ones. `cross-validated by running a second query against the same table` describes no work outside the corpus and passes anyway — measured miss rate is roughly 1 in 9 on deliberately circular prose. A `confirmed` verdict that validates is a verdict nobody caught lying, not a verdict anybody verified.
 
 ### Migration from `true_positives` / `false_positives`
 
