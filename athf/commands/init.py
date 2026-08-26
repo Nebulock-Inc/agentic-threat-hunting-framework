@@ -12,6 +12,33 @@ from athf.data import get_data_path
 
 console = Console()
 
+# Appended commented-out so a fresh workspace declares nothing. The gate is
+# restrictive: no declared producer means no 'confirmed', and that is the right
+# starting point — a starter list of real producers would hand out the strongest
+# verdict in the ladder to whoever ran init.
+PROVENANCE_STUB = """
+# Who may claim 'confirmed', and by what means. Capabilities live here rather
+# than in the hunt file on purpose: an agent writes findings, but it cannot
+# rewrite this file to widen its own reach.
+#
+# Until a producer is declared here, no finding can reach 'confirmed' — only
+# 'suspected'. That is intended, not a misconfiguration.
+#
+# Capabilities that only read the log corpus (clickhouse_query, siem_search,
+# log_review, splunk_search, sql_query, ...) never satisfy the gate: the corpus
+# cannot corroborate itself. Declare them anyway if they are accurate — they are
+# honest work — but reaching 'confirmed' needs something outside the logs.
+#
+# provenance:
+#   producers:
+#     ir-team:
+#       capabilities: [siem_search, host_forensics, configuration_review]
+#     detection-eng:
+#       capabilities: [siem_search, range_reproduction]
+#     baseline-agent:
+#       capabilities: [clickhouse_query]   # query-only: capped at 'suspected'
+"""
+
 
 @click.command()
 @click.option("--path", default=".", help="Directory to initialize ATHF in")
@@ -96,6 +123,7 @@ def init(path: str, non_interactive: bool) -> None:
     # Save configuration
     with open(config_path, "w", encoding="utf-8") as f:
         yaml.dump(config, f, default_flow_style=False, sort_keys=False)
+        f.write(PROVENANCE_STUB)
     console.print("  ✓ Created [cyan]config/.athfconfig.yaml[/cyan]")
 
     # Create AGENTS.md if it doesn't exist

@@ -60,6 +60,55 @@ class TestInitCommand:
         assert "edr" in config
         assert config["hunt_prefix"] == "H-"
 
+    def test_init_ships_provenance_stub_commented_out(self, runner, temp_workspace):
+        """A fresh workspace documents provenance without granting it.
+
+        The stub has to be inert: uncommenting is a deliberate act, because a
+        declared producer is a licence to write ``confirmed``. If init shipped a
+        live producer, whoever ran it would inherit the strongest verdict in the
+        ladder without choosing to.
+        """
+        from athf.core.provenance import load_registry
+
+        result = runner.invoke(init, ["--non-interactive"])
+        assert result.exit_code == 0
+
+        config_path = temp_workspace / "config" / ".athfconfig.yaml"
+        raw = config_path.read_text(encoding="utf-8")
+
+        assert "# provenance:" in raw, "operators need the shape to copy"
+        assert "capabilities" in raw
+
+        parsed = yaml.safe_load(raw)
+        assert "provenance" not in parsed, "the stub must not declare a live producer"
+        assert parsed["hunt_prefix"] == "H-", "trailing comment must not corrupt the config"
+
+        assert load_registry(temp_workspace).is_empty()
+
+    def test_init_provenance_stub_is_valid_yaml_once_uncommented(self, runner, temp_workspace):
+        """Stripping the comment markers must yield a working registry.
+
+        A stub that doesn't parse when uncommented is worse than no stub — the
+        operator's first contact with provenance would be a YAML error.
+        """
+        from athf.core.provenance import ProducerRegistry, confirming_capabilities
+
+        result = runner.invoke(init, ["--non-interactive"])
+        assert result.exit_code == 0
+
+        raw = (temp_workspace / "config" / ".athfconfig.yaml").read_text(encoding="utf-8")
+        block = raw[raw.index("# provenance:") :]
+        uncommented = "\n".join(
+            line[2:] for line in block.splitlines() if line.startswith("# ") or line == "#"
+        )
+
+        registry = ProducerRegistry.from_config(yaml.safe_load(uncommented))
+        assert not registry.is_empty()
+        assert confirming_capabilities(registry, "ir-team")
+        assert not confirming_capabilities(registry, "baseline-agent"), (
+            "the query-only example must stay capped at suspected"
+        )
+
     def test_init_creates_agents_file(self, runner, temp_workspace):
         """Test that init creates AGENTS.md."""
         result = runner.invoke(init, ["--non-interactive"])

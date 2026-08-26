@@ -254,9 +254,9 @@ related_hunts: []
 findings_count: 3
 findings:
   - subject: web-prod-04
-    verdict: confirmed
+    verdict: suspected
     evidence: auditd execve showed sh writing /var/spool/cron/crontabs/svc_deploy
-    confirmation: host triage recovered the crontab entry and the dropper on disk
+    confirmation: null  # telemetry only — see FORMAT_GUIDELINES for reaching 'confirmed'
 ruled_out:
   - subject: svc_backup
     verdict: benign

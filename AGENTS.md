@@ -340,11 +340,38 @@ Every result gets one of five verdicts. `TP` / `FP` is no longer sufficient — 
 
 If you have none of these, the verdict is `suspected`. That is the correct, complete answer — not a downgrade, and not something to apologize for or work around. Escalate to the user that confirmation is needed; do not promote the verdict yourself.
 
+### Provenance: `confirmed` Needs a Producer, Not Better Prose
+
+The gate does not read your `confirmation` text and decide whether it sounds like real work — that check was measured and cannot separate `cross-validated by running a second query against the same table` from genuine corroboration. Instead, `confirmation` is a **mapping** and the gate checks who produced it:
+
+```yaml
+findings:
+  - subject: web-prod-04
+    verdict: confirmed
+    evidence: OCSF process_activity shows sh writing /var/spool/cron/crontabs/svc_deploy
+    confirmation:
+      method: host_forensics          # must be a capability the producer declared
+      produced_by: ir-team            # must exist in .athfconfig.yaml provenance.producers
+      attested_by: J. Halloran        # a named person, never a role or "the team"
+      detail: >-
+        Recovered the crontab entry and the dropper binary from the imaged disk
+```
+
+**Capabilities are declared in `.athfconfig.yaml`, never in the finding.** If you write `capabilities:`, `analyst_capabilities:`, or `producer_capabilities:` inside a finding, validation refuses it outright. You cannot grant yourself the ability to confirm.
+
+**If you can only run queries, your ceiling is `suspected` — permanently.** A producer whose declared capabilities are all corpus-reading (`clickhouse_query`, `siem_search`, `log_review`) cannot reach `confirmed` no matter what it writes. That is by construction, not an obstacle to route around. Do not add capabilities to config to unblock yourself; report to the user that confirmation requires out-of-corpus work.
+
+**No producers declared means no `confirmed`.** A workspace with no `provenance` section refuses every `confirmed` entry. That is intended: the absence of a declaration is not permission.
+
 ### Routing Rules for AI Assistants
 
 | ❌ Wrong | ✅ Correct |
 |---------|-----------|
 | `verdict: confirmed` backed only by query output | `verdict: suspected` + note what confirmation would take |
+| `confirmation:` as a prose string on `confirmed` | A mapping with `method`, `produced_by`, `attested_by`, `detail` |
+| `attested_by: the team` / `AI assistant` / `pipeline` | A named person answerable for the out-of-corpus work |
+| Declaring `analyst_capabilities:` in the finding | Declare producers in `.athfconfig.yaml`; never self-certify |
+| Editing config to grant yourself a capability | Report that confirmation needs work you cannot do |
 | `attempted_not_vulnerable` listed under `findings` | Put it in `ruled_out` — it closed the question |
 | `benign` listed under `findings` | Put it in `ruled_out` |
 | "No findings" when controls held | `ruled_out` entries naming each control that held |

@@ -145,6 +145,8 @@ Query results are what surfaced the behavior, not proof of what happened. Reachi
 
 If none of those happened, the verdict is `suspected`. Writing `confirmed` off the back of query output is the exact failure this ladder exists to prevent — reading logs back and calling it confirmation is the cheapest path to satisfying a loose criterion, and it produces reports nobody should trust.
 
+Which is why the gate does not grade your description of the work. It checks **who produced the confirmation and whether they could have done it** — see [Rule 3](#rule-3-confirmed-requires-provenance-not-prose).
+
 ### Rule 2: Routing — negative results are first-class output
 
 | Verdict | Goes in |
@@ -157,9 +159,51 @@ If none of those happened, the verdict is `suspected`. Writing `confirmed` off t
 
 `attempted_not_vulnerable` and `benign` never appear in `findings`. A hunt that finds nothing malicious but proves three controls held has produced real output — `ruled_out` is where that lands. `athf hunt validate` enforces both the routing rule and the evidence gate.
 
+### Rule 3: `confirmed` requires provenance, not prose
+
+Earlier versions of this gate read the `confirmation` text and judged whether it described real work. That was measured against a labeled corpus and hit a floor it cannot cross: `cross-validated by running a second query against the same table` is grammatically indistinguishable from genuine corroboration. No pattern set separates them, because **reading a confirmation cannot establish that the work behind it happened.**
+
+So `confirmation` is now a mapping, and the gate checks the producer:
+
+| Field | What it is |
+|-------|-----------|
+| `method` | How the confirmation was obtained (e.g. `host_forensics`, `range_reproduction`, `configuration_review`) |
+| `produced_by` | The producer — an analyst, team, or agent — declared in `.athfconfig.yaml` |
+| `attested_by` | A **named person** answerable for the out-of-corpus work |
+| `detail` | Prose account of what was done. Still required, still checked, no longer load-bearing |
+
+Capabilities live in workspace config, **never in the finding**:
+
+```yaml
+# .athfconfig.yaml
+provenance:
+  producers:
+    ir-team:
+      capabilities: [clickhouse_query, host_forensics, configuration_review]
+    deep-baseline-investigator:
+      capabilities: [clickhouse_query]      # capped at suspected, permanently
+```
+
+That separation is the whole gate. An agent emits `verdict` / `evidence` / `confirmation`; it cannot rewrite the config that says what its producer can reach. A producer declaring only query access is structurally incapable of `confirmed` — not because its prose was graded and found wanting, but because the capability it would need was never declared.
+
+Six ways a `confirmed` entry fails this gate:
+
+| Failure | Cause |
+|---------|-------|
+| **missing provenance** | `confirmation` is a string, or the mapping has no `method` |
+| **unknown producer** | `produced_by` names something absent from `provenance.producers` |
+| **method exceeds capability** | The producer never declared the `method` it claims to have used |
+| **corpus-only method** | The `method` only reads the log corpus (`clickhouse_query`, `siem_search`, `log_review`, …). Querying is real work and still caps at `suspected` |
+| **self-declared capability** | The finding carries `capabilities` / `analyst_capabilities` / `producer_capabilities`. Refused rather than ignored — a claim and the licence to make it cannot travel together |
+| **unattested** | `attested_by` names a role, a team, or the automation (`the team`, `AI assistant`, `pipeline`) instead of a person |
+
+**Restrictive by default.** A workspace with no `provenance` section declares no producers, so nothing reaches `confirmed`. An unparseable config yields an empty registry for the same reason — a broken config must not become the reason `confirmed` starts passing.
+
+**What remains forgeable.** A human can edit `.athfconfig.yaml` to declare a capability their producer doesn't have. That is the accepted residual: the lie moves out of unfalsifiable prose into a separate file, in its own commit, contradicted by source an auditor can read.
+
 ### Entry Shapes
 
-**`findings` entries** carry `subject`, `verdict`, `evidence`, and — for `confirmed` — `confirmation`:
+**`findings` entries** carry `subject`, `verdict`, `evidence`, and — for `confirmed` — a `confirmation` **mapping**:
 
 ```yaml
 findings:
@@ -170,9 +214,13 @@ findings:
     evidence: >-
       OCSF process_activity: python3 spawned by sh writing to
       /tmp/.cache/kworker, followed by outbound TLS to 185.243.x.x:443
-    confirmation: >-
-      Host triage recovered /var/spool/cron/crontabs/svc_deploy with the
-      matching @reboot entry and the dropper still on disk
+    confirmation:
+      method: host_forensics
+      produced_by: ir-team
+      attested_by: J. Halloran
+      detail: >-
+        Host triage recovered /var/spool/cron/crontabs/svc_deploy with the
+        matching @reboot entry and the dropper still on disk
   - subject: "fin-laptop-11 / jhalloran"
     verdict: suspected
     technique: T1110.003
@@ -208,13 +256,13 @@ ruled_out:
 
 `control` is **required** for `attempted_not_vulnerable` and enforced by `athf hunt validate` — "the control held" means nothing if you can't name which one. `reason` does not substitute for it, since every `ruled_out` entry carries a reason.
 
-`evidence` and `confirmation` on a `confirmed` finding must actually describe what was checked. Validation rejects placeholders (`n/a`, `none`, `tbd`, `ok`, `-`), non-string values, and anything too short to be an account — `confirmation: n/a` is how you spell "I did not confirm this," so it fails the gate rather than satisfying it.
+`evidence` and `confirmation.detail` on a `confirmed` finding must actually describe what was checked. Validation rejects placeholders (`n/a`, `none`, `tbd`, `ok`, `-`), non-string values, and anything too short to be an account — `detail: n/a` is how you spell "I did not confirm this," so it fails the gate rather than satisfying it.
 
-`confirmation` must also point somewhere other than the logs. Validation rejects answers that cite the corpus as their own source — `see telemetry above`, `as shown in the logs`, `per the query results`, `confirmed by the telemetry`, `same as evidence` — because the corpus cannot confirm itself; citing it is restating the evidence field, not corroborating it. What matters is whether the thing being cited is the corpus, not how the sentence opens: `as documented in the range runbook, we replayed the technique on a sacrificial host` passes, and so does `forensic image shows the crontab entry matching the process_activity log`. Both name an independent source, and mentioning telemetry alongside it is fine.
+`confirmation.detail` must also point somewhere other than the logs. Validation rejects answers that cite the corpus as their own source — `see telemetry above`, `as shown in the logs`, `per the query results`, `confirmed by the telemetry`, `same as evidence` — because the corpus cannot confirm itself; citing it is restating the evidence field, not corroborating it. What matters is whether the thing being cited is the corpus, not how the sentence opens: `as documented in the range runbook, we replayed the technique on a sacrificial host` passes, and so does `forensic image shows the crontab entry matching the process_activity log`. Both name an independent source, and mentioning telemetry alongside it is fine.
 
-Validation separately rejects a `confirmation` that says the work hasn't happened — `pending host forensics`, `unable to confirm independently`, `will confirm once the host is available`, `assumed confirmed based on prior hunts`. That note is accurate and worth keeping; it's the verdict that's wrong. Downgrade to `suspected` and leave the note in place.
+Validation separately rejects a `detail` that says the work hasn't happened — `pending host forensics`, `unable to confirm independently`, `will confirm once the host is available`, `assumed confirmed based on prior hunts`. That note is accurate and worth keeping; it's the verdict that's wrong. Downgrade to `suspected` and leave the note in place.
 
-**What this check cannot do:** it reads phrasing, so it catches the cheap ways of writing a circular confirmation and misses the careful ones. `cross-validated by running a second query against the same table` describes no work outside the corpus and passes anyway — measured miss rate is roughly 1 in 9 on deliberately circular prose. A `confirmed` verdict that validates is a verdict nobody caught lying, not a verdict anybody verified.
+**These prose checks are no longer what holds the gate.** They catch the cheap ways of writing a circular confirmation and miss the careful ones — `cross-validated by running a second query against the same table` describes no work outside the corpus and passes all three, at a measured miss rate of roughly 1 in 9 on deliberately circular prose. That ceiling is why [Rule 3](#rule-3-confirmed-requires-provenance-not-prose) exists: the same sentence attached to a producer declaring only `clickhouse_query` is refused regardless of how it reads.
 
 ### Migration from `true_positives` / `false_positives`
 
@@ -225,6 +273,7 @@ Both keys remain valid. The ladder is **additive** — nothing breaks, and there
 - **An explicit legacy key always wins.** Precedence exists so a hand-maintained number is never silently overwritten — but it cuts both ways: writing `true_positives: 0` next to a `confirmed` finding reports zero positives. Omit the key unless you mean to override.
 - **Legacy `true_positives` is NOT auto-promoted to `confirmed`.** Those counts were recorded before the evidence gate existed, so nobody can say retroactively whether independent confirmation happened. Auto-promoting would launder unverified findings into the strongest verdict in the ladder. If you want an old hunt on the ladder, re-read it and assign verdicts by hand — most legacy TPs land at `suspected`.
 - **Old `false_positives` are ambiguous by design.** That single number mixed "control held" with "benign activity." Splitting it requires reading the hunt. Don't guess.
+- **Provenance applies to net-new `confirmed` only.** Legacy `true_positives` never claimed a producer, so there is nothing to check; those counts keep rolling up untouched. The provenance mapping is required the moment you write `verdict: confirmed`.
 
 ### MITRE ATT&CK Tactic Reference
 
