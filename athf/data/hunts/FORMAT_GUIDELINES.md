@@ -169,7 +169,7 @@ So `confirmation` is now a mapping, and the gate checks the producer:
 |-------|-----------|
 | `method` | How the confirmation was obtained (e.g. `host_forensics`, `range_reproduction`, `configuration_review`) |
 | `produced_by` | The producer — an analyst, team, or agent — declared in `.athfconfig.yaml` |
-| `attested_by` | A **named person** answerable for the out-of-corpus work |
+| `attested_by` | A **named person** answerable for the out-of-corpus work. Never the producer itself — an attestation is a second party vouching for the work |
 | `detail` | Prose account of what was done. Still required, still checked, no longer load-bearing |
 
 Capabilities live in workspace config, **never in the finding**:
@@ -186,7 +186,7 @@ provenance:
 
 That separation is the whole gate. An agent emits `verdict` / `evidence` / `confirmation`; it cannot rewrite the config that says what its producer can reach. A producer declaring only query access is structurally incapable of `confirmed` — not because its prose was graded and found wanting, but because the capability it would need was never declared.
 
-Six ways a `confirmed` entry fails this gate:
+Seven ways a `confirmed` entry fails this gate:
 
 | Failure | Cause |
 |---------|-------|
@@ -196,12 +196,17 @@ Six ways a `confirmed` entry fails this gate:
 | **corpus-only method** | The `method` only reads the log corpus (`clickhouse_query`, `siem_search`, `log_review`, …). Querying is real work and still caps at `suspected` |
 | **self-declared capability** | The finding carries `capabilities` / `analyst_capabilities` / `producer_capabilities`. Refused rather than ignored — a claim and the licence to make it cannot travel together |
 | **unattested** | `attested_by` names a role, a team, or the automation (`the team`, `AI assistant`, `pipeline`) instead of a person |
+| **self-attested** | `attested_by` names a declared producer — the same one as `produced_by`, or another. A producer cannot vouch for itself, and nothing in config can be asked what it saw |
 
 **Restrictive by default.** A workspace with no `provenance` section declares no producers, so nothing reaches `confirmed`. An unparseable config yields an empty registry for the same reason — a broken config must not become the reason `confirmed` starts passing.
 
 **Config must live above `hunts/`.** Either `.athfconfig.yaml` or `config/.athfconfig.yaml` at the workspace root. A config placed *inside* the hunt tree is ignored, because that directory is somewhere the finding author writes — a producer declared next to `H-0042.md` would be a self-declaration with a different filename, and the grant has to sit somewhere the claim cannot reach.
 
-**What remains forgeable.** A human can edit `.athfconfig.yaml` to declare a capability their producer doesn't have. That is the accepted residual: the lie moves out of unfalsifiable prose into a separate file, in its own commit, contradicted by source an auditor can read.
+**What remains forgeable.** Two things, both accepted rather than overlooked.
+
+A human can edit `.athfconfig.yaml` to declare a capability their producer doesn't have. That is the accepted residual for capability: the lie moves out of unfalsifiable prose into a separate file, in its own commit, contradicted by source an auditor can read.
+
+And `attested_by` is a free-text field an agent can fill with a colleague's name. Naming someone who did not do the work is a claim about a *person*, checkable by asking them — which is the point of requiring a name, and the reason the field refuses roles (`the team`), automation (`AI assistant`), and producers. It is not the reason `confirmed` is hard to reach: capability is. The denylist behind the role check is also open by construction — `SOC`, `Tier 2`, and `Analyst 7` pass it. Enumerating more role words raises the cost of the cheapest placeholder without closing the class, exactly as it did for corpus nouns.
 
 ### Entry Shapes
 

@@ -18,6 +18,7 @@ from athf.core.verdicts import (
     MISROUTED,
     MISSING_PROVENANCE,
     MISSING_VERDICT,
+    SELF_ATTESTED,
     SELF_DECLARED_CAPABILITY,
     UNATTESTED,
     UNKNOWN_PRODUCER,
@@ -307,6 +308,23 @@ class HuntParser:
                     f"{where} claims verdict '{CONFIRMED}' but 'attested_by' does "
                     f"not name a person ({detail!r}). Out-of-corpus work needs someone answerable "
                     "for it; a role, a team, or the automation itself cannot vouch for it"
+                )
+            elif code == SELF_ATTESTED:
+                producer, attestor = detail
+                errors.append(
+                    f"{where} names '{attestor}' in 'attested_by', which is a "
+                    f"declared producer, not a person (produced_by is '{producer}'). An "
+                    "attestation is a second party vouching for the work; set 'attested_by' to "
+                    "the person who can be asked what they saw"
+                )
+            else:
+                # No branch matched. Validity is derived from this list, so a code
+                # added to gate_failures without a message here would make an
+                # offending file report clean while aggregation refuses to count
+                # it — the validate/aggregate divergence, one more time.
+                errors.append(
+                    f"{where} fails the verdict gate ({code}: {detail!r}); see "
+                    "FORMAT_GUIDELINES.md → The Verdict Ladder"
                 )
 
         return errors

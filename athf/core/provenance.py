@@ -81,6 +81,16 @@ class ProducerRegistry:
         """Return ``True`` when ``producer`` is declared in config."""
         return isinstance(producer, str) and producer in self._capabilities
 
+    def knows_folded(self, name: str) -> bool:
+        """Return ``True`` when ``name`` matches a declared producer, ignoring case.
+
+        Used by the attestation check, which asks whether a name refers to a
+        producer at all rather than looking its capabilities up. Case-insensitive
+        because ``attested_by: Analyst`` names the same tool as ``analyst``, and a
+        rule one shift key wide is not a rule.
+        """
+        return name in {p.strip().lower() for p in self._capabilities}
+
     def capabilities_for(self, producer: Any) -> FrozenSet[str]:
         """Return the declared capabilities, or empty for an unknown producer."""
         if not isinstance(producer, str):

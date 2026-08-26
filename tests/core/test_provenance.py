@@ -29,10 +29,12 @@ from athf.core.verdicts import (
     LEGACY_VERDICT,
     METHOD_EXCEEDS_CAPABILITY,
     MISSING_PROVENANCE,
+    SELF_ATTESTED,
     SELF_DECLARED_CAPABILITY,
     UNATTESTED,
     UNKNOWN_PRODUCER,
     gate_failures,
+    tally_frontmatter_verdicts,
 )
 
 
@@ -244,6 +246,91 @@ class TestAttestation:
         for name in ("Sydney Marrone", "J. Halloran", "sydney@nebulock.ai"):
             entry = confirmation(attested_by=name)
             assert gate_failures("findings", entry, registry=registry) == [], name
+
+
+class TestAttestationIsIndependentOfTheProducer:
+    """A producer cannot vouch for itself.
+
+    ``attested_by`` exists so a second party is answerable for work that happened
+    outside the corpus. When the same name fills both fields, nobody independent
+    vouched for anything — the finding asserts "I did it, and I confirm I did it",
+    which is the self-declaration the whole design moves out of the payload.
+
+    Unlike the role-word denylist this is a closed rule: the producer name is
+    already in the finding, so the check is a comparison rather than an
+    enumeration, and it cannot be evaded by picking different vocabulary.
+    """
+
+    def test_producer_cannot_attest_to_itself(self, registry):
+        entry = confirmation(produced_by="analyst", attested_by="analyst")
+        assert SELF_ATTESTED in codes(gate_failures("findings", entry, registry=registry))
+
+    def test_self_attestation_survives_case_and_padding(self, registry):
+        # The comparison has to normalize, or the rule is one shift key wide.
+        for spelling in ("Analyst", "  analyst  ", "ANALYST"):
+            entry = confirmation(produced_by="analyst", attested_by=spelling)
+            assert SELF_ATTESTED in codes(
+                gate_failures("findings", entry, registry=registry)
+            ), spelling
+
+    def test_another_registered_producer_cannot_attest(self, registry):
+        # A registered producer is a tool or a team in config, not a person who
+        # can be asked about it. Naming a *different* one is still not a human
+        # attestation, so the gate refuses it for the same reason.
+        entry = confirmation(produced_by="analyst", attested_by="query-bot")
+        assert SELF_ATTESTED in codes(gate_failures("findings", entry, registry=registry))
+
+    def test_a_human_attesting_to_a_producer_still_passes(self, registry):
+        # The inverse, and the case the field is for: a person vouches for the
+        # tool's output. This must stay clean or the gate is unusable.
+        entry = confirmation(produced_by="analyst", attested_by="Sydney Marrone")
+        assert gate_failures("findings", entry, registry=registry) == []
+
+    def test_a_human_whose_name_is_not_in_config_passes(self, registry):
+        # Guard against implementing this as "attested_by must be absent from the
+        # registry" in a way that also rejects unregistered *tools*: the rule is
+        # about the producer relationship, not about registry membership per se.
+        entry = confirmation(produced_by="analyst", attested_by="J. Halloran")
+        assert gate_failures("findings", entry, registry=registry) == []
+
+    def test_self_attestation_is_refused_for_a_capable_producer(self, registry):
+        # The break as found: every other gate satisfied, capability real, detail
+        # substantive — and still refused, because the attestation is circular.
+        entry = confirmed(
+            confirmation={
+                "method": "host_forensics",
+                "produced_by": "analyst",
+                "attested_by": "analyst",
+                "detail": "host triage recovered the crontab entry for svc_deploy from disk",
+            }
+        )
+        assert SELF_ATTESTED in codes(gate_failures("findings", entry, registry=registry))
+
+    def test_self_attestation_is_not_counted_by_aggregation(self, registry):
+        # Validation and aggregation have diverged twice on this design. The tally
+        # must refuse what validate refuses, or the dashboard credits it anyway.
+        frontmatter = {
+            "findings": [
+                confirmed(
+                    confirmation={
+                        "method": "host_forensics",
+                        "produced_by": "analyst",
+                        "attested_by": "analyst",
+                        "detail": "recovered the launchd plist from the endpoint disk image",
+                    }
+                )
+            ]
+        }
+        counts = tally_frontmatter_verdicts(frontmatter, registry)
+        assert counts is not None
+        assert counts["confirmed"] == 0
+
+    def test_unattributable_placeholder_still_reports_unattested(self, registry):
+        # Two different problems keep two different reason codes: naming nobody is
+        # not the same as a producer naming itself, and the hunter needs the
+        # instruction that matches their mistake.
+        entry = confirmation(produced_by="analyst", attested_by="the team")
+        assert UNATTESTED in codes(gate_failures("findings", entry, registry=registry))
 
 
 class TestProseDetailStillGated:

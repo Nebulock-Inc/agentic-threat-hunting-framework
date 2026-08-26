@@ -466,3 +466,63 @@ class TestMalformedInput:
     def test_null_ladder_key_does_not_crash(self, tmp_path: Path) -> None:
         ok, _ = _hunt(tmp_path, BASE + "\nfindings:\nruled_out:").validate()
         assert ok
+
+
+class TestSelfAttestationIsRejectedByValidate:
+    """A producer named as its own attestor must fail the real validator."""
+
+    def test_producer_attesting_to_itself_fails_validation(self, tmp_path: Path) -> None:
+        ok, errors = _hunt(
+            tmp_path,
+            BASE
+            + "\nfindings:\n"
+            "  - subject: web-prod-04\n"
+            "    verdict: confirmed\n"
+            "    evidence: process_activity shows curl piping to sh\n"
+            "    confirmation:\n"
+            "      method: host_forensics\n"
+            "      produced_by: analyst\n"
+            "      attested_by: analyst\n"
+            "      detail: recovered the dropped binary at /usr/local/bin/.upd on disk\n",
+        ).validate()
+        assert not ok
+        assert any("attested_by" in e for e in errors)
+
+    def test_a_human_attestor_still_validates_clean(self, tmp_path: Path) -> None:
+        ok, errors = _hunt(
+            tmp_path,
+            BASE
+            + "\nfindings:\n"
+            "  - subject: web-prod-04\n"
+            "    verdict: confirmed\n"
+            "    evidence: process_activity shows curl piping to sh\n"
+            + _confirmation("recovered the dropped binary at /usr/local/bin/.upd on disk"),
+        ).validate()
+        assert ok, errors
+
+
+class TestEveryGateFailureRendersAMessage:
+    """A reason code with no message means validate reports the file clean.
+
+    ``HuntParser.validate`` derives validity from the rendered message list, so a
+    code the renderer does not recognize is not merely missing an explanation —
+    aggregation refuses the entry on that code while validation calls the file
+    valid, which is the divergence class 18272e8 closed for frontmatter and the
+    body-count fallback reopened. The renderer needs a floor, not a full branch
+    per code, because the failure mode is a code nobody thought to render.
+    """
+
+    def test_an_unrecognized_reason_code_still_fails_validation(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from athf.core import hunt_parser
+
+        monkeypatch.setattr(
+            hunt_parser, "gate_failures", lambda *a, **k: [("code_from_the_future", None)]
+        )
+        ok, errors = _hunt(
+            tmp_path,
+            BASE + "\nfindings:\n  - subject: host-a\n    verdict: suspected\n",
+        ).validate()
+        assert not ok
+        assert errors

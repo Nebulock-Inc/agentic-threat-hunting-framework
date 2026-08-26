@@ -364,6 +364,7 @@ METHOD_EXCEEDS_CAPABILITY = "method_exceeds_capability"
 CORPUS_ONLY_METHOD = "corpus_only_method"
 SELF_DECLARED_CAPABILITY = "self_declared_capability"
 UNATTESTED = "unattested"
+SELF_ATTESTED = "self_attested"
 
 # Ways of filling ``attested_by`` without naming anyone answerable. The first is
 # not hypothetical: ``athf hunt new`` defaults ``--hunter`` to "AI Assistant", so
@@ -409,6 +410,27 @@ def is_attributable(value: Any) -> bool:
     return folded not in _UNATTRIBUTABLE and folded not in _PLACEHOLDERS
 
 
+def _attests_to_itself(attestor: Any, producer: Any, registry: Any) -> bool:
+    """Return ``True`` when the attestation names a producer rather than a person.
+
+    Two cases, one rule. The attestor is the producer, so the finding says "I did
+    the work and I confirm I did the work". Or the attestor is some *other* entry
+    in the producer registry, which is a tool or a team in config — nothing there
+    can be asked what it saw.
+
+    Registry membership is what separates a producer from a person, so an attestor
+    who appears nowhere in config passes: that is the ordinary case of a human
+    vouching for a tool's output, and rejecting it would leave the field with no
+    valid value at all.
+    """
+    if not isinstance(attestor, str):
+        return False
+    folded = " ".join(attestor.split()).lower()
+    if isinstance(producer, str) and folded == " ".join(producer.split()).lower():
+        return True
+    return registry is not None and registry.knows_folded(folded)
+
+
 def _provenance_failures(confirmation: Any, registry: Any) -> List[Tuple[str, Any]]:
     """Return why ``confirmation`` does not establish out-of-corpus provenance.
 
@@ -440,8 +462,11 @@ def _provenance_failures(confirmation: Any, registry: Any) -> List[Tuple[str, An
         elif defers_confirmation(detail):
             failures.append((DEFERRED_CONFIRMATION, detail))
 
-    if not is_attributable(confirmation.get("attested_by")):
-        failures.append((UNATTESTED, confirmation.get("attested_by")))
+    attestor = confirmation.get("attested_by")
+    if not is_attributable(attestor):
+        failures.append((UNATTESTED, attestor))
+    elif _attests_to_itself(attestor, producer, registry):
+        failures.append((SELF_ATTESTED, (producer, attestor)))
 
     if not isinstance(method, str) or not method.strip():
         failures.append((MISSING_PROVENANCE, "confirmation.method"))
@@ -634,6 +659,7 @@ __all__ = [
     "CORPUS_ONLY_METHOD",
     "SELF_DECLARED_CAPABILITY",
     "UNATTESTED",
+    "SELF_ATTESTED",
     "is_attributable",
     "tally_frontmatter_verdicts",
     "precision_pair",

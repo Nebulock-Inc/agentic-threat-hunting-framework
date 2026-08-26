@@ -365,6 +365,8 @@ findings:
 
 **Do not write a config inside `hunts/`.** Only the workspace-root config is read; one placed beside a hunt file is ignored. Writing a producer declaration next to your own finding is self-certification, and it will not work.
 
+**`attested_by` must name a person, not the producer.** Repeating `produced_by` there — or naming any other declared producer — is refused: an attestation is a second party vouching for the work, and nothing in config can be asked what it saw. If no person can vouch for the out-of-corpus work, the verdict is `suspected`. Do not put a colleague's name there to satisfy the field; ask the user who should attest.
+
 ### Routing Rules for AI Assistants
 
 | ❌ Wrong | ✅ Correct |
@@ -372,6 +374,7 @@ findings:
 | `verdict: confirmed` backed only by query output | `verdict: suspected` + note what confirmation would take |
 | `confirmation:` as a prose string on `confirmed` | A mapping with `method`, `produced_by`, `attested_by`, `detail` |
 | `attested_by: the team` / `AI assistant` / `pipeline` | A named person answerable for the out-of-corpus work |
+| `attested_by:` repeating `produced_by` (or another producer) | A person distinct from the producer — self-attestation is refused |
 | Declaring `analyst_capabilities:` in the finding | Declare producers in `.athfconfig.yaml`; never self-certify |
 | Editing config to grant yourself a capability | Report that confirmation needs work you cannot do |
 | `attempted_not_vulnerable` listed under `findings` | Put it in `ruled_out` — it closed the question |
