@@ -366,10 +366,11 @@ SELF_DECLARED_CAPABILITY = "self_declared_capability"
 UNATTESTED = "unattested"
 SELF_ATTESTED = "self_attested"
 
-# Ways of filling ``attested_by`` without naming anyone answerable. The first is
-# not hypothetical: ``athf hunt new`` defaults ``--hunter`` to "AI Assistant", so
-# the placeholder ships with the tool. A role, a team, or the automation itself
-# cannot vouch for out-of-corpus work — only a person can.
+# Ways of filling ``attested_by`` without naming anyone answerable. A role, a
+# team, or the automation itself cannot vouch for out-of-corpus work — only a
+# person can. "AI Assistant" earns its entry from history: it was ``athf hunt
+# new``'s ``--hunter`` default, so it is still sitting in existing frontmatter
+# where a hunter may copy it from.
 _UNATTRIBUTABLE = frozenset(
     {
         "agent",
@@ -393,6 +394,39 @@ _UNATTRIBUTABLE = frozenset(
 # Shortest string that can name a person. "Jo" is two.
 _MIN_NAME_LEN = 2
 
+# The blank a template leaves for a name, copied through unfilled. `hunter: [Your
+# Name]` ships in HUNT_LOCK.md and the init template, so this is the placeholder a
+# hunter is most likely to have in front of them — and an unrendered `{{ hunter }}`
+# or an unexpanded `$USER` says the same thing: nobody typed a name here.
+#
+# Matched against the whole value with the bracket, brace and sigil punctuation
+# stripped, never as a substring: "Hunter Davis" is a person and "[Sydney
+# Marrone]" is a name someone chose to bracket.
+_NAME_PLACEHOLDERS = frozenset(
+    {
+        "fixme",
+        "hunter",
+        "hunter name",
+        "insert name",
+        "name",
+        "name here",
+        "todo",
+        "user",
+        "your name",
+        "xxx",
+        "yourname",
+    }
+)
+
+# Punctuation a template wraps its blanks in. Stripped before the comparison so
+# one placeholder does not need an entry per syntax.
+_PLACEHOLDER_WRAPPERS = "[]<>{}()$_-\"'` \t"
+
+# What generators write into ``hunter`` when nobody supplied a name. Exported so
+# the tools that fill the field and the gate that judges it cannot drift apart —
+# it has to be a value ``is_attributable`` refuses, or the field is forgeable.
+UNFILLED_HUNTER = "[Your Name]"
+
 
 def is_attributable(value: Any) -> bool:
     """Return ``True`` when ``value`` names someone who could be asked about it.
@@ -407,7 +441,10 @@ def is_attributable(value: Any) -> bool:
     if len(candidate) < _MIN_NAME_LEN:
         return False
     folded = candidate.lower().rstrip(".")
-    return folded not in _UNATTRIBUTABLE and folded not in _PLACEHOLDERS
+    if folded in _UNATTRIBUTABLE or folded in _PLACEHOLDERS:
+        return False
+    unwrapped = " ".join(folded.strip(_PLACEHOLDER_WRAPPERS).split())
+    return unwrapped not in _NAME_PLACEHOLDERS
 
 
 def _attests_to_itself(attestor: Any, producer: Any, registry: Any) -> bool:

@@ -577,7 +577,7 @@ athf hunt new \
   --behavior "Shell execution from unusual parents performing reconnaissance..." \
   --location "macOS endpoints (developer workstations)..." \
   --evidence "EDR process telemetry - Fields: process.name, parent.process.name..." \
-  --hunter "Your Name" \
+  --hunter "Sydney Marrone" \
   --non-interactive
 ```
 
@@ -595,7 +595,7 @@ athf hunt new \
 - `--location` - Location/scope (for ABLE framework)
 - `--evidence` - Evidence description (for ABLE framework)
 - `--research` - Research document ID (e.g., R-0001) to link to hunt
-- `--hunter` - Hunter name (default: "AI Assistant")
+- `--hunter` - Hunter name. Falls back to the `hunter` key in `.athfconfig.yaml`, and if neither is set the field is left visibly unfilled rather than filled with a name nobody chose. **Never put your own name here on an AI assistant's behalf, and never carry the unfilled marker into `attested_by`** — attestation names the person answerable for out-of-corpus work, so it is refused.
 
 ---
 

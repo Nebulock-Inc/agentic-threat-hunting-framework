@@ -17,7 +17,7 @@ from athf.core.attack_matrix import get_technique
 from athf.core.hunt_manager import HuntManager
 from athf.core.hunt_parser import validate_hunt_file
 from athf.core.template_engine import render_hunt_template
-from athf.core.verdicts import VERDICTS
+from athf.core.verdicts import UNFILLED_HUNTER, VERDICTS
 from athf.utils.validation import validate_hunt_id, validate_research_id
 
 console = Console()
@@ -141,7 +141,7 @@ def hunt() -> None:
 @click.option("--behavior", help="Behavior description (for ABLE framework)")
 @click.option("--location", help="Location/scope (for ABLE framework)")
 @click.option("--evidence", help="Evidence description (for ABLE framework)")
-@click.option("--hunter", help="Hunter name", default="AI Assistant")
+@click.option("--hunter", help="Hunter name (defaults to the workspace `hunter` config key)")
 @click.option("--research", help="Research document ID (e.g., R-0001) this hunt is based on")
 @click.option(
     "--hypothesis-duration",
@@ -287,6 +287,12 @@ def new(
         ds_input = Prompt.ask("   Data Sources", default=default_sources)
         hunt_data_sources = [ds.strip() for ds in ds_input.split(",")]
 
+        # Hunter — only worth asking when neither the flag nor config answered.
+        if not hunter and not config.get("hunter"):
+            hunter = Prompt.ask("\n6. Hunter (your name)", default="").strip() or None
+
+    hunt_hunter = hunter or config.get("hunter") or UNFILLED_HUNTER
+
     # Render template
     hunt_content = render_hunt_template(
         hunt_id=hunt_id,
@@ -295,7 +301,7 @@ def new(
         tactics=hunt_tactics,
         platform=hunt_platforms,
         data_sources=hunt_data_sources,
-        hunter=hunter or "AI Assistant",
+        hunter=hunt_hunter,
         hypothesis=hypothesis,
         threat_context=threat_context,
         actor=actor,

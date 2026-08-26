@@ -6,6 +6,8 @@ from typing import Optional
 
 from jinja2 import Template
 
+from athf.core.verdicts import UNFILLED_HUNTER
+
 # Default bundled template - used when no custom template exists
 HUNT_TEMPLATE = """---
 hunt_id: {{ hunt_id }}
@@ -209,7 +211,7 @@ def render_hunt_template(
     tactics: Optional[list] = None,
     platform: Optional[list] = None,
     data_sources: Optional[list] = None,
-    hunter: str = "[Your Name]",
+    hunter: str = UNFILLED_HUNTER,
     hypothesis: Optional[str] = None,
     threat_context: Optional[str] = None,
     actor: Optional[str] = None,

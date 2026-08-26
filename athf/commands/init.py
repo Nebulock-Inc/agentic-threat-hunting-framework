@@ -17,6 +17,11 @@ console = Console()
 # starting point — a starter list of real producers would hand out the strongest
 # verdict in the ladder to whoever ran init.
 PROVENANCE_STUB = """
+# Your name, used as the default for `athf hunt new --hunter`. Safe to keep here
+# because a name is not a grant — it still has to clear attestation on its own
+# merits, and it does not widen what you can claim.
+# hunter: Your Name
+
 # Who may claim 'confirmed', and by what means. Capabilities live here rather
 # than in the hunt file on purpose: an agent writes findings, but it cannot
 # rewrite this file to widen its own reach.

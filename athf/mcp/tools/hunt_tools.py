@@ -128,11 +128,12 @@ def register_hunt_tools(mcp: "FastMCP") -> None:  # type: ignore[name-defined]  
         behavior: Optional[str] = None,
         location: Optional[str] = None,
         evidence: Optional[str] = None,
-        hunter: str = "AI Assistant",
+        hunter: Optional[str] = None,
         research_id: Optional[str] = None,
     ) -> str:
         from athf.core.hunt_manager import HuntManager
         from athf.core.template_engine import render_hunt_template
+        from athf.core.verdicts import UNFILLED_HUNTER
 
         workspace = get_workspace()
         manager = HuntManager(hunts_dir=workspace / "hunts")
@@ -155,7 +156,7 @@ def register_hunt_tools(mcp: "FastMCP") -> None:  # type: ignore[name-defined]  
             behavior=behavior,
             location=location,
             evidence=evidence,
-            hunter=hunter,
+            hunter=hunter or UNFILLED_HUNTER,
             spawned_from=research_id,
         )
 

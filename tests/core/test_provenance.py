@@ -32,6 +32,7 @@ from athf.core.verdicts import (
     SELF_ATTESTED,
     SELF_DECLARED_CAPABILITY,
     UNATTESTED,
+    UNFILLED_HUNTER,
     UNKNOWN_PRODUCER,
     gate_failures,
     tally_frontmatter_verdicts,
@@ -225,7 +226,7 @@ class TestAttestation:
     @pytest.mark.parametrize(
         "value",
         [
-            "AI Assistant",  # the athf hunt new default — a placeholder by shipping
+            "AI Assistant",  # the old athf hunt new default, still in old frontmatter
             "agent",
             "automation",
             "n/a",
@@ -244,6 +245,55 @@ class TestAttestation:
     def test_named_human_passes(self, registry):
         # The inverse, and a guard against a name-shaped regex rejecting people.
         for name in ("Sydney Marrone", "J. Halloran", "sydney@nebulock.ai"):
+            entry = confirmation(attested_by=name)
+            assert gate_failures("findings", entry, registry=registry) == [], name
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "[Your Name]",  # ships in HUNT_LOCK.md and the init template
+            "[your name]",
+            "<Your Name>",
+            "Your Name",
+            "{{hunter}}",  # an unrendered template variable
+            "{{ hunter }}",
+            "${USER}",
+            "$USER",
+            "TODO",
+            "FIXME",
+            "XXX",
+            "name here",
+            "insert name",
+            "hunter name",
+        ],
+    )
+    def test_unfilled_placeholder_attestation_is_refused(self, registry, value):
+        # `hunter: [Your Name]` is what the shipped template writes, so a hunter
+        # who copies it into attested_by is attesting to nobody. Every value here
+        # passed before: the field asked whether a *string* was there, and a
+        # bracketed instruction to type a name is a string.
+        entry = confirmation(attested_by=value)
+        assert UNATTESTED in codes(gate_failures("findings", entry, registry=registry))
+
+    def test_a_real_name_in_brackets_is_not_treated_as_a_placeholder(self, registry):
+        # The inverse. Bracket syntax is how the templates mark a blank, but the
+        # rule has to be about the placeholder *words*, not the punctuation —
+        # otherwise a hunter writing "[Sydney Marrone]" is called anonymous.
+        entry = confirmation(attested_by="[Sydney Marrone]")
+        assert gate_failures("findings", entry, registry=registry) == []
+
+    def test_the_marker_generators_write_is_one_the_gate_refuses(self, registry):
+        # `athf hunt new` writes UNFILLED_HUNTER when nobody supplied a name. If
+        # that value ever became attributable the field would be forgeable by
+        # doing nothing, so bind the two together here rather than trusting that
+        # a future edit to the marker remembers the gate exists.
+        entry = confirmation(attested_by=UNFILLED_HUNTER)
+        assert UNATTESTED in codes(gate_failures("findings", entry, registry=registry))
+
+    def test_a_person_named_hunter_still_passes(self, registry):
+        # Guard against matching the placeholder words as substrings anywhere:
+        # "Hunter" is a real surname and "Todd" contains no rule of its own.
+        for name in ("Hunter Davis", "Todd Nakamura", "Xu Xiaoxia"):
             entry = confirmation(attested_by=name)
             assert gate_failures("findings", entry, registry=registry) == [], name
 

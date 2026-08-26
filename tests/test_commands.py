@@ -3,6 +3,7 @@ Tests for ATHF CLI commands using actual implementation.
 """
 
 import os
+import re
 
 import pytest
 import yaml
@@ -10,6 +11,7 @@ from click.testing import CliRunner
 
 from athf.commands.hunt import hunt
 from athf.commands.init import init
+from athf.core.verdicts import is_attributable
 
 
 @pytest.fixture
@@ -147,6 +149,18 @@ class TestInitCommand:
         assert (custom_path / "config" / ".athfconfig.yaml").exists()
 
 
+def _written_hunter(workspace):
+    """Read `hunter:` from the highest-numbered hunt file in the workspace.
+
+    Scraping the hunt ID out of `result.output` is unreliable — rich wraps the
+    digits in ANSI codes — so find the file the way the ID allocator does, by
+    number. `init` may have copied samples with lower IDs.
+    """
+    hunt_files = sorted((workspace / "hunts").rglob("H-*.md"), key=lambda p: p.stem)
+    content = hunt_files[-1].read_text(encoding="utf-8")
+    return re.search(r"^hunter:\s*(.*)$", content, re.MULTILINE).group(1).strip()
+
+
 class TestHuntNewCommand:
     """Test suite for athf hunt new command."""
 
@@ -192,6 +206,50 @@ class TestHuntNewCommand:
         assert "LSASS Memory Dumping" in content
         assert "T1003.001" in content
         assert "## LEARN" in content
+
+    def test_hunt_new_does_not_forge_a_hunter_name(self, runner, temp_workspace):
+        """An unset --hunter must not write a name nobody chose.
+
+        The old default put `hunter: AI Assistant` in a human's hunt file. That
+        name is on the unattributable list, so a hunter who copied it into
+        `attested_by` — the obvious move, it is right there in their own
+        frontmatter — got refused with nothing pointing at the default that
+        supplied it. Leaving the field visibly unfilled is the honest state.
+        """
+        runner.invoke(init, ["--non-interactive"])
+        result = runner.invoke(hunt, ["new", "--title", "No hunter given", "--non-interactive"])
+
+        assert result.exit_code == 0
+        hunter = _written_hunter(temp_workspace)
+        assert hunter != "AI Assistant"
+        # And whatever it does write must not pass attestation, or the blank is
+        # worse than the placeholder: silently forgeable instead of visibly empty.
+        assert not is_attributable(hunter), hunter
+
+    def test_hunt_new_honors_an_explicit_hunter(self, runner, temp_workspace):
+        """The inverse: a name the hunter supplied is written unchanged."""
+        runner.invoke(init, ["--non-interactive"])
+        runner.invoke(
+            hunt,
+            ["new", "--title", "Named", "--hunter", "Sydney Marrone", "--non-interactive"],
+        )
+
+        assert _written_hunter(temp_workspace) == "Sydney Marrone"
+
+    def test_hunt_new_uses_the_configured_hunter(self, runner, temp_workspace):
+        """A workspace-level hunter name spares typing it every hunt.
+
+        Unlike provenance capabilities this is safe to read from config: a name
+        is not a grant. It still has to clear attestation on its own merits.
+        """
+        runner.invoke(init, ["--non-interactive"])
+        config_path = temp_workspace / "config" / ".athfconfig.yaml"
+        config_path.write_text(
+            config_path.read_text() + "\nhunter: Sydney Marrone\n", encoding="utf-8"
+        )
+
+        runner.invoke(hunt, ["new", "--title", "From config", "--non-interactive"])
+        assert _written_hunter(temp_workspace) == "Sydney Marrone"
 
     def test_hunt_new_missing_title_non_interactive(self, runner, temp_workspace):
         """Test that hunt new fails without title in non-interactive mode."""

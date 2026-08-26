@@ -594,7 +594,7 @@ Creates a new hunt file with proper YAML frontmatter and LOCK structure. Automat
 | `--tactics` | String | - | Comma-separated tactics (e.g., credential-access,defense-evasion) |
 | `--platforms` | String | - | Comma-separated platforms (e.g., windows,linux,macos) |
 | `--data-sources` | String | - | Comma-separated data sources |
-| `--hunter` | String | AI Assistant | Your name or handle |
+| `--hunter` | String | config `hunter`, else unfilled | Your name or handle. Set `hunter:` in `.athfconfig.yaml` to stop repeating it |
 | `--severity` | Choice | medium | Severity: `low`, `medium`, `high`, `critical` |
 
 **Rich Content Options (for AI assistants & automation):**
@@ -684,7 +684,7 @@ athf hunt new \
   --behavior "Shell execution from unusual parents performing reconnaissance or accessing sensitive files" \
   --location "macOS endpoints (developer workstations, CI/CD infrastructure)" \
   --evidence "EDR process telemetry - Fields: process.name, process.parent.name, process.command_line" \
-  --hunter "Your Name" \
+  --hunter "Sydney Marrone" \
   --non-interactive
 ```
 
