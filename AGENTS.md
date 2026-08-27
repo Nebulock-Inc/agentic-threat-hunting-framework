@@ -363,6 +363,8 @@ findings:
 
 **No producers declared means no `confirmed`.** A workspace with no `provenance` section refuses every `confirmed` entry. That is intended: the absence of a declaration is not permission.
 
+**Name the surface you actually are, not the team you belong to.** A producer is one thing that produces findings, scoped by what it can reach — so a single team legitimately declares several. When you write `produced_by`, pick the entry matching the surface that did the work: if a query-only agent produced the finding, name that agent, never the human team that also does forensics. Borrowing the team's entry to inherit its capabilities is self-certification with an extra step.
+
 **Do not write a config inside `hunts/`.** Only the workspace-root config is read; one placed beside a hunt file is ignored. Writing a producer declaration next to your own finding is self-certification, and it will not work.
 
 **`attested_by` must name a person, not the producer.** Repeating `produced_by` there — or naming any other declared producer — is refused: an attestation is a second party vouching for the work, and nothing in config can be asked what it saw. If no person can vouch for the out-of-corpus work, the verdict is `suspected`. Do not put a colleague's name there to satisfy the field; ask the user who should attest.

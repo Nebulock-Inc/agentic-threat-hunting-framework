@@ -34,6 +34,16 @@ PROVENANCE_STUB = """
 # cannot corroborate itself. Declare them anyway if they are accurate — they are
 # honest work — but reaching 'confirmed' needs something outside the logs.
 #
+# A producer is a SURFACE, not an org chart entry. Declare one per thing that
+# produces findings, split by what it can actually reach. One team can and
+# usually should declare several: if the same team runs a query-only agent and
+# also images disks by hand, those are two surfaces with different ceilings.
+#
+# Collapsing them into one all-capable producer disables the check — there is no
+# method the sole producer cannot claim, so nothing is ever refused and the gate
+# becomes a spelling test. Give the agent its own entry and it stays honestly
+# capped at 'suspected' no matter what it writes.
+#
 # provenance:
 #   producers:
 #     ir-team:

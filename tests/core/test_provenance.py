@@ -22,6 +22,7 @@ import pytest
 from athf.core.provenance import (
     CORPUS_ONLY_CAPABILITIES,
     ProducerRegistry,
+    confirming_capabilities,
 )
 from athf.core.verdicts import (
     CIRCULAR_CONFIRMATION,
@@ -188,6 +189,75 @@ class TestCapabilityCeiling:
             assert CORPUS_ONLY_METHOD in codes(
                 gate_failures("findings", entry, registry=reg)
             ), f"{method} must not confirm"
+
+
+class TestTheOneProducerCollapse:
+    """A single all-capable producer turns the gate back into a typing exercise.
+
+    Small teams reach for this: one team does all the work, so they declare one
+    producer and give it everything true of the team collectively. The capability
+    check then never refuses anything, because there is no method the sole
+    producer cannot claim — the gate degrades to "did you spell a method word",
+    which is precisely the fill-in-the-field failure provenance replaced.
+
+    Nothing in code can distinguish an honest broad declaration from a careless
+    one, so this is not enforceable. What the framework owes an operator is the
+    warning at the point of the decision: producers are *surfaces* with different
+    reach, not an org chart. One team can, and usually should, declare several.
+    """
+
+    ALL_CAPABLE = {
+        "provenance": {
+            "producers": {
+                "deth": {
+                    "capabilities": [
+                        "clickhouse_query",
+                        "host_forensics",
+                        "configuration_review",
+                        "range_reproduction",
+                    ]
+                }
+            }
+        }
+    }
+
+    def test_one_all_capable_producer_refuses_nothing(self):
+        # Demonstrates the collapse rather than preventing it: every confirming
+        # method passes, so the capability ceiling has stopped being a ceiling.
+        reg = ProducerRegistry.from_config(self.ALL_CAPABLE)
+        for method in ("host_forensics", "configuration_review", "range_reproduction"):
+            entry = confirmation(produced_by="deth", method=method)
+            assert gate_failures("findings", entry, registry=reg) == [], method
+
+    def test_splitting_the_agent_out_restores_the_ceiling(self):
+        # The remedy, and the shape the stub has to teach: the same team, with
+        # its query-only agent declared as its own producer, is capped again.
+        split = {
+            "provenance": {
+                "producers": {
+                    "deth": {"capabilities": ["host_forensics", "configuration_review"]},
+                    "baseline-agent": {"capabilities": ["clickhouse_query"]},
+                }
+            }
+        }
+        reg = ProducerRegistry.from_config(split)
+        entry = confirmation(produced_by="baseline-agent", method="host_forensics")
+        assert METHOD_EXCEEDS_CAPABILITY in codes(
+            gate_failures("findings", entry, registry=reg)
+        )
+        assert not confirming_capabilities(reg, "baseline-agent")
+
+    def test_the_stub_warns_that_producers_are_surfaces(self):
+        # The only enforceable part: the guidance an operator reads before they
+        # make this decision must say it. A stub showing three producers without
+        # saying why lets a one-team org collapse them and think it equivalent.
+        from athf.commands.init import PROVENANCE_STUB
+
+        lowered = PROVENANCE_STUB.lower()
+        assert "surface" in lowered, "the stub must frame producers as surfaces"
+        assert "one team" in lowered or "same team" in lowered, (
+            "the stub must say a single team can declare several producers"
+        )
 
 
 class TestSelfDeclarationIsIgnored:
