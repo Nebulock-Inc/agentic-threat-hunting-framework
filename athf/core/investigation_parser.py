@@ -238,9 +238,6 @@ def get_next_investigation_id(investigations_dir: Path) -> str:
     """
     investigations = get_all_investigations(investigations_dir)
 
-    if not investigations:
-        return "I-0001"
-
     # Extract numeric IDs and find max
     max_id = 0
     for investigation in investigations:
@@ -249,6 +246,18 @@ def get_next_investigation_id(investigations_dir: Path) -> str:
         if match:
             id_num = int(match.group(1))
             max_id = max(max_id, id_num)
+
+    # Directory-form investigations (e.g. investigations/I-0012/) have no
+    # frontmatter to parse, so get_all_investigations misses them. Claim their
+    # IDs too, or we hand out one that is already taken.
+    if investigations_dir.is_dir():
+        for entry in investigations_dir.iterdir():
+            match = re.match(r"^I-(\d{4})$", entry.name)
+            if match and entry.is_dir():
+                max_id = max(max_id, int(match.group(1)))
+
+    if max_id == 0:
+        return "I-0001"
 
     # Return next ID with zero-padding
     return f"I-{max_id + 1:04d}"

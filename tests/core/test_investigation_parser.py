@@ -121,6 +121,26 @@ class TestGetNextInvestigationId:
 
         assert get_next_investigation_id(tmp_path) == "I-0008"
 
+    def test_claims_directory_form_investigations(self, tmp_path):
+        """Directory-form investigations have no frontmatter to parse, but their
+        IDs are still taken. Regression: allocator reused I-0012 in hunt-vault
+        because investigations/I-0012/ was a directory, not an I-0012.md."""
+        _write_investigation(tmp_path / "I-0001.md", "I-0001")
+        (tmp_path / "I-0007").mkdir()
+
+        assert get_next_investigation_id(tmp_path) == "I-0008"
+
+    def test_directory_only_still_allocates(self, tmp_path):
+        (tmp_path / "I-0005").mkdir()
+
+        assert get_next_investigation_id(tmp_path) == "I-0006"
+
+    def test_ignores_non_directory_without_md_suffix(self, tmp_path):
+        """A stray file named like a directory-form ID is not an investigation."""
+        (tmp_path / "I-0009").write_text("not a dir", encoding="utf-8")
+
+        assert get_next_investigation_id(tmp_path) == "I-0001"
+
     @pytest.mark.parametrize("bad_id", ["I-XXXX", "INV-1", "H-0001"])
     def test_ignores_malformed_ids(self, tmp_path, bad_id):
         _write_investigation(tmp_path / "I-0001.md", "I-0001")
