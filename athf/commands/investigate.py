@@ -723,8 +723,11 @@ def promote(
         "related_hunts": inv_related_hunts,
         "spawned_from": investigation_id,  # Reference investigation
         "findings_count": 0,
-        "true_positives": 0,
-        "false_positives": 0,
+        # No legacy counters. An explicit true_positives outranks the tally derived
+        # from verdicts, so seeding one here would arm a fuse: the hunter writes an
+        # attested 'confirmed' finding later and the count still reads zero.
+        "findings": [],
+        "ruled_out": [],
         "customer_deliverables": [],
         "tags": inv_tags,
     }

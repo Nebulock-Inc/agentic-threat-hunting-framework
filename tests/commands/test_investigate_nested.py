@@ -49,3 +49,30 @@ class TestNestedInvestigationCommands:
             assert result.exit_code == 0, result.output
             assert "not found" not in result.output
             assert "Promoted I-0001" in result.output
+
+
+class TestPromotedHuntStartsOffTheLegacyCounters:
+    """A promoted hunt must not be born with ``true_positives: 0``.
+
+    The legacy counters override the tally derived from verdicts, so seeding
+    them at creation arms a fuse: the hunter later writes a properly attested
+    ``confirmed`` finding, validation accepts it, and every count still reports
+    zero because a key nobody chose outranks the ladder.
+    """
+
+    def test_promote_does_not_seed_legacy_counters(self, tmp_path):
+        runner = CliRunner()
+        with runner.isolated_filesystem(temp_dir=tmp_path):
+            runner.invoke(investigate_new, ["--title", "Nested", "--non-interactive"])
+
+            result = runner.invoke(
+                investigate_promote,
+                ["I-0001", "--technique", "T1059.001", "--non-interactive"],
+            )
+            assert result.exit_code == 0, result.output
+
+            hunt = sorted(Path("hunts").rglob("H-*.md"))[-1].read_text(encoding="utf-8")
+            assert "true_positives:" not in hunt, (
+                "promotion seeded a legacy counter that will shadow verdict counts"
+            )
+            assert "false_positives:" not in hunt
