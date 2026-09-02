@@ -485,7 +485,7 @@ def validate(hunt_id: str) -> None:
         if not validate_hunt_id(hunt_id):
             console.print(f"[red]Error: Invalid hunt ID format: {hunt_id}[/red]")
             console.print("[yellow]Expected format: H-0001[/yellow]")
-            return
+            raise click.Abort()
 
         # Validate specific hunt - search recursively for backward compatibility
         hunts_dir = Path("hunts")
@@ -496,7 +496,7 @@ def validate(hunt_id: str) -> None:
             matching_files = list(hunts_dir.rglob(f"{hunt_id}.md"))
             if not matching_files:
                 console.print(f"[red]Hunt not found: {hunt_id}[/red]")
-                return
+                raise click.Abort()
             hunt_file = matching_files[0]  # Use first match
 
         # Validate path is within hunts directory
@@ -504,7 +504,7 @@ def validate(hunt_id: str) -> None:
             hunt_file.resolve().relative_to(hunts_dir.resolve())
         except (ValueError, OSError):
             console.print("[red]Error: Invalid hunt file path[/red]")
-            return
+            raise click.Abort() from None
 
         _validate_single_hunt(hunt_file)
     else:
@@ -539,19 +539,24 @@ def validate(hunt_id: str) -> None:
 
         console.print(f"\n[bold]Results:[/bold] {valid_count} valid, {invalid_count} invalid")
 
+        if invalid_count:
+            raise click.Abort()
+
 
 def _validate_single_hunt(hunt_file: Path) -> None:
-    """Validate a single hunt file."""
+    """Validate a single hunt file, aborting when it fails."""
     console.print(f"\n[bold]🔍 Validating {hunt_file.name}...[/bold]\n")
 
     is_valid, errors = validate_hunt_file(hunt_file)
 
     if is_valid:
         console.print("[green]✅ Hunt is valid![/green]")
-    else:
-        console.print("[red]❌ Hunt has validation errors:[/red]\n")
-        for error in errors:
-            console.print(f"  - {error}")
+        return
+
+    console.print("[red]❌ Hunt has validation errors:[/red]\n")
+    for error in errors:
+        console.print(f"  - {error}")
+    raise click.Abort()
 
 
 @hunt.command()

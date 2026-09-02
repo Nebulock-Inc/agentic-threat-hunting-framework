@@ -129,7 +129,10 @@ def load_registry(workspace: Optional[Path] = None) -> ProducerRegistry:
     for parent in (base, *base.parents):
         if _inside_hunt_tree(parent):
             continue
-        for candidate in (parent / "config" / ".athfconfig.yaml", parent / ".athfconfig.yaml"):
+        # Root before config/: `athf init` writes the config/ copy, so most
+        # workspaces have both, and the root file is the one the docs tell hunters
+        # to edit. Reading config/ first made an edited root declaration invisible.
+        for candidate in (parent / ".athfconfig.yaml", parent / "config" / ".athfconfig.yaml"):
             if not candidate.exists():
                 continue
             try:

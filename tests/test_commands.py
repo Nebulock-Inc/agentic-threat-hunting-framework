@@ -604,7 +604,7 @@ class TestHuntValidateCommand:
 
         result = runner.invoke(hunt, ["validate", "H-9999"])
 
-        assert result.exit_code == 0  # Command runs but shows error message
+        assert result.exit_code != 0
         assert "not found" in result.output.lower()
 
 
