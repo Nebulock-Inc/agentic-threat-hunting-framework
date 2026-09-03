@@ -684,7 +684,7 @@ athf hunt new \
   --behavior "Shell execution from unusual parents performing reconnaissance or accessing sensitive files" \
   --location "macOS endpoints (developer workstations, CI/CD infrastructure)" \
   --evidence "EDR process telemetry - Fields: process.name, process.parent.name, process.command_line" \
-  --hunter "Sydney Marrone" \
+  --hunter "Your Name" \
   --non-interactive
 ```
 
