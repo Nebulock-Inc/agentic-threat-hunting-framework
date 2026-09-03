@@ -560,10 +560,22 @@ def _accumulate_verdict(bucket: Dict[str, Any], raw_verdict: str) -> None:
     Unrecognized verdicts are dropped rather than raised: aggregation runs over
     historical event logs that may predate any given vocabulary change, and a
     stale row must not break `athf metrics extract`.
+
+    ``confirmed`` is deliberately never credited from a ``hunt_outcome`` event,
+    the same refusal ``_verdict_counts_from_body`` makes for the KEEP-section
+    counts. The event is a bare scalar outcome with no producer to check, so
+    honoring it would hand a caller a route around the provenance gate that
+    ``athf hunt validate`` cannot see — an event carries no ``findings`` entry
+    to reject. Legacy ``tp`` still credits: it never claimed a producer, so
+    there is nothing to check, exactly as legacy counters roll up on the file
+    path. The raw event still lands in ``outcomes`` for audit; it just does not
+    reach the gated ``confirmed`` / ``true_positives`` tiers.
     """
     try:
         verdict = normalize_verdict(raw_verdict)
     except VerdictError:
+        return
+    if verdict == CONFIRMED:
         return
     if verdict in bucket:
         bucket[verdict] += 1

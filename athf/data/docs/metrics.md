@@ -146,10 +146,15 @@ m.record_web_search(query="lsass dumping", duration_ms=900, result_count=5)
 m.record_similarity_search(query="kerberoast", duration_ms=12)
 
 # Hunt outcomes — call this when you close a hunt
-m.record_hunt_outcome(hunt_id="H-0019", outcome="confirmed")
+m.record_hunt_outcome(hunt_id="H-0019", outcome="suspected")
 
 # The control held — this is a result, not an absence of one
 m.record_hunt_outcome(hunt_id="H-0020", outcome="attempted_not_vulnerable")
+
+# `confirmed` is accepted and stored, but a bare outcome event has no
+# producer to check, so it never reaches the gated confirmed / true_positives
+# aggregates. Record confirmed results as findings entries in the hunt file,
+# where the confirmation mapping names a declared producer.
 
 # Generic escape hatch
 m.record("manual", hunt_id="H-0019", duration_ms=300, custom={"step": "triage"})
@@ -162,6 +167,7 @@ m.record("manual", hunt_id="H-0019", duration_ms=300, custom={"step": "triage"})
 - **Cost is automatic.** `record_llm_call` defers to `athf.core.cost_tracker.estimate_cost` when `cost_usd` is not passed.
 - **Search text is hashed, not stored.** `record_query`, `record_web_search`, and `record_similarity_search` write a SHA-256 prefix of the input text (`custom.sql_hash` / `custom.query_hash`) so patterns can be grouped without leaking hunt content, IOCs, or user prose into the metrics log.
 - **Outcomes are canonicalized.** `record_hunt_outcome` lowercases whatever it's given. The five ladder verdicts (`confirmed`, `suspected`, `attempted_not_vulnerable`, `benign`, `inconclusive`) and the legacy values (`TP`, `tp`, `FP`, `fp`, `inconclusive`) are all accepted. Legacy `tp` is counted as legacy — it is **not** silently rewritten to `confirmed`, because those events predate the evidence gate.
+- **`confirmed` events are stored but never aggregated.** The provenance gate lives on the hunt-file path, where a `findings` entry names a producer that config declared. A bare `outcome=confirmed` event carries no producer, so aggregation drops it from the `confirmed` / `true_positives` tiers rather than crediting an unprovable positive through a side door. It still appears in the per-hunt `outcomes` list for audit. Legacy `tp` still counts — it never claimed a producer, so there is nothing to check.
 
 ---
 

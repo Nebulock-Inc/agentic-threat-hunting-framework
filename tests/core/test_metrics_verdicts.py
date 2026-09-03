@@ -53,7 +53,10 @@ def _write_hunt(workspace: Path, hunt_id: str, frontmatter: str, body: str = "")
 
 
 class TestEventAccumulation:
-    @pytest.mark.parametrize("verdict", LADDER)
+    # Every tier but confirmed gets its counter straight from a hunt_outcome
+    # event. confirmed is gated: the event carries no producer, so it never
+    # reaches the tier — see test_confirmed_event_is_never_credited.
+    @pytest.mark.parametrize("verdict", ["suspected", "attempted_not_vulnerable", "benign", "inconclusive"])
     def test_each_tier_gets_its_own_counter(self, tmp_path: Path, verdict: str) -> None:
         store = EventStore(tmp_path / "metrics" / "events.jsonl")
         store.append(MetricEvent(event_type="hunt_outcome", hunt_id="H-1", outcome=verdict))
@@ -64,13 +67,23 @@ class TestEventAccumulation:
             if other != verdict:
                 assert h[other] == 0
 
-    def test_confirmed_also_counts_as_a_legacy_true_positive(self, tmp_path: Path) -> None:
+    def test_confirmed_event_is_never_credited(self, tmp_path: Path) -> None:
+        """A hunt_outcome event cannot reach confirmed — it has no producer.
+
+        The provenance gate lives on the hunt-file path, where a findings entry
+        names a producer that config must have declared. A bare `outcome:
+        confirmed` event carries no such thing, so crediting it would be a side
+        door around the gate. The raw outcome still lands in `outcomes` for
+        audit; it just does not increment the gated tiers.
+        """
         store = EventStore(tmp_path / "metrics" / "events.jsonl")
         store.append(MetricEvent(event_type="hunt_outcome", hunt_id="H-1", outcome="confirmed"))
 
         h = Aggregator(workspace=tmp_path).extract()["hunts"]["H-1"]
-        assert h["true_positives"] == 1
+        assert h["confirmed"] == 0
+        assert h["true_positives"] == 0
         assert h["false_positives"] == 0
+        assert h["outcomes"] == ["confirmed"]
 
     def test_benign_also_counts_as_a_legacy_false_positive(self, tmp_path: Path) -> None:
         store = EventStore(tmp_path / "metrics" / "events.jsonl")
@@ -83,11 +96,10 @@ class TestEventAccumulation:
     @pytest.mark.parametrize("verdict", ["suspected", "attempted_not_vulnerable", "inconclusive"])
     def test_ungraded_tiers_do_not_dilute_precision(self, tmp_path: Path, verdict: str) -> None:
         store = EventStore(tmp_path / "metrics" / "events.jsonl")
-        store.append(MetricEvent(event_type="hunt_outcome", hunt_id="H-1", outcome="confirmed"))
         store.append(MetricEvent(event_type="hunt_outcome", hunt_id="H-1", outcome=verdict))
 
         h = Aggregator(workspace=tmp_path).extract()["hunts"]["H-1"]
-        assert h["true_positives"] == 1
+        assert h["true_positives"] == 0
         assert h["false_positives"] == 0
         assert h[verdict] == 1
 
@@ -124,6 +136,7 @@ class TestEventAccumulation:
 class TestWorkspaceRollup:
     def test_tiers_roll_up_into_totals(self, tmp_path: Path) -> None:
         store = EventStore(tmp_path / "metrics" / "events.jsonl")
+        # A confirmed event is gated out of the totals — it has no producer.
         store.append(MetricEvent(event_type="hunt_outcome", hunt_id="H-1", outcome="confirmed"))
         store.append(
             MetricEvent(
@@ -135,11 +148,11 @@ class TestWorkspaceRollup:
         store.append(MetricEvent(event_type="hunt_outcome", hunt_id="H-2", outcome="benign"))
 
         totals = Aggregator(workspace=tmp_path).extract()["totals"]
-        assert totals["confirmed"] == 1
+        assert totals["confirmed"] == 0
         assert totals["attempted_not_vulnerable"] == 1
         assert totals["benign"] == 1
         assert totals["suspected"] == 0
-        assert totals["true_positives"] == 1
+        assert totals["true_positives"] == 0
         assert totals["false_positives"] == 1
 
 

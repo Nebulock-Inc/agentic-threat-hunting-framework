@@ -2223,9 +2223,11 @@ Append a single event manually. Useful for closing out hunts (TP / FP) and for p
 
 Valid `outcome` values are the five verdicts — `confirmed`, `suspected`, `attempted_not_vulnerable`, `benign`, `inconclusive`. Legacy `tp` / `fp` still parse.
 
+> **`confirmed` is stored but not counted here.** A `hunt_outcome` event names no producer, so it cannot pass the provenance gate — `outcome=confirmed` records for audit but never increments the `confirmed` / `true_positives` aggregates. To have a confirmed result count, write it as a `findings` entry in the hunt file, with its `confirmation` mapping, and let `athf metrics extract` pick it up. See [FORMAT_GUIDELINES.md](../hunts/FORMAT_GUIDELINES.md) → The Verdict Ladder.
+
 ```bash
 # Record a hunt outcome
-athf metrics record --type hunt_outcome --hunt H-0019 --field outcome=confirmed
+athf metrics record --type hunt_outcome --hunt H-0019 --field outcome=suspected
 
 # The control held — record it, don't drop it
 athf metrics record --type hunt_outcome --hunt H-0020 --field outcome=attempted_not_vulnerable
@@ -2247,7 +2249,7 @@ athf metrics record --type query --hunt H-0019 --field duration_ms=42 --field ro
 athf metrics extract                       # refresh aggregates
 athf metrics summary                       # overall view
 athf metrics show --hunt H-0019            # zoom into one hunt
-athf metrics record --type hunt_outcome --hunt H-0019 --field outcome=confirmed
+athf metrics record --type hunt_outcome --hunt H-0019 --field outcome=suspected
 ```
 
 ### Exit Codes

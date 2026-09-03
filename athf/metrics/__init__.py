@@ -323,6 +323,12 @@ def record_hunt_outcome(
     ``inconclusive``) plus the legacy ``tp`` / ``fp`` values, and is
     canonicalized to lowercase. Legacy values are stored as-is rather than
     remapped onto the ladder. Anything else raises ``ValueError``.
+
+    A ``confirmed`` outcome is stored for audit but never credited to the
+    gated ``confirmed`` / ``true_positives`` aggregates: the event names no
+    producer, and provenance is checked on the hunt-file path where a
+    ``findings`` entry does. Record the finding in the hunt file — with its
+    ``confirmation`` mapping — to have a confirmed result count.
     """
     canonical = normalize_verdict(outcome)
 
