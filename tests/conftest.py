@@ -2,11 +2,22 @@
 Pytest configuration and shared fixtures for ATHF tests.
 """
 
+import os
 import shutil
 import tempfile
 from pathlib import Path
 
 import pytest
+
+# Rich's module-level Console() singletons in athf.commands.* honor FORCE_COLOR
+# at construction time. A developer shell that exports it (Ghostty sets
+# FORCE_COLOR=3) makes those consoles emit ANSI codes even though CliRunner
+# writes to a pipe, splitting IDs like "I-0001" into "I-\x1b[..m0001" and
+# breaking plain-substring assertions. CI has no FORCE_COLOR, so the suite is
+# green there. Neutralize color here — before the command modules are imported
+# and their consoles built — so the run is deterministic in any shell.
+os.environ.pop("FORCE_COLOR", None)
+os.environ["NO_COLOR"] = "1"
 
 
 @pytest.fixture

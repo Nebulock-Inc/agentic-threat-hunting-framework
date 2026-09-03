@@ -6,10 +6,33 @@ from typing import Any, Dict, List, Optional, Set
 
 from athf.core.attack_matrix import ATTACK_TACTICS, TOTAL_TECHNIQUES, get_sorted_tactics
 from athf.core.hunt_parser import parse_hunt_file
+from athf.core.verdicts import VERDICTS, precision_pair, tally_frontmatter_verdicts
 from athf.utils.validation import validate_file_path, validate_hunt_id
 
 # Documentation files to exclude when discovering hunt files at any directory level
 EXCLUDED_DOC_FILES = {"README.md", "FORMAT_GUIDELINES.md", "INDEX.md", "AGENTS.md", "WEEKLY_SUMMARY_TEMPLATE.md"}
+
+
+def _as_count(value: Any) -> int:
+    """Coerce a frontmatter counter to a non-negative int, defaulting to 0.
+
+    Hand-edited hunt files carry quoted numbers, empty keys, and occasionally
+    prose. Rollup runs over whatever is on disk and `athf hunt stats` runs right
+    after validate in CI, so a malformed counter must degrade to 0 rather than
+    raise — only `athf hunt validate` gets to object to a file.
+    """
+    if isinstance(value, bool):
+        return 0
+    if isinstance(value, int):
+        return max(value, 0)
+    if isinstance(value, float):
+        return max(int(value), 0)
+    if isinstance(value, str):
+        try:
+            return max(int(value.strip()), 0)
+        except ValueError:
+            return 0
+    return 0
 
 
 class HuntManager:
@@ -22,6 +45,7 @@ class HuntManager:
             hunts_dir: Directory containing hunt files (default: ./hunts)
         """
         self.hunts_dir = Path(hunts_dir) if hunts_dir else Path.cwd() / "hunts"
+        self._registry: Any = None
 
         if not self.hunts_dir.exists():
             self.hunts_dir.mkdir(parents=True, exist_ok=True)
@@ -57,6 +81,19 @@ class HuntManager:
             Sorted list of hunt file Paths
         """
         return sorted(f for f in self.hunts_dir.rglob("*.md") if f.name not in EXCLUDED_DOC_FILES)
+
+    @property
+    def registry(self) -> Any:
+        """Declared producer capabilities, loaded once per manager.
+
+        Aggregation consults the same registry as validation so the tally cannot
+        credit a ``confirmed`` entry that ``athf hunt validate`` rejects.
+        """
+        if self._registry is None:
+            from athf.core.provenance import load_registry
+
+            self._registry = load_registry(self.hunts_dir)
+        return self._registry
 
     def list_hunts(
         self,
@@ -117,22 +154,30 @@ class HuntManager:
                 else:
                     date_str = str(date_val) if date_val else None
 
-                hunts.append(
-                    {
-                        "hunt_id": frontmatter.get("hunt_id"),
-                        "title": frontmatter.get("title"),
-                        "status": frontmatter.get("status"),
-                        "date": date_str,
-                        "platform": frontmatter.get("platform", []),
-                        "tactics": frontmatter.get("tactics", []),
-                        "techniques": frontmatter.get("techniques", []),
-                        "findings_count": frontmatter.get("findings_count", 0),
-                        "true_positives": frontmatter.get("true_positives", 0),
-                        "false_positives": frontmatter.get("false_positives", 0),
-                        "file_path": str(hunt_file),
-                        "environment": environment,
-                    }
-                )
+                tiers = tally_frontmatter_verdicts(frontmatter, self.registry) or {
+                    v: 0 for v in VERDICTS
+                }
+                positives, negatives = precision_pair(tiers)
+
+                summary = {
+                    "hunt_id": frontmatter.get("hunt_id"),
+                    "title": frontmatter.get("title"),
+                    "status": frontmatter.get("status"),
+                    "date": date_str,
+                    "platform": frontmatter.get("platform", []),
+                    "tactics": frontmatter.get("tactics", []),
+                    "techniques": frontmatter.get("techniques", []),
+                    "findings_count": frontmatter.get("findings_count", 0),
+                    # A hand-typed legacy count always wins: it may record work
+                    # done before the ladder existed, and nothing here should
+                    # overwrite a number a hunter entered deliberately.
+                    "true_positives": frontmatter.get("true_positives", positives),
+                    "false_positives": frontmatter.get("false_positives", negatives),
+                    "file_path": str(hunt_file),
+                    "environment": environment,
+                }
+                summary.update(tiers)
+                hunts.append(summary)
 
             except Exception:
                 # Skip files that can't be parsed
@@ -247,7 +292,7 @@ class HuntManager:
         hunts = self.list_hunts()
 
         if not hunts:
-            return {
+            empty = {
                 "total_hunts": 0,
                 "completed_hunts": 0,
                 "total_findings": 0,
@@ -256,22 +301,24 @@ class HuntManager:
                 "success_rate": 0.0,
                 "tp_fp_ratio": 0.0,
             }
+            empty.update({verdict: 0 for verdict in VERDICTS})
+            return empty
 
         total_hunts = len(hunts)
         completed_hunts = len([h for h in hunts if h.get("status") == "completed"])
 
-        total_findings = sum(h.get("findings_count", 0) for h in hunts)
-        total_tp = sum(h.get("true_positives", 0) for h in hunts)
-        total_fp = sum(h.get("false_positives", 0) for h in hunts)
+        total_findings = sum(_as_count(h.get("findings_count")) for h in hunts)
+        total_tp = sum(_as_count(h.get("true_positives")) for h in hunts)
+        total_fp = sum(_as_count(h.get("false_positives")) for h in hunts)
 
         # Calculate success rate (hunts with TP / completed hunts)
-        hunts_with_tp = len([h for h in hunts if h.get("true_positives", 0) > 0])
+        hunts_with_tp = len([h for h in hunts if _as_count(h.get("true_positives")) > 0])
         success_rate = (hunts_with_tp / completed_hunts * 100) if completed_hunts > 0 else 0.0
 
         # Calculate TP/FP ratio
         tp_fp_ratio = (total_tp / total_fp) if total_fp > 0 else float("inf")
 
-        return {
+        stats = {
             "total_hunts": total_hunts,
             "completed_hunts": completed_hunts,
             "total_findings": total_findings,
@@ -280,6 +327,10 @@ class HuntManager:
             "success_rate": round(success_rate, 1),
             "tp_fp_ratio": round(tp_fp_ratio, 2) if tp_fp_ratio != float("inf") else "∞",
         }
+        stats.update(
+            {verdict: sum(h.get(verdict, 0) for h in hunts) for verdict in VERDICTS}
+        )
+        return stats
 
     def calculate_attack_coverage(self) -> Dict[str, Any]:
         """Calculate MITRE ATT&CK technique coverage with hunt references.

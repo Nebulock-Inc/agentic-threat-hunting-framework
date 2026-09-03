@@ -6,6 +6,8 @@ from typing import Optional
 
 from jinja2 import Template
 
+from athf.core.verdicts import UNFILLED_HUNTER
+
 # Default bundled template - used when no custom template exists
 HUNT_TEMPLATE = """---
 hunt_id: {{ hunt_id }}
@@ -21,8 +23,8 @@ related_hunts: []
 {% if spawned_from %}spawned_from: {{ spawned_from }}
 {% endif %}{% if hypothesis_duration_minutes %}hypothesis_duration_minutes: {{ hypothesis_duration_minutes }}
 {% endif %}findings_count: 0
-true_positives: 0
-false_positives: 0
+findings: []
+ruled_out: []
 customer_deliverables: []
 tags: {{ tags }}
 ---
@@ -134,12 +136,29 @@ tags: {{ tags }}
 
 ### Findings
 
-| **Finding** | **Ticket** | **Description** |
-|-------------|-----------|-----------------|
-| [Type] | [Ticket] | [Description] |
+Things you're reporting as malicious. Only `confirmed` and `suspected` belong here.
 
-**True Positives:** 0
-**False Positives:** 0
+| **Verdict** | **Subject** | **Ticket** | **Evidence** | **Independent Confirmation** |
+|-------------|-------------|-----------|--------------|------------------------------|
+| `confirmed` | [Host, account, or resource] | [INC-####] | [Telemetry that surfaced it] | [What established root cause outside the logs] |
+| `suspected` | [Host, account, or resource] | [INC-####] | [Telemetry that surfaced it] | None — telemetry only |
+
+**The evidence gate:** `confirmed` requires telemetry **plus** something from outside the log
+corpus — controlled reproduction, host forensics, or configuration review. Telemetry alone never
+reaches `confirmed`. If you couldn't confirm, the verdict is `suspected`.
+
+### Ruled Out
+
+Results that closed the question. `attempted_not_vulnerable` is often the most valuable row in a
+customer-facing report.
+
+| **Verdict** | **Subject** | **What Closed It** |
+|-------------|-------------|--------------------|
+| `attempted_not_vulnerable` | [Host, account, or resource] | [Name the control that held and how you verified it] |
+| `benign` | [Host, account, or resource] | [The legitimate activity that explains it] |
+| `inconclusive` | [Host, account, or resource] | [Which telemetry was missing or too sparse] |
+
+**Counts:** `confirmed` [N] · `suspected` [N] · `attempted_not_vulnerable` [N] · `benign` [N] · `inconclusive` [N]
 
 ### Lessons Learned
 
@@ -192,7 +211,7 @@ def render_hunt_template(
     tactics: Optional[list] = None,
     platform: Optional[list] = None,
     data_sources: Optional[list] = None,
-    hunter: str = "[Your Name]",
+    hunter: str = UNFILLED_HUNTER,
     hypothesis: Optional[str] = None,
     threat_context: Optional[str] = None,
     actor: Optional[str] = None,
