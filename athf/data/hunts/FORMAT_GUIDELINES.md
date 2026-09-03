@@ -282,6 +282,8 @@ Both keys remain valid. The ladder is **additive** — nothing breaks, and there
 - **Old `false_positives` are ambiguous by design.** That single number mixed "control held" with "benign activity." Splitting it requires reading the hunt. Don't guess.
 - **Provenance applies to net-new `confirmed` only.** Legacy `true_positives` never claimed a producer, so there is nothing to check; those counts keep rolling up untouched. The provenance mapping is required the moment you write `verdict: confirmed`.
 
+> The instinct behind this gate — trust what a producer is *allowed* to do, declared out of band, over what any single message *claims* to have done — owes something to the way Anthropic's open agent harness reasons about capability and tool access. We adapted it to hunt verdicts.
+
 ### MITRE ATT&CK Tactic Reference
 
 Use these **lowercase hyphenated** values for the `tactics` field:
