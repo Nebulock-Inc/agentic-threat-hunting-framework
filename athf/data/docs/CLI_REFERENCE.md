@@ -627,7 +627,7 @@ Hunt Title: Kerberoasting Detection via Unusual TGS Requests
 Primary Tactic [credential-access]: credential-access
 Target Platforms (comma-separated) [windows]: windows
 Data Sources (comma-separated) [windows-event-logs]: windows-event-logs,edr-telemetry
-Your Name [Your Name]: Jane Doe
+6. Hunter (your name): Jane Doe
 Severity [medium]: high
 ```
 
@@ -732,7 +732,7 @@ data_sources:
 severity: high
 tags: []
 findings: []      # confirmed | suspected (populate during KEEP)
-ruled_out: []     # attempted_not_vulnerable | benign (populate during KEEP)
+ruled_out: []     # attempted_not_vulnerable | benign | inconclusive (populate during KEEP)
 ---
 
 ## LEARN
@@ -936,8 +936,8 @@ Summary: 3 valid, 1 invalid
 
 **Verdicts** (when `findings` / `ruled_out` are present):
 - Every entry must carry a `verdict` from: `confirmed`, `suspected`, `attempted_not_vulnerable`, `benign`, `inconclusive`
-- **Evidence gate:** `verdict: confirmed` requires a non-empty `confirmation` field. Telemetry in `evidence` alone caps the entry at `suspected`
-- **Routing rule:** `attempted_not_vulnerable` and `benign` must appear in `ruled_out`, never in `findings`
+- **Evidence gate:** `verdict: confirmed` requires `confirmation` to be a mapping — not a scalar — carrying a supported `method`, a `produced_by` declared in the workspace-root `.athfconfig.yaml`, an `attested_by` naming a person distinct from the producer, and a non-empty `detail`. Telemetry in `evidence` alone caps the entry at `suspected`
+- **Routing rule:** `attempted_not_vulnerable`, `benign`, and `inconclusive` must appear in `ruled_out`, never in `findings`
 - `attempted_not_vulnerable` entries must name the control that held
 
 See [FORMAT_GUIDELINES.md](../hunts/FORMAT_GUIDELINES.md) → The Verdict Ladder for entry shapes.

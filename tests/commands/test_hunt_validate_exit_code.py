@@ -6,6 +6,8 @@ by a means its producer cannot perform merged green. The gate has to be
 observable to a shell, not only to a human reading scrollback.
 """
 
+from __future__ import annotations
+
 from pathlib import Path
 
 import pytest

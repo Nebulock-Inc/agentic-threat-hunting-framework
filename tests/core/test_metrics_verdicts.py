@@ -209,6 +209,7 @@ class TestFrontmatterVerdicts:
 
         h = Aggregator(workspace=tmp_path).extract()["hunts"]["H-0045"]
         assert h["true_positives"] == 0
+        assert h["confirmed"] == 0
 
     def test_malformed_findings_do_not_raise(self, tmp_path: Path) -> None:
         _write_hunt(

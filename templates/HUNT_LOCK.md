@@ -11,7 +11,7 @@ data_sources: [SIEM, EDR, etc.]
 related_hunts: []
 findings_count: 0
 findings: []  # confirmed | suspected — each entry: subject, verdict, evidence, confirmation
-ruled_out: []  # attempted_not_vulnerable | benign — each entry: subject, verdict, reason
+ruled_out: []  # attempted_not_vulnerable | benign | inconclusive — each entry: subject, verdict, reason
 # Legacy counters, kept for hunts predating the ladder. Leave commented out: an
 # explicit value overrides the counts derived from findings/ruled_out above, so
 # `true_positives: 0` would mask a real confirmed finding.

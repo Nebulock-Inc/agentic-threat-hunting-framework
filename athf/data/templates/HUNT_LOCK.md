@@ -11,7 +11,7 @@ data_sources: [Splunk, Elasticsearch, Sentinel]  # SIEM/log platforms used (add 
 related_hunts: []  # Hunt IDs that relate to this hunt (e.g., [H-0001, H-0005])
 findings_count: 0  # Total findings discovered (optional - can update post-execution)
 findings: []  # Verdict-tagged findings: confirmed | suspected. Each entry: subject, verdict, evidence, confirmation
-ruled_out: []  # Results that closed the question: attempted_not_vulnerable | benign. Each entry: subject, verdict, reason
+ruled_out: []  # Results that closed the question: attempted_not_vulnerable | benign | inconclusive. Each entry: subject, verdict, reason
 # Legacy counters, still read for hunts predating the verdict ladder. Leave them
 # commented out: an explicit value overrides the counts derived from
 # findings/ruled_out above, so `true_positives: 0` would mask a real confirmed

@@ -170,9 +170,13 @@ findings:
     evidence: >-
       OCSF process_activity: python3 spawned by sh writing to
       /tmp/.cache/kworker, followed by outbound TLS to 185.243.x.x:443
-    confirmation: >-
-      Host triage recovered /var/spool/cron/crontabs/svc_deploy with the
-      matching @reboot entry and the dropper still on disk
+    confirmation:
+      method: host_forensics
+      produced_by: ir-team
+      attested_by: J. Halloran
+      detail: >-
+        Host triage recovered /var/spool/cron/crontabs/svc_deploy with the
+        matching @reboot entry and the dropper still on disk
   - subject: "fin-laptop-11 / jhalloran"
     verdict: suspected
     technique: T1110.003

@@ -31,6 +31,151 @@ from athf.core.verdicts import (
 LADDER_KEYS = ("findings", "ruled_out")
 
 
+def _msg_missing_verdict(where: str, detail: Any) -> str:
+    return f"{where} is missing required field: verdict"
+
+
+def _msg_invalid_verdict(where: str, detail: Any) -> str:
+    return f"{where}: {detail}"
+
+
+def _msg_legacy_verdict(where: str, detail: Any) -> str:
+    return (
+        f"{where} uses the legacy verdict '{detail}', which has no "
+        f"place on the ladder; assign one of {', '.join(VERDICTS)} or keep the count "
+        "in the legacy true_positives / false_positives keys"
+    )
+
+
+def _msg_misrouted(where: str, detail: Any) -> str:
+    verdict, expected = detail
+    return f"{where} has verdict '{verdict}', which belongs in {expected}"
+
+
+def _msg_unsupported_confirmation(where: str, detail: Any) -> str:
+    return (
+        f"{where} claims verdict '{CONFIRMED}' but has no usable "
+        f"{' or '.join(detail)}; confirmed requires telemetry evidence plus a "
+        "description of the independent confirmation performed outside the log "
+        "corpus (controlled reproduction, host forensics, or configuration review)"
+    )
+
+
+def _msg_circular_confirmation(where: str, detail: Any) -> str:
+    return (
+        f"{where} confirms verdict '{CONFIRMED}' by pointing back "
+        "at the log corpus; the corpus cannot confirm itself. Describe what you did "
+        "outside it — reproduced the behavior, imaged the host, reviewed the config"
+    )
+
+
+def _msg_deferred_confirmation(where: str, detail: Any) -> str:
+    return (
+        f"{where} claims verdict '{CONFIRMED}' but its confirmation "
+        "says the work has not happened yet; that is a 'suspected' finding until it "
+        "does. Downgrade the verdict and keep the note — flagging what confirmation "
+        "would take is the right answer, not a lesser one"
+    )
+
+
+def _msg_unnamed_control(where: str, detail: Any) -> str:
+    return (
+        f"{where} has verdict '{ATTEMPTED_NOT_VULNERABLE}' but does "
+        "not name the control that held; set 'control' to the specific control and how "
+        "you verified it held"
+    )
+
+
+def _msg_missing_provenance(where: str, detail: Any) -> str:
+    return (
+        f"{where} claims verdict '{CONFIRMED}' without provenance. "
+        "Confirmation must be a mapping with 'method', 'produced_by', 'attested_by' "
+        "and 'detail' — reading a confirmation cannot establish that the work behind "
+        "it happened, so who produced it is what the gate checks"
+    )
+
+
+def _msg_unknown_producer(where: str, detail: Any) -> str:
+    return (
+        f"{where} names producer '{detail}', which is not declared in "
+        ".athfconfig.yaml under provenance.producers. Declare it with the capabilities "
+        "it can actually reach; an undeclared producer cannot reach 'confirmed'"
+    )
+
+
+def _msg_method_exceeds_capability(where: str, detail: Any) -> str:
+    producer, method = detail
+    return (
+        f"{where} claims confirmation method '{method}', which "
+        f"'{producer}' has not declared in .athfconfig.yaml. A producer cannot confirm "
+        "by a means it has no access to — either declare the capability or downgrade "
+        "the verdict to 'suspected'"
+    )
+
+
+def _msg_corpus_only_method(where: str, detail: Any) -> str:
+    return (
+        f"{where} offers '{detail}' as its confirmation method, but "
+        "that only reads the log corpus, and the corpus cannot corroborate itself. "
+        "Querying is real work and still caps at 'suspected'"
+    )
+
+
+def _msg_self_declared_capability(where: str, detail: Any) -> str:
+    return (
+        f"{where} declares its own capabilities in "
+        f"{', '.join(detail)}. Capabilities are declared in .athfconfig.yaml, never in "
+        "the finding — a claim and the licence to make it cannot travel together"
+    )
+
+
+def _msg_unattested(where: str, detail: Any) -> str:
+    return (
+        f"{where} claims verdict '{CONFIRMED}' but 'attested_by' does "
+        f"not name a person ({detail!r}). Out-of-corpus work needs someone answerable "
+        "for it; a role, a team, or the automation itself cannot vouch for it"
+    )
+
+
+def _msg_self_attested(where: str, detail: Any) -> str:
+    producer, attestor = detail
+    return (
+        f"{where} names '{attestor}' in 'attested_by', which is a "
+        f"declared producer, not a person (produced_by is '{producer}'). An "
+        "attestation is a second party vouching for the work; set 'attested_by' to "
+        "the person who can be asked what they saw"
+    )
+
+
+def _unmapped_gate_message(where: str, detail: Any) -> str:
+    # Validity is derived from this list, so a code added to gate_failures
+    # without a message here would make an offending file report clean while
+    # aggregation refuses to count it — the validate/aggregate divergence, again.
+    return (
+        f"{where} fails the verdict gate; see "
+        "FORMAT_GUIDELINES.md → The Verdict Ladder"
+    )
+
+
+_GATE_MESSAGES: Dict[str, Any] = {
+    MISSING_VERDICT: _msg_missing_verdict,
+    INVALID_VERDICT: _msg_invalid_verdict,
+    LEGACY_VERDICT: _msg_legacy_verdict,
+    MISROUTED: _msg_misrouted,
+    UNSUPPORTED_CONFIRMATION: _msg_unsupported_confirmation,
+    CIRCULAR_CONFIRMATION: _msg_circular_confirmation,
+    DEFERRED_CONFIRMATION: _msg_deferred_confirmation,
+    UNNAMED_CONTROL: _msg_unnamed_control,
+    MISSING_PROVENANCE: _msg_missing_provenance,
+    UNKNOWN_PRODUCER: _msg_unknown_producer,
+    METHOD_EXCEEDS_CAPABILITY: _msg_method_exceeds_capability,
+    CORPUS_ONLY_METHOD: _msg_corpus_only_method,
+    SELF_DECLARED_CAPABILITY: _msg_self_declared_capability,
+    UNATTESTED: _msg_unattested,
+    SELF_ATTESTED: _msg_self_attested,
+}
+
+
 class HuntParser:
     """Parser for ATHF hunt files."""
 
@@ -217,117 +362,24 @@ class HuntParser:
         """Render :func:`gate_failures` as hunter-facing messages.
 
         The rules themselves live in ``athf.core.verdicts`` so that validation
-        and aggregation cannot disagree about what earns a verdict.
+        and aggregation cannot disagree about what earns a verdict. The
+        code-to-message rendering lives in ``_GATE_MESSAGES`` so this stays a
+        thin loop; an unmapped code falls back to ``_unmapped_gate_message`` so
+        a code added to ``gate_failures`` without a message here can never make
+        an offending file report clean while aggregation refuses to count it.
         """
         subject = entry.get("subject") or f"{key}[{index}]"
         where = f"{key}[{index}] ({subject})"
-        errors: List[str] = []
 
         if self._registry is None:
             from athf.core.provenance import load_registry
 
             self._registry = load_registry(self.file_path.parent)
 
-        for code, detail in gate_failures(key, entry, self._registry):
-            if code == MISSING_VERDICT:
-                errors.append(f"{where} is missing required field: verdict")
-            elif code == INVALID_VERDICT:
-                errors.append(f"{where}: {detail}")
-            elif code == LEGACY_VERDICT:
-                errors.append(
-                    f"{where} uses the legacy verdict '{detail}', which has no "
-                    f"place on the ladder; assign one of {', '.join(VERDICTS)} or keep the count "
-                    "in the legacy true_positives / false_positives keys"
-                )
-            elif code == MISROUTED:
-                verdict, expected = detail
-                errors.append(
-                    f"{where} has verdict '{verdict}', which belongs in {expected}"
-                )
-            elif code == UNSUPPORTED_CONFIRMATION:
-                errors.append(
-                    f"{where} claims verdict '{CONFIRMED}' but has no usable "
-                    f"{' or '.join(detail)}; confirmed requires telemetry evidence plus a "
-                    "description of the independent confirmation performed outside the log "
-                    "corpus (controlled reproduction, host forensics, or configuration review)"
-                )
-            elif code == CIRCULAR_CONFIRMATION:
-                errors.append(
-                    f"{where} confirms verdict '{CONFIRMED}' by pointing back "
-                    "at the log corpus; the corpus cannot confirm itself. Describe what you did "
-                    "outside it — reproduced the behavior, imaged the host, reviewed the config"
-                )
-            elif code == DEFERRED_CONFIRMATION:
-                errors.append(
-                    f"{where} claims verdict '{CONFIRMED}' but its confirmation "
-                    "says the work has not happened yet; that is a 'suspected' finding until it "
-                    "does. Downgrade the verdict and keep the note — flagging what confirmation "
-                    "would take is the right answer, not a lesser one"
-                )
-            elif code == UNNAMED_CONTROL:
-                errors.append(
-                    f"{where} has verdict '{ATTEMPTED_NOT_VULNERABLE}' but does "
-                    "not name the control that held; set 'control' to the specific control and how "
-                    "you verified it held"
-                )
-            elif code == MISSING_PROVENANCE:
-                errors.append(
-                    f"{where} claims verdict '{CONFIRMED}' without provenance. "
-                    "Confirmation must be a mapping with 'method', 'produced_by', 'attested_by' "
-                    "and 'detail' — reading a confirmation cannot establish that the work behind "
-                    "it happened, so who produced it is what the gate checks"
-                )
-            elif code == UNKNOWN_PRODUCER:
-                errors.append(
-                    f"{where} names producer '{detail}', which is not declared in "
-                    ".athfconfig.yaml under provenance.producers. Declare it with the capabilities "
-                    "it can actually reach; an undeclared producer cannot reach 'confirmed'"
-                )
-            elif code == METHOD_EXCEEDS_CAPABILITY:
-                producer, method = detail
-                errors.append(
-                    f"{where} claims confirmation method '{method}', which "
-                    f"'{producer}' has not declared in .athfconfig.yaml. A producer cannot confirm "
-                    "by a means it has no access to — either declare the capability or downgrade "
-                    "the verdict to 'suspected'"
-                )
-            elif code == CORPUS_ONLY_METHOD:
-                errors.append(
-                    f"{where} offers '{detail}' as its confirmation method, but "
-                    "that only reads the log corpus, and the corpus cannot corroborate itself. "
-                    "Querying is real work and still caps at 'suspected'"
-                )
-            elif code == SELF_DECLARED_CAPABILITY:
-                errors.append(
-                    f"{where} declares its own capabilities in "
-                    f"{', '.join(detail)}. Capabilities are declared in .athfconfig.yaml, never in "
-                    "the finding — a claim and the licence to make it cannot travel together"
-                )
-            elif code == UNATTESTED:
-                errors.append(
-                    f"{where} claims verdict '{CONFIRMED}' but 'attested_by' does "
-                    f"not name a person ({detail!r}). Out-of-corpus work needs someone answerable "
-                    "for it; a role, a team, or the automation itself cannot vouch for it"
-                )
-            elif code == SELF_ATTESTED:
-                producer, attestor = detail
-                errors.append(
-                    f"{where} names '{attestor}' in 'attested_by', which is a "
-                    f"declared producer, not a person (produced_by is '{producer}'). An "
-                    "attestation is a second party vouching for the work; set 'attested_by' to "
-                    "the person who can be asked what they saw"
-                )
-            else:
-                # No branch matched. Validity is derived from this list, so a code
-                # added to gate_failures without a message here would make an
-                # offending file report clean while aggregation refuses to count
-                # it — the validate/aggregate divergence, one more time.
-                errors.append(
-                    f"{where} fails the verdict gate ({code}: {detail!r}); see "
-                    "FORMAT_GUIDELINES.md → The Verdict Ladder"
-                )
-
-        return errors
+        return [
+            _GATE_MESSAGES.get(code, _unmapped_gate_message)(where, detail)
+            for code, detail in gate_failures(key, entry, self._registry)
+        ]
 
 
 def parse_hunt_file(file_path: Path) -> Dict:

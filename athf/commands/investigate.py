@@ -605,7 +605,7 @@ def promote(
     Creates a hunt file (H-XXXX) from an investigation, adding:
     • Hunt-required metadata (tactics, techniques, platform)
     • Hunt status and tracking fields
-    • Findings count and TP/FP fields (default: 0)
+    • Verdict-ladder fields: findings_count, findings, ruled_out (default: empty)
     • Reference to original investigation (spawned_from)
 
     \b
