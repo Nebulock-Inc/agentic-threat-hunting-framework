@@ -605,7 +605,7 @@ def promote(
     Creates a hunt file (H-XXXX) from an investigation, adding:
     • Hunt-required metadata (tactics, techniques, platform)
     • Hunt status and tracking fields
-    • Findings count and TP/FP fields (default: 0)
+    • Verdict-ladder fields: findings_count, findings, ruled_out (default: empty)
     • Reference to original investigation (spawned_from)
 
     \b
@@ -723,8 +723,11 @@ def promote(
         "related_hunts": inv_related_hunts,
         "spawned_from": investigation_id,  # Reference investigation
         "findings_count": 0,
-        "true_positives": 0,
-        "false_positives": 0,
+        # No legacy counters. An explicit true_positives outranks the tally derived
+        # from verdicts, so seeding one here would arm a fuse: the hunter writes an
+        # attested 'confirmed' finding later and the count still reads zero.
+        "findings": [],
+        "ruled_out": [],
         "customer_deliverables": [],
         "tags": inv_tags,
     }

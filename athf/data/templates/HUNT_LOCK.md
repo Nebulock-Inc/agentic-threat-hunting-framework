@@ -10,8 +10,14 @@ techniques: [T1003.001, T1059.001]  # MITRE ATT&CK technique IDs
 data_sources: [Splunk, Elasticsearch, Sentinel]  # SIEM/log platforms used (add more entries as needed; keep each as a concrete platform name)
 related_hunts: []  # Hunt IDs that relate to this hunt (e.g., [H-0001, H-0005])
 findings_count: 0  # Total findings discovered (optional - can update post-execution)
-true_positives: 0  # Count of confirmed malicious activity (optional)
-false_positives: 0  # Count of benign activity flagged (optional)
+findings: []  # Verdict-tagged findings: confirmed | suspected. Each entry: subject, verdict, evidence, confirmation
+ruled_out: []  # Results that closed the question: attempted_not_vulnerable | benign | inconclusive. Each entry: subject, verdict, reason (attempted_not_vulnerable also requires control naming the control that held)
+# Legacy counters, still read for hunts predating the verdict ladder. Leave them
+# commented out: an explicit value overrides the counts derived from
+# findings/ruled_out above, so `true_positives: 0` would mask a real confirmed
+# finding. Only uncomment if you maintain counts by hand without the ladder.
+# true_positives: 0
+# false_positives: 0
 customer_deliverables: []  # For managed service providers tracking client reports (optional)
 tags: [supply-chain, credential-theft, living-off-the-land]  # Freeform tags for categorization
 ---
@@ -161,15 +167,43 @@ Define your hunt scope using the ABLE framework:
 
 ### Findings
 
-| **Finding** | **Ticket** | **Description** |
-|-------------|-----------|-----------------|
-| [True Positive / False Positive / Suspicious] | [INC-####] | [Brief description of finding and impact] |
-| [Finding type] | [Ticket] | [Description] |
-| [Finding type] | [Ticket] | [Description] |
+Findings are things you're reporting as malicious. Two verdicts belong here — nothing else.
 
-**True Positives:** [Count and summary]
-**False Positives:** [Count and common patterns]
-**Suspicious Events:** [Count requiring further investigation]
+| **Verdict** | **Subject** | **Ticket** | **Evidence** | **Independent Confirmation** |
+|-------------|-------------|-----------|--------------|------------------------------|
+| `confirmed` | [Host, account, or resource] | [INC-####] | [Telemetry that surfaced it — source, fields, event IDs] | [What established root cause outside the logs: controlled reproduction, host forensics, or config review] |
+| `suspected` | [Host, account, or resource] | [INC-####] | [Telemetry that surfaced it] | None — telemetry only |
+
+**The evidence gate:** `confirmed` requires telemetry **plus** something from outside the log corpus — a controlled reproduction (attack range), host-level forensic artifacts, or a configuration review that proves the activity was possible and occurred. Telemetry alone never reaches `confirmed`. If you couldn't confirm, the verdict is `suspected`, and that's an honest answer, not a downgrade.
+
+**Findings Example:**
+
+| **Verdict** | **Subject** | **Ticket** | **Evidence** | **Independent Confirmation** |
+|-------------|-------------|-----------|--------------|------------------------------|
+| `confirmed` | `web-prod-04` / `svc_deploy` | INC-4471 | OCSF `process_activity` — `python3` spawned by `sh` writing to `/tmp/.cache/kworker`, then outbound TLS to 185.243.x.x on :443 (T1053.003 cron persistence) | Host triage pulled `/var/spool/cron/crontabs/svc_deploy` with the matching `@reboot` entry and the dropper binary still on disk |
+| `suspected` | `fin-laptop-11` / `jhalloran` | INC-4472 | OCSF `authentication` — 14 failed then 1 successful Okta auth from a new ASN inside 90 seconds (T1110.003) | None — no endpoint agent on this host, so nothing outside the IdP logs to corroborate |
+
+### Ruled Out
+
+Results that closed the question. These are output, not the absence of output — for customer-facing reports, `attempted_not_vulnerable` is often the most valuable row in the hunt.
+
+| **Verdict** | **Subject** | **What Closed It** |
+|-------------|-------------|--------------------|
+| `attempted_not_vulnerable` | [Host, account, or resource] | [Name the control that held and how you verified it held] |
+| `benign` | [Host, account, or resource] | [The legitimate activity that explains it] |
+| `inconclusive` | [Host, account, or resource] | [Which telemetry was missing or too sparse to decide] |
+
+**Ruled Out Example:**
+
+| **Verdict** | **Subject** | **What Closed It** |
+|-------------|-------------|--------------------|
+| `attempted_not_vulnerable` | `build-runner-02` | LSASS-equivalent credential read attempted via `gcore` against `sssd`; SELinux enforcing mode denied the ptrace attach (`avc: denied { ptrace }` in audit log). Control held — verified policy is enforcing across the fleet, not just this host |
+| `benign` | `svc_backup` on 5 Windows hosts | Scheduled Veeam agent invoking PowerShell remoting nightly at 02:00; matched the change-management window and the signed parent binary |
+| `inconclusive` | macOS fleet (38 hosts) | `process.command_line` populated on only 12% of macOS EDR events in the hunt window, so shell argument patterns couldn't be evaluated |
+
+**Routing rule:** `attempted_not_vulnerable` and `benign` go in `ruled_out`, never in `findings`. Keeping them separate means a report can say "we looked, here's what we found, and here's what your controls stopped" instead of collapsing both into one number.
+
+**Counts:** `confirmed` [N] · `suspected` [N] · `attempted_not_vulnerable` [N] · `benign` [N] · `inconclusive` [N]
 
 ### Detection Logic
 
@@ -207,7 +241,8 @@ Define your hunt scope using the ABLE framework:
 
 ### Follow-up Actions
 
-- [ ] [Escalate true positives to incident response]
+- [ ] [Escalate `confirmed` findings to incident response]
+- [ ] [Pursue confirmation for `suspected` findings — reproduction, host forensics, or config review]
 - [ ] [Create detection rule from hunt logic]
 - [ ] [Update hypothesis with learnings]
 - [ ] [Address telemetry gaps with engineering team]

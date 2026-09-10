@@ -3,6 +3,7 @@ Tests for ATHF CLI commands using actual implementation.
 """
 
 import os
+import re
 
 import pytest
 import yaml
@@ -10,6 +11,7 @@ from click.testing import CliRunner
 
 from athf.commands.hunt import hunt
 from athf.commands.init import init
+from athf.core.verdicts import is_attributable
 
 
 @pytest.fixture
@@ -60,6 +62,55 @@ class TestInitCommand:
         assert "edr" in config
         assert config["hunt_prefix"] == "H-"
 
+    def test_init_ships_provenance_stub_commented_out(self, runner, temp_workspace):
+        """A fresh workspace documents provenance without granting it.
+
+        The stub has to be inert: uncommenting is a deliberate act, because a
+        declared producer is a licence to write ``confirmed``. If init shipped a
+        live producer, whoever ran it would inherit the strongest verdict in the
+        ladder without choosing to.
+        """
+        from athf.core.provenance import load_registry
+
+        result = runner.invoke(init, ["--non-interactive"])
+        assert result.exit_code == 0
+
+        config_path = temp_workspace / "config" / ".athfconfig.yaml"
+        raw = config_path.read_text(encoding="utf-8")
+
+        assert "# provenance:" in raw, "operators need the shape to copy"
+        assert "capabilities" in raw
+
+        parsed = yaml.safe_load(raw)
+        assert "provenance" not in parsed, "the stub must not declare a live producer"
+        assert parsed["hunt_prefix"] == "H-", "trailing comment must not corrupt the config"
+
+        assert load_registry(temp_workspace).is_empty()
+
+    def test_init_provenance_stub_is_valid_yaml_once_uncommented(self, runner, temp_workspace):
+        """Stripping the comment markers must yield a working registry.
+
+        A stub that doesn't parse when uncommented is worse than no stub — the
+        operator's first contact with provenance would be a YAML error.
+        """
+        from athf.core.provenance import ProducerRegistry, confirming_capabilities
+
+        result = runner.invoke(init, ["--non-interactive"])
+        assert result.exit_code == 0
+
+        raw = (temp_workspace / "config" / ".athfconfig.yaml").read_text(encoding="utf-8")
+        block = raw[raw.index("# provenance:") :]
+        uncommented = "\n".join(
+            line[2:] for line in block.splitlines() if line.startswith("# ") or line == "#"
+        )
+
+        registry = ProducerRegistry.from_config(yaml.safe_load(uncommented))
+        assert not registry.is_empty()
+        assert confirming_capabilities(registry, "ir-team")
+        assert not confirming_capabilities(registry, "baseline-agent"), (
+            "the query-only example must stay capped at suspected"
+        )
+
     def test_init_creates_agents_file(self, runner, temp_workspace):
         """Test that init creates AGENTS.md."""
         result = runner.invoke(init, ["--non-interactive"])
@@ -96,6 +147,18 @@ class TestInitCommand:
         assert result.exit_code == 0
         assert (custom_path / "hunts").exists()
         assert (custom_path / "config" / ".athfconfig.yaml").exists()
+
+
+def _written_hunter(workspace):
+    """Read `hunter:` from the highest-numbered hunt file in the workspace.
+
+    Scraping the hunt ID out of `result.output` is unreliable — rich wraps the
+    digits in ANSI codes — so find the file the way the ID allocator does, by
+    number. `init` may have copied samples with lower IDs.
+    """
+    hunt_files = sorted((workspace / "hunts").rglob("H-*.md"), key=lambda p: p.stem)
+    content = hunt_files[-1].read_text(encoding="utf-8")
+    return re.search(r"^hunter:\s*(.*)$", content, re.MULTILINE).group(1).strip()
 
 
 class TestHuntNewCommand:
@@ -143,6 +206,50 @@ class TestHuntNewCommand:
         assert "LSASS Memory Dumping" in content
         assert "T1003.001" in content
         assert "## LEARN" in content
+
+    def test_hunt_new_does_not_forge_a_hunter_name(self, runner, temp_workspace):
+        """An unset --hunter must not write a name nobody chose.
+
+        The old default put `hunter: AI Assistant` in a human's hunt file. That
+        name is on the unattributable list, so a hunter who copied it into
+        `attested_by` — the obvious move, it is right there in their own
+        frontmatter — got refused with nothing pointing at the default that
+        supplied it. Leaving the field visibly unfilled is the honest state.
+        """
+        runner.invoke(init, ["--non-interactive"])
+        result = runner.invoke(hunt, ["new", "--title", "No hunter given", "--non-interactive"])
+
+        assert result.exit_code == 0
+        hunter = _written_hunter(temp_workspace)
+        assert hunter != "AI Assistant"
+        # And whatever it does write must not pass attestation, or the blank is
+        # worse than the placeholder: silently forgeable instead of visibly empty.
+        assert not is_attributable(hunter), hunter
+
+    def test_hunt_new_honors_an_explicit_hunter(self, runner, temp_workspace):
+        """The inverse: a name the hunter supplied is written unchanged."""
+        runner.invoke(init, ["--non-interactive"])
+        runner.invoke(
+            hunt,
+            ["new", "--title", "Named", "--hunter", "Sydney Marrone", "--non-interactive"],
+        )
+
+        assert _written_hunter(temp_workspace) == "Sydney Marrone"
+
+    def test_hunt_new_uses_the_configured_hunter(self, runner, temp_workspace):
+        """A workspace-level hunter name spares typing it every hunt.
+
+        Unlike provenance capabilities this is safe to read from config: a name
+        is not a grant. It still has to clear attestation on its own merits.
+        """
+        runner.invoke(init, ["--non-interactive"])
+        config_path = temp_workspace / "config" / ".athfconfig.yaml"
+        config_path.write_text(
+            config_path.read_text() + "\nhunter: Sydney Marrone\n", encoding="utf-8"
+        )
+
+        runner.invoke(hunt, ["new", "--title", "From config", "--non-interactive"])
+        assert _written_hunter(temp_workspace) == "Sydney Marrone"
 
     def test_hunt_new_missing_title_non_interactive(self, runner, temp_workspace):
         """Test that hunt new fails without title in non-interactive mode."""
@@ -497,7 +604,7 @@ class TestHuntValidateCommand:
 
         result = runner.invoke(hunt, ["validate", "H-9999"])
 
-        assert result.exit_code == 0  # Command runs but shows error message
+        assert result.exit_code != 0
         assert "not found" in result.output.lower()
 
 

@@ -22,8 +22,16 @@ from athf.core.metrics import (
     EventStore,
     MetricEvent,
 )
+from athf.core.verdicts import VERDICTS
 
 console = Console()
+
+# Ladder rows shared by `show` and `summary`, e.g. ("Attempted not vulnerable",
+# "attempted_not_vulnerable"). Derived from VERDICTS so a new tier cannot be
+# added to the vocabulary and forgotten in the CLI.
+VERDICT_ROWS: Tuple[Tuple[str, str], ...] = tuple(
+    (verdict.replace("_", " ").capitalize(), verdict) for verdict in VERDICTS
+)
 
 
 METRICS_EPILOG = """
@@ -60,7 +68,7 @@ def metrics() -> None:
 
     \b
     Manual via 'record' or athf.metrics.record_*:
-      • Hunt outcomes (TP / FP / inconclusive)
+      • Hunt outcomes (confirmed / suspected / attempted_not_vulnerable / benign / inconclusive)
       • Custom events
     """
 
@@ -118,6 +126,7 @@ def show(hunt_id: str, output_format: str, workspace: Path) -> None:
         ("Web searches", "web_searches"),
         ("Similarity searches", "similarity_searches"),
         ("Events analyzed", "events_analyzed"),
+        *VERDICT_ROWS,
         ("True positives", "true_positives"),
         ("False positives", "false_positives"),
     ):
@@ -184,6 +193,7 @@ def summary(output_format: str, workspace: Path) -> None:
         ("Web searches", "web_searches", "{:,}"),
         ("Similarity searches", "similarity_searches", "{:,}"),
         ("Events analyzed", "events_analyzed", "{:,}"),
+        *((label, key, "{:,}") for label, key in VERDICT_ROWS),
         ("True positives", "true_positives", "{:,}"),
         ("False positives", "false_positives", "{:,}"),
     ):

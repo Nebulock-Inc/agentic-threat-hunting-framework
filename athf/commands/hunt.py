@@ -17,6 +17,7 @@ from athf.core.attack_matrix import get_technique
 from athf.core.hunt_manager import HuntManager
 from athf.core.hunt_parser import validate_hunt_file
 from athf.core.template_engine import render_hunt_template
+from athf.core.verdicts import UNFILLED_HUNTER, VERDICTS
 from athf.utils.validation import validate_hunt_id, validate_research_id
 
 console = Console()
@@ -140,7 +141,7 @@ def hunt() -> None:
 @click.option("--behavior", help="Behavior description (for ABLE framework)")
 @click.option("--location", help="Location/scope (for ABLE framework)")
 @click.option("--evidence", help="Evidence description (for ABLE framework)")
-@click.option("--hunter", help="Hunter name", default="AI Assistant")
+@click.option("--hunter", help="Hunter name (defaults to the workspace `hunter` config key)")
 @click.option("--research", help="Research document ID (e.g., R-0001) this hunt is based on")
 @click.option(
     "--hypothesis-duration",
@@ -286,6 +287,12 @@ def new(
         ds_input = Prompt.ask("   Data Sources", default=default_sources)
         hunt_data_sources = [ds.strip() for ds in ds_input.split(",")]
 
+        # Hunter — only worth asking when neither the flag nor config answered.
+        if not hunter and not config.get("hunter"):
+            hunter = Prompt.ask("\n6. Hunter (your name)", default="").strip() or None
+
+    hunt_hunter = hunter or config.get("hunter") or UNFILLED_HUNTER
+
     # Render template
     hunt_content = render_hunt_template(
         hunt_id=hunt_id,
@@ -294,7 +301,7 @@ def new(
         tactics=hunt_tactics,
         platform=hunt_platforms,
         data_sources=hunt_data_sources,
-        hunter=hunter or "AI Assistant",
+        hunter=hunt_hunter,
         hypothesis=hypothesis,
         threat_context=threat_context,
         actor=actor,
@@ -478,7 +485,7 @@ def validate(hunt_id: str) -> None:
         if not validate_hunt_id(hunt_id):
             console.print(f"[red]Error: Invalid hunt ID format: {hunt_id}[/red]")
             console.print("[yellow]Expected format: H-0001[/yellow]")
-            return
+            raise click.Abort()
 
         # Validate specific hunt - search recursively for backward compatibility
         hunts_dir = Path("hunts")
@@ -489,7 +496,7 @@ def validate(hunt_id: str) -> None:
             matching_files = list(hunts_dir.rglob(f"{hunt_id}.md"))
             if not matching_files:
                 console.print(f"[red]Hunt not found: {hunt_id}[/red]")
-                return
+                raise click.Abort()
             hunt_file = matching_files[0]  # Use first match
 
         # Validate path is within hunts directory
@@ -497,7 +504,7 @@ def validate(hunt_id: str) -> None:
             hunt_file.resolve().relative_to(hunts_dir.resolve())
         except (ValueError, OSError):
             console.print("[red]Error: Invalid hunt file path[/red]")
-            return
+            raise click.Abort() from None
 
         _validate_single_hunt(hunt_file)
     else:
@@ -532,19 +539,24 @@ def validate(hunt_id: str) -> None:
 
         console.print(f"\n[bold]Results:[/bold] {valid_count} valid, {invalid_count} invalid")
 
+        if invalid_count:
+            raise click.Abort()
+
 
 def _validate_single_hunt(hunt_file: Path) -> None:
-    """Validate a single hunt file."""
+    """Validate a single hunt file, aborting when it fails."""
     console.print(f"\n[bold]🔍 Validating {hunt_file.name}...[/bold]\n")
 
     is_valid, errors = validate_hunt_file(hunt_file)
 
     if is_valid:
         console.print("[green]✅ Hunt is valid![/green]")
-    else:
-        console.print("[red]❌ Hunt has validation errors:[/red]\n")
-        for error in errors:
-            console.print(f"  - {error}")
+        return
+
+    console.print("[red]❌ Hunt has validation errors:[/red]\n")
+    for error in errors:
+        console.print(f"  - {error}")
+    raise click.Abort()
 
 
 @hunt.command()
@@ -582,6 +594,8 @@ def stats() -> None:
     table.add_row("Total Hunts", str(stats["total_hunts"]))
     table.add_row("Completed Hunts", str(stats["completed_hunts"]))
     table.add_row("Total Findings", str(stats["total_findings"]))
+    for verdict in VERDICTS:
+        table.add_row(verdict.replace("_", " ").capitalize(), str(stats.get(verdict, 0)))
     table.add_row("True Positives", str(stats["true_positives"]))
     table.add_row("False Positives", str(stats["false_positives"]))
     table.add_row("Success Rate", f"{stats['success_rate']}%")
@@ -1150,6 +1164,8 @@ def _build_export_dict(
         "related_hunts": frontmatter.get("related_hunts", []),
         "spawned_from": frontmatter.get("spawned_from"),
         "findings_count": frontmatter.get("findings_count", 0),
+        "findings": hunt_data.get("findings", []),
+        "ruled_out": hunt_data.get("ruled_out", []),
         "true_positives": frontmatter.get("true_positives", 0),
         "false_positives": frontmatter.get("false_positives", 0),
         "events_scanned": frontmatter.get("events_scanned"),

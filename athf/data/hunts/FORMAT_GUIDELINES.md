@@ -78,8 +78,13 @@ techniques: [T1003.001]            # MITRE ATT&CK technique IDs (required)
 data_sources: [Splunk]             # SIEM/log platforms used (required)
 related_hunts: []                  # Related hunt IDs (optional)
 findings_count: 0                  # Total findings discovered (optional)
-true_positives: 0                  # Confirmed malicious activity (optional)
-false_positives: 0                 # Benign activity flagged (optional)
+findings: []                       # Verdict-tagged findings (optional) - see Verdict Ladder
+ruled_out: []                      # Results that closed the question (optional) - see Verdict Ladder
+# Legacy counters. Omit them when using findings/ruled_out: an explicit value
+# overrides the ladder-derived counts, so `true_positives: 0` masks a real
+# confirmed finding. Only set them by hand if you are not using the ladder.
+# true_positives: 0
+# false_positives: 0
 customer_deliverables: []          # For MSPs tracking deliverables (optional)
 tags: [credential-theft]           # Freeform categorization tags (optional)
 ---
@@ -106,11 +111,178 @@ tags: [credential-theft]           # Freeform categorization tags (optional)
 | Field | Type | Purpose | Example | When to Use |
 |-------|------|---------|---------|-------------|
 | `related_hunts` | array | Hunt IDs that relate to this hunt | `[H-0015, H-0038]` | When building on past work or pivoting |
-| `findings_count` | integer | Total findings (TP + FP + suspicious) | `15` | Post-execution or during KEEP phase |
-| `true_positives` | integer | Confirmed malicious activity | `3` | Post-execution summary |
-| `false_positives` | integer | Benign activity flagged | `12` | Post-execution summary |
+| `findings_count` | integer | Total findings across all verdicts | `15` | Post-execution or during KEEP phase |
+| `true_positives` | integer | Legacy count of malicious activity | `3` | Post-execution summary (superseded by `findings`) |
+| `false_positives` | integer | Legacy count of benign activity | `12` | Post-execution summary (superseded by `ruled_out`) |
+| `findings` | array of maps | Things you're reporting as malicious — `confirmed` or `suspected` only | see below | Post-execution, KEEP phase |
+| `ruled_out` | array of maps | Results that closed the question — `attempted_not_vulnerable` or `benign` | see below | Post-execution, KEEP phase |
 | `customer_deliverables` | array | Client report references (for MSPs) | `[CUST-2025-Q1-001]` | Managed service providers |
 | `tags` | array | Freeform categorization keywords | `[supply-chain, living-off-the-land]` | Additional context beyond ATT&CK |
+
+---
+
+## The Verdict Ladder
+
+`TP` / `FP` / `inconclusive` throws away information. It collapses two completely different outcomes into "false positive": *we saw the attack behavior and our control held* — which proves a defense works and is often the most valuable thing in a customer report — and *the thing we hunted for wasn't there*. It also treats a finding backed only by log data the same as one where root cause was independently established.
+
+The verdict ladder fixes both. Five verdicts, each with a gate:
+
+| Verdict | Meaning | Gate |
+|---------|---------|------|
+| `confirmed` | Malicious activity established | Telemetry evidence **plus** independent confirmation — controlled reproduction, host forensics, or configuration review |
+| `suspected` | Telemetry evidence only, no independent confirmation | This is the ceiling when you cannot confirm. Not a failure state |
+| `attempted_not_vulnerable` | Attack behavior observed; the control demonstrably held | Must name the control and say how you verified it held |
+| `benign` | Explained as legitimate activity | Name the legitimate activity, not just "looks normal" |
+| `inconclusive` | Insufficient telemetry to decide | Name the missing or sparse field / source |
+
+### Rule 1: Telemetry alone never reaches `confirmed`
+
+Query results are what surfaced the behavior, not proof of what happened. Reaching `confirmed` requires something from outside the log corpus:
+
+- **Controlled reproduction** — you reproduced the behavior in an attack range or lab and it does what you claimed
+- **Host forensics** — you pulled the artifact (crontab entry, LaunchAgent plist, binary on disk, registry key)
+- **Configuration review** — you inspected the actual config and it proves the activity was possible and occurred
+
+If none of those happened, the verdict is `suspected`. Writing `confirmed` off the back of query output is the exact failure this ladder exists to prevent — reading logs back and calling it confirmation is the cheapest path to satisfying a loose criterion, and it produces reports nobody should trust.
+
+Which is why the gate does not grade your description of the work. It checks **who produced the confirmation and whether they could have done it** — see [Rule 3](#rule-3-confirmed-requires-provenance-not-prose).
+
+### Rule 2: Routing — negative results are first-class output
+
+| Verdict | Goes in |
+|---------|---------|
+| `confirmed` | `findings` |
+| `suspected` | `findings` |
+| `attempted_not_vulnerable` | `ruled_out` |
+| `benign` | `ruled_out` |
+| `inconclusive` | `ruled_out` (or the telemetry-gaps section if hunt-wide) |
+
+`attempted_not_vulnerable` and `benign` never appear in `findings`. A hunt that finds nothing malicious but proves three controls held has produced real output — `ruled_out` is where that lands. `athf hunt validate` enforces both the routing rule and the evidence gate.
+
+### Rule 3: `confirmed` requires provenance, not prose
+
+Earlier versions of this gate read the `confirmation` text and judged whether it described real work. That was measured against a labeled corpus and hit a floor it cannot cross: `cross-validated by running a second query against the same table` is grammatically indistinguishable from genuine corroboration. No pattern set separates them, because **reading a confirmation cannot establish that the work behind it happened.**
+
+So `confirmation` is now a mapping, and the gate checks the producer:
+
+| Field | What it is |
+|-------|-----------|
+| `method` | How the confirmation was obtained (e.g. `host_forensics`, `range_reproduction`, `configuration_review`) |
+| `produced_by` | The producer — an analyst, team, or agent — declared in `.athfconfig.yaml` |
+| `attested_by` | A **named person** answerable for the out-of-corpus work. Never the producer itself — an attestation is a second party vouching for the work |
+| `detail` | Prose account of what was done. Still required, still checked, no longer load-bearing |
+
+Capabilities live in workspace config, **never in the finding**:
+
+```yaml
+# .athfconfig.yaml
+provenance:
+  producers:
+    ir-team:
+      capabilities: [clickhouse_query, host_forensics, configuration_review]
+    deep-baseline-investigator:
+      capabilities: [clickhouse_query]      # capped at suspected, permanently
+```
+
+That separation is the whole gate. An agent emits `verdict` / `evidence` / `confirmation`; it cannot rewrite the config that says what its producer can reach. A producer declaring only query access is structurally incapable of `confirmed` — not because its prose was graded and found wanting, but because the capability it would need was never declared.
+
+Seven ways a `confirmed` entry fails this gate:
+
+| Failure | Cause |
+|---------|-------|
+| **missing provenance** | `confirmation` is a string, or the mapping has no `method` |
+| **unknown producer** | `produced_by` names something absent from `provenance.producers` |
+| **method exceeds capability** | The producer never declared the `method` it claims to have used |
+| **corpus-only method** | The `method` only reads the log corpus (`clickhouse_query`, `siem_search`, `log_review`, …). Querying is real work and still caps at `suspected` |
+| **self-declared capability** | The finding carries `capabilities` / `analyst_capabilities` / `producer_capabilities`. Refused rather than ignored — a claim and the licence to make it cannot travel together |
+| **unattested** | `attested_by` names a role, a team, or the automation (`the team`, `AI assistant`, `pipeline`) instead of a person |
+| **self-attested** | `attested_by` names a declared producer — the same one as `produced_by`, or another. A producer cannot vouch for itself, and nothing in config can be asked what it saw |
+
+**Restrictive by default.** A workspace with no `provenance` section declares no producers, so nothing reaches `confirmed`. An unparseable config yields an empty registry for the same reason — a broken config must not become the reason `confirmed` starts passing.
+
+**Config must live above `hunts/`.** Either `.athfconfig.yaml` or `config/.athfconfig.yaml` at the workspace root. A config placed *inside* the hunt tree is ignored, because that directory is somewhere the finding author writes — a producer declared next to `H-0042.md` would be a self-declaration with a different filename, and the grant has to sit somewhere the claim cannot reach.
+
+**What remains forgeable.** Two things, both accepted rather than overlooked.
+
+A human can edit `.athfconfig.yaml` to declare a capability their producer doesn't have. That is the accepted residual for capability: the lie moves out of unfalsifiable prose into a separate file, in its own commit, contradicted by source an auditor can read.
+
+And `attested_by` is a free-text field an agent can fill with a colleague's name. Naming someone who did not do the work is a claim about a *person*, checkable by asking them — which is the point of requiring a name, and the reason the field refuses roles (`the team`), automation (`AI assistant`), and producers. It is not the reason `confirmed` is hard to reach: capability is. The denylist behind the role check is also open by construction — `SOC`, `Tier 2`, and `Analyst 7` pass it. Enumerating more role words raises the cost of the cheapest placeholder without closing the class, exactly as it did for corpus nouns.
+
+### Entry Shapes
+
+**`findings` entries** carry `subject`, `verdict`, `evidence`, and — for `confirmed` — a `confirmation` **mapping**:
+
+```yaml
+findings:
+  - subject: "web-prod-04 / svc_deploy"
+    verdict: confirmed
+    technique: T1053.003
+    ticket: INC-4471
+    evidence: >-
+      OCSF process_activity: python3 spawned by sh writing to
+      /tmp/.cache/kworker, followed by outbound TLS to 185.243.x.x:443
+    confirmation:
+      method: host_forensics
+      produced_by: ir-team
+      attested_by: J. Halloran
+      detail: >-
+        Host triage recovered /var/spool/cron/crontabs/svc_deploy with the
+        matching @reboot entry and the dropper still on disk
+  - subject: "fin-laptop-11 / jhalloran"
+    verdict: suspected
+    technique: T1110.003
+    ticket: INC-4472
+    evidence: >-
+      OCSF authentication: 14 failed then 1 successful Okta auth from a
+      new ASN within 90 seconds
+    confirmation: null  # no endpoint agent on this host - nothing outside the IdP logs
+```
+
+**`ruled_out` entries** carry `subject`, `verdict`, and `reason`:
+
+```yaml
+ruled_out:
+  - subject: "build-runner-02"
+    verdict: attempted_not_vulnerable
+    technique: T1003.007
+    control: "SELinux enforcing mode"
+    reason: >-
+      gcore attach against sssd denied by SELinux (avc: denied { ptrace }
+      in audit log). Verified enforcing mode is fleet-wide, not host-local
+  - subject: "svc_backup across 5 Windows hosts"
+    verdict: benign
+    reason: >-
+      Nightly Veeam agent invoking PowerShell remoting at 02:00, inside the
+      change-management window with a signed parent binary
+  - subject: "macOS fleet (38 hosts)"
+    verdict: inconclusive
+    reason: >-
+      process.command_line populated on only 12% of macOS EDR events in the
+      hunt window, so shell argument patterns could not be evaluated
+```
+
+`control` is **required** for `attempted_not_vulnerable` and enforced by `athf hunt validate` — "the control held" means nothing if you can't name which one. `reason` does not substitute for it, since every `ruled_out` entry carries a reason.
+
+`evidence` and `confirmation.detail` on a `confirmed` finding must actually describe what was checked. Validation rejects placeholders (`n/a`, `none`, `tbd`, `ok`, `-`), non-string values, and anything too short to be an account — `detail: n/a` is how you spell "I did not confirm this," so it fails the gate rather than satisfying it.
+
+`confirmation.detail` must also point somewhere other than the logs. Validation rejects answers that cite the corpus as their own source — `see telemetry above`, `as shown in the logs`, `per the query results`, `confirmed by the telemetry`, `same as evidence` — because the corpus cannot confirm itself; citing it is restating the evidence field, not corroborating it. What matters is whether the thing being cited is the corpus, not how the sentence opens: `as documented in the range runbook, we replayed the technique on a sacrificial host` passes, and so does `forensic image shows the crontab entry matching the process_activity log`. Both name an independent source, and mentioning telemetry alongside it is fine.
+
+Validation separately rejects a `detail` that says the work hasn't happened — `pending host forensics`, `unable to confirm independently`, `will confirm once the host is available`, `assumed confirmed based on prior hunts`. That note is accurate and worth keeping; it's the verdict that's wrong. Downgrade to `suspected` and leave the note in place.
+
+**These prose checks are no longer what holds the gate.** They catch the cheap ways of writing a circular confirmation and miss the careful ones — `cross-validated by running a second query against the same table` describes no work outside the corpus and passes all three, at a measured miss rate of roughly 1 in 9 on deliberately circular prose. That ceiling is why [Rule 3](#rule-3-confirmed-requires-provenance-not-prose) exists: the same sentence attached to a producer declaring only `clickhouse_query` is refused regardless of how it reads.
+
+### Migration from `true_positives` / `false_positives`
+
+Both keys remain valid. The ladder is **additive** — nothing breaks, and there's no flag day.
+
+- **Existing hunts:** leave them alone. `true_positives` / `false_positives` still parse, still roll up into metrics, still pass validation.
+- **New hunts:** use `findings` and `ruled_out` and omit the legacy keys. ATHF derives `true_positives` / `false_positives` from the ladder for you (`confirmed` counts positive, `benign` counts negative; `suspected`, `attempted_not_vulnerable`, and `inconclusive` count as neither).
+- **An explicit legacy key always wins.** Precedence exists so a hand-maintained number is never silently overwritten — but it cuts both ways: writing `true_positives: 0` next to a `confirmed` finding reports zero positives. Omit the key unless you mean to override.
+- **Legacy `true_positives` is NOT auto-promoted to `confirmed`.** Those counts were recorded before the evidence gate existed, so nobody can say retroactively whether independent confirmation happened. Auto-promoting would launder unverified findings into the strongest verdict in the ladder. If you want an old hunt on the ladder, re-read it and assign verdicts by hand — most legacy TPs land at `suspected`.
+- **Old `false_positives` are ambiguous by design.** That single number mixed "control held" with "benign activity." Splitting it requires reading the hunt. Don't guess.
+- **Provenance applies to net-new `confirmed` only.** Legacy `true_positives` never claimed a producer, so there is nothing to check; those counts keep rolling up untouched. The provenance mapping is required the moment you write `verdict: confirmed`.
+
+> The instinct behind this gate — trust what a producer is *allowed* to do, declared out of band, over what any single message *claims* to have done — owes something to Anthropic's open [defending-code reference harness](https://github.com/anthropics/defending-code-reference-harness) and the way it reasons about capability and tool access in a security workflow. We adapted it to hunt verdicts.
 
 ### MITRE ATT&CK Tactic Reference
 
@@ -158,8 +330,8 @@ techniques: [T1005]
 data_sources: [Splunk]
 related_hunts: []
 findings_count: 0
-true_positives: 0
-false_positives: 0
+findings: []
+ruled_out: []
 customer_deliverables: []
 tags: [macos, applescript]
 ---
@@ -180,8 +352,19 @@ techniques: [T1558.003]
 data_sources: [Splunk, Windows Event Logs]
 related_hunts: [H-0015, H-0038]
 findings_count: 15
-true_positives: 3
-false_positives: 12
+findings:
+  - subject: "SQL01 / svc_sqlagent"
+    verdict: suspected
+    technique: T1558.003
+    ticket: INC-3310
+    evidence: >-
+      Event 4769 with RC4 encryption type (0x17) for three SPNs from one
+      workstation inside 40 seconds
+    confirmation: null  # no host triage completed before hunt closeout
+ruled_out:
+  - subject: "DC02 / vuln-scanner"
+    verdict: benign
+    reason: "Authenticated Tenable scan, matched the scan window and source IP allowlist"
 customer_deliverables: []
 tags: [kerberos, active-directory, credential-theft, service-accounts]
 ---
@@ -202,8 +385,8 @@ techniques: [T1059.007]
 data_sources: [EDR, Sysmon]
 related_hunts: [H-0004]
 findings_count: 0
-true_positives: 0
-false_positives: 0
+findings: []
+ruled_out: []
 customer_deliverables: []
 tags: [javascript, node-js, living-off-the-land, supply-chain]
 ---
@@ -371,15 +554,23 @@ Results, lessons, and follow-up actions.
 **Executive Summary:**
 3-5 sentences: What was found? Hypothesis proved/disproved?
 
-**Findings Table:**
+**Findings Table** (`confirmed` / `suspected` only):
 
-| Finding | Ticket | Description |
-|---------|--------|-------------|
-| [TP/FP/Suspicious] | [INC-####] | [Brief description] |
+| Verdict | Subject | Ticket | Evidence | Independent Confirmation |
+|---------|---------|--------|----------|--------------------------|
+| `confirmed` | [Host/account] | [INC-####] | [Telemetry] | [Reproduction, forensics, or config review] |
+| `suspected` | [Host/account] | [INC-####] | [Telemetry] | None — telemetry only |
 
-**True Positives:** Count and summary
-**False Positives:** Count and patterns
-**Suspicious Events:** Count requiring investigation
+**Ruled Out Table** (`attempted_not_vulnerable` / `benign` / `inconclusive`):
+
+| Verdict | Subject | What Closed It |
+|---------|---------|----------------|
+| `attempted_not_vulnerable` | [Host/account] | [The control that held, and how you verified it] |
+| `benign` | [Host/account] | [Legitimate activity that explains it] |
+
+**Counts:** one per verdict — see [The Verdict Ladder](#the-verdict-ladder)
+
+The counts line is a human summary. Metrics read `suspected`, `attempted_not_vulnerable`, `benign`, and `inconclusive` from it when a hunt has no `findings` / `ruled_out` frontmatter, but **`confirmed` is never counted from the body** — a markdown sentence carries no producer to check against, so honoring it would be a route around [Rule 3](#rule-3-confirmed-requires-provenance-not-prose). To have a `confirmed` counted, put it in `findings` with its `confirmation` mapping.
 
 **Detection Logic:**
 
@@ -441,7 +632,8 @@ Results, lessons, and follow-up actions.
 
 **Purpose:** Capture outcomes and enable improvement.
 
-- Summarize findings (TP/FP/Suspicious)
+- Assign a verdict to every result — `confirmed`, `suspected`, `attempted_not_vulnerable`, `benign`, or `inconclusive`
+- Route findings vs. ruled-out correctly (see [The Verdict Ladder](#the-verdict-ladder))
 - Extract lessons learned
 - Identify detection opportunities
 - Plan follow-up actions and hunts

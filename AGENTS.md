@@ -250,7 +250,7 @@ This repository follows the **LOCK pattern**:
 | Aspect | Hunts (H-XXXX) | Investigations (I-XXXX) |
 |--------|----------------|-------------------------|
 | **Purpose** | Hypothesis-driven hunting | Exploratory analysis |
-| **Metrics** | Tracked (TP/FP/costs) | **NOT tracked** |
+| **Metrics** | Tracked (per-verdict counts, costs) | **NOT tracked** |
 | **Directory** | `hunts/` | `investigations/` |
 | **Validation** | Strict (CI/CD enforced) | Lightweight |
 
@@ -311,6 +311,83 @@ Query syntax, field naming, and performance optimization vary by data source. Re
 - **Capture negative results** - Hunts that found nothing are still valuable
 - **Record lessons learned** - What worked, what didn't, what to try next
 - **Link related hunts** - Reference past work
+
+---
+
+## Verdicts: How to Classify What You Found
+
+Every result gets one of five verdicts. `TP` / `FP` is no longer sufficient — it collapses "the attack happened and our control stopped it" together with "the thing wasn't there," and those are different answers.
+
+| Verdict | Assign when | Goes in |
+|---------|-------------|---------|
+| `confirmed` | Telemetry evidence **plus** independent confirmation outside the log corpus | `findings` |
+| `suspected` | Telemetry evidence only — you could not independently confirm | `findings` |
+| `attempted_not_vulnerable` | Attack behavior observed and the control demonstrably held (**name the control**) | `ruled_out` |
+| `benign` | Explained by specific legitimate activity | `ruled_out` |
+| `inconclusive` | Telemetry too sparse or missing to decide (**name the field/source**) | `ruled_out` |
+
+### 🚨 The Evidence Gate — Non-Negotiable
+
+**Query results are not confirmation.** You MUST NOT write `verdict: confirmed` on the strength of telemetry alone, no matter how convincing the query output looks. Reading logs back and reporting what they say is not verification — it's restating the input.
+
+`confirmed` requires one of these, from **outside** the log corpus:
+
+| Confirmation type | What it means |
+|-------------------|---------------|
+| **Controlled reproduction** | Behavior reproduced in an attack range / lab |
+| **Host forensics** | The artifact recovered — crontab entry, plist, binary on disk, registry key |
+| **Configuration review** | The actual config inspected, proving the activity was possible and occurred |
+
+If you have none of these, the verdict is `suspected`. That is the correct, complete answer — not a downgrade, and not something to apologize for or work around. Escalate to the user that confirmation is needed; do not promote the verdict yourself.
+
+### Provenance: `confirmed` Needs a Producer, Not Better Prose
+
+The gate does not read your `confirmation` text and decide whether it sounds like real work — that check was measured and cannot separate `cross-validated by running a second query against the same table` from genuine corroboration. Instead, `confirmation` is a **mapping** and the gate checks who produced it:
+
+```yaml
+findings:
+  - subject: web-prod-04
+    verdict: confirmed
+    evidence: OCSF process_activity shows sh writing /var/spool/cron/crontabs/svc_deploy
+    confirmation:
+      method: host_forensics          # must be a capability the producer declared
+      produced_by: ir-team            # must exist in .athfconfig.yaml provenance.producers
+      attested_by: J. Halloran        # a named person, never a role or "the team"
+      detail: >-
+        Recovered the crontab entry and the dropper binary from the imaged disk
+```
+
+**Capabilities are declared in `.athfconfig.yaml`, never in the finding.** If you write `capabilities:`, `analyst_capabilities:`, or `producer_capabilities:` inside a finding, validation refuses it outright. You cannot grant yourself the ability to confirm.
+
+**If you can only run queries, your ceiling is `suspected` — permanently.** A producer whose declared capabilities are all corpus-reading (`clickhouse_query`, `siem_search`, `log_review`) cannot reach `confirmed` no matter what it writes. That is by construction, not an obstacle to route around. Do not add capabilities to config to unblock yourself; report to the user that confirmation requires out-of-corpus work.
+
+**No producers declared means no `confirmed`.** A workspace with no `provenance` section refuses every `confirmed` entry. That is intended: the absence of a declaration is not permission.
+
+**Name the surface you actually are, not the team you belong to.** A producer is one thing that produces findings, scoped by what it can reach — so a single team legitimately declares several. When you write `produced_by`, pick the entry matching the surface that did the work: if a query-only agent produced the finding, name that agent, never the human team that also does forensics. Borrowing the team's entry to inherit its capabilities is self-certification with an extra step.
+
+**Do not write a config inside `hunts/`.** Only the workspace-root config is read; one placed beside a hunt file is ignored. Writing a producer declaration next to your own finding is self-certification, and it will not work.
+
+**`attested_by` must name a person, not the producer.** Repeating `produced_by` there — or naming any other declared producer — is refused: an attestation is a second party vouching for the work, and nothing in config can be asked what it saw. If no person can vouch for the out-of-corpus work, the verdict is `suspected`. Do not put a colleague's name there to satisfy the field; ask the user who should attest.
+
+### Routing Rules for AI Assistants
+
+| ❌ Wrong | ✅ Correct |
+|---------|-----------|
+| `verdict: confirmed` backed only by query output | `verdict: suspected` + note what confirmation would take |
+| `confirmation:` as a prose string on `confirmed` | A mapping with `method`, `produced_by`, `attested_by`, `detail` |
+| `attested_by: the team` / `AI assistant` / `pipeline` | A named person answerable for the out-of-corpus work |
+| `attested_by:` repeating `produced_by` (or another producer) | A person distinct from the producer — self-attestation is refused |
+| Declaring `analyst_capabilities:` in the finding | Declare producers in `.athfconfig.yaml`; never self-certify |
+| Editing config to grant yourself a capability | Report that confirmation needs work you cannot do |
+| `attempted_not_vulnerable` listed under `findings` | Put it in `ruled_out` — it closed the question |
+| `benign` listed under `findings` | Put it in `ruled_out` |
+| "No findings" when controls held | `ruled_out` entries naming each control that held |
+| `attempted_not_vulnerable` with no control named | Name the control and how you verified it held |
+| Promoting legacy `true_positives` to `confirmed` | Leave legacy counts alone — they never passed the gate |
+
+**Verify before closeout:** `athf hunt validate H-XXXX` enforces the evidence gate and the routing rule. Run it after writing findings.
+
+**Full field reference:** [athf/data/hunts/FORMAT_GUIDELINES.md](athf/data/hunts/FORMAT_GUIDELINES.md) → The Verdict Ladder
 
 ---
 
@@ -389,7 +466,7 @@ athf --version
 6. **Present hypothesis to user** - ABLE scoping table + threat context
 7. **Execute queries** - Use appropriate data source tools (SIEM interface, query CLI, etc.)
 8. **STOP after each query** - Wait for user feedback before next query
-9. **Document findings** - Update hunt file with results and conclusions
+9. **Document findings** - Update hunt file with results, assign a verdict to each (see [Verdicts](#verdicts-how-to-classify-what-you-found)), then run `athf hunt validate H-XXXX`
 
 ---
 
@@ -520,7 +597,7 @@ athf hunt new \
 - `--location` - Location/scope (for ABLE framework)
 - `--evidence` - Evidence description (for ABLE framework)
 - `--research` - Research document ID (e.g., R-0001) to link to hunt
-- `--hunter` - Hunter name (default: "AI Assistant")
+- `--hunter` - Hunter name. Falls back to the `hunter` key in `.athfconfig.yaml`, and if neither is set the field is left visibly unfilled rather than filled with a name nobody chose. **Never put your own name here on an AI assistant's behalf, and never carry the unfilled marker into `attested_by`** — attestation names the person answerable for out-of-corpus work, so it is refused.
 
 ---
 

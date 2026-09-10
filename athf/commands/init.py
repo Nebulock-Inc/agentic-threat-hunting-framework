@@ -12,6 +12,48 @@ from athf.data import get_data_path
 
 console = Console()
 
+# Appended commented-out so a fresh workspace declares nothing. The gate is
+# restrictive: no declared producer means no 'confirmed', and that is the right
+# starting point — a starter list of real producers would hand out the strongest
+# verdict in the ladder to whoever ran init.
+PROVENANCE_STUB = """
+# Your name, used as the default for `athf hunt new --hunter`. Safe to keep here
+# because a name is not a grant — it still has to clear attestation on its own
+# merits, and it does not widen what you can claim.
+# hunter: Your Name
+
+# Who may claim 'confirmed', and by what means. Capabilities live here rather
+# than in the hunt file on purpose: an agent writes findings, but it cannot
+# rewrite this file to widen its own reach.
+#
+# Until a producer is declared here, no finding can reach 'confirmed' — only
+# 'suspected'. That is intended, not a misconfiguration.
+#
+# Capabilities that only read the log corpus (clickhouse_query, siem_search,
+# log_review, splunk_search, sql_query, ...) never satisfy the gate: the corpus
+# cannot corroborate itself. Declare them anyway if they are accurate — they are
+# honest work — but reaching 'confirmed' needs something outside the logs.
+#
+# A producer is a SURFACE, not an org chart entry. Declare one per thing that
+# produces findings, split by what it can actually reach. One team can and
+# usually should declare several: if the same team runs a query-only agent and
+# also images disks by hand, those are two surfaces with different ceilings.
+#
+# Collapsing them into one all-capable producer disables the check — there is no
+# method the sole producer cannot claim, so nothing is ever refused and the gate
+# becomes a spelling test. Give the agent its own entry and it stays honestly
+# capped at 'suspected' no matter what it writes.
+#
+# provenance:
+#   producers:
+#     ir-team:
+#       capabilities: [siem_search, host_forensics, configuration_review]
+#     detection-eng:
+#       capabilities: [siem_search, range_reproduction]
+#     baseline-agent:
+#       capabilities: [clickhouse_query]   # query-only: capped at 'suspected'
+"""
+
 
 @click.command()
 @click.option("--path", default=".", help="Directory to initialize ATHF in")
@@ -96,6 +138,7 @@ def init(path: str, non_interactive: bool) -> None:
     # Save configuration
     with open(config_path, "w", encoding="utf-8") as f:
         yaml.dump(config, f, default_flow_style=False, sort_keys=False)
+        f.write(PROVENANCE_STUB)
     console.print("  ✓ Created [cyan]config/.athfconfig.yaml[/cyan]")
 
     # Create AGENTS.md if it doesn't exist
@@ -247,8 +290,12 @@ techniques: [T1003.001, T1005, etc.]
 data_sources: [SIEM, EDR, etc.]
 related_hunts: []
 findings_count: 0
-true_positives: 0
-false_positives: 0
+findings: []
+ruled_out: []
+# Legacy counters, kept for hunts predating the ladder. Leave commented out: an
+# explicit value overrides the counts derived from findings/ruled_out above.
+# true_positives: 0
+# false_positives: 0
 customer_deliverables: []
 tags: []
 ---
@@ -372,13 +419,29 @@ tags: []
 
 ### Findings
 
-| **Finding** | **Ticket** | **Description** |
-|-------------|-----------|-----------------|
-| True Positive | [Ticket] | [Description] |
-| False Positive | N/A | [Description] |
+Things you're reporting as malicious. Only `confirmed` and `suspected` belong here.
 
-**True Positives:** [Count]
-**False Positives:** [Count]
+| **Verdict** | **Subject** | **Ticket** | **Evidence** | **Independent Confirmation** |
+|-------------|-------------|-----------|--------------|------------------------------|
+| `confirmed` | [Host, account, or resource] | [INC-####] | [Telemetry that surfaced it] | [What established root cause outside the logs] |
+| `suspected` | [Host, account, or resource] | [INC-####] | [Telemetry that surfaced it] | None — telemetry only |
+
+**The evidence gate:** `confirmed` requires telemetry **plus** something from outside the log
+corpus — controlled reproduction, host forensics, or configuration review. Telemetry alone never
+reaches `confirmed`. If you couldn't confirm, the verdict is `suspected`.
+
+### Ruled Out
+
+Results that closed the question. `attempted_not_vulnerable` is often the most valuable row in a
+customer-facing report.
+
+| **Verdict** | **Subject** | **What Closed It** |
+|-------------|-------------|--------------------|
+| `attempted_not_vulnerable` | [Host, account, or resource] | [Name the control that held and how you verified it] |
+| `benign` | [Host, account, or resource] | [The legitimate activity that explains it] |
+| `inconclusive` | [Host, account, or resource] | [Which telemetry was missing or too sparse] |
+
+**Counts:** `confirmed` [N] · `suspected` [N] · `attempted_not_vulnerable` [N] · `benign` [N] · `inconclusive` [N]
 
 ### Detection Logic
 

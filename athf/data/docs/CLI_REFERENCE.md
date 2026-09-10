@@ -595,7 +595,7 @@ Creates a new hunt file with proper YAML frontmatter and LOCK structure. Automat
 | `--tactics` | String | - | Comma-separated tactics (e.g., credential-access,defense-evasion) |
 | `--platforms` | String | - | Comma-separated platforms (e.g., windows,linux,macos) |
 | `--data-sources` | String | - | Comma-separated data sources |
-| `--hunter` | String | AI Assistant | Your name or handle |
+| `--hunter` | String | config `hunter`, else unfilled | Your name or handle. Set `hunter:` in `.athfconfig.yaml` to stop repeating it |
 | `--severity` | Choice | medium | Severity: `low`, `medium`, `high`, `critical` |
 
 **Rich Content Options (for AI assistants & automation):**
@@ -627,7 +627,7 @@ Hunt Title: Kerberoasting Detection via Unusual TGS Requests
 Primary Tactic [credential-access]: credential-access
 Target Platforms (comma-separated) [windows]: windows
 Data Sources (comma-separated) [windows-event-logs]: windows-event-logs,edr-telemetry
-Your Name [Your Name]: Jane Doe
+6. Hunter (your name): Jane Doe
 Severity [medium]: high
 ```
 
@@ -731,8 +731,8 @@ data_sources:
   - edr-telemetry
 severity: high
 tags: []
-true_positives: 0
-false_positives: 0
+findings: []      # confirmed | suspected (populate during KEEP)
+ruled_out: []     # attempted_not_vulnerable | benign | inconclusive (populate during KEEP)
 ---
 
 ## LEARN
@@ -933,6 +933,14 @@ Summary: 3 valid, 1 invalid
 
 **Status values**:
 - Must be one of: `in-progress`, `completed`, `paused`, `archived`
+
+**Verdicts** (when `findings` / `ruled_out` are present):
+- Every entry must carry a `verdict` from: `confirmed`, `suspected`, `attempted_not_vulnerable`, `benign`, `inconclusive`
+- **Evidence gate:** `verdict: confirmed` requires `confirmation` to be a mapping — not a scalar — carrying a supported `method`, a `produced_by` declared in the workspace-root `.athfconfig.yaml` whose declared capabilities include that `method` and reach beyond query-only access, an `attested_by` naming a person distinct from the producer, and a non-empty `detail`. Telemetry in `evidence` alone — or a producer that can only read the corpus — caps the entry at `suspected`
+- **Routing rule:** `attempted_not_vulnerable`, `benign`, and `inconclusive` must appear in `ruled_out`, never in `findings`
+- `attempted_not_vulnerable` entries must name the control that held
+
+See [FORMAT_GUIDELINES.md](../hunts/FORMAT_GUIDELINES.md) → The Verdict Ladder for entry shapes.
 
 ### Exit Codes
 
@@ -2213,9 +2221,16 @@ athf metrics extract --output /tmp/snapshot.json      # capture a snapshot
 
 Append a single event manually. Useful for closing out hunts (TP / FP) and for plugin / scripting use.
 
+Valid `outcome` values are the five verdicts — `confirmed`, `suspected`, `attempted_not_vulnerable`, `benign`, `inconclusive`. Legacy `tp` / `fp` still parse.
+
+> **`confirmed` is stored but not counted here.** A `hunt_outcome` event names no producer, so it cannot pass the provenance gate — `outcome=confirmed` records for audit but never increments the `confirmed` / `true_positives` aggregates. To have a confirmed result count, write it as a `findings` entry in the hunt file, with its `confirmation` mapping, and let `athf metrics extract` pick it up. See [FORMAT_GUIDELINES.md](../hunts/FORMAT_GUIDELINES.md) → The Verdict Ladder.
+
 ```bash
 # Record a hunt outcome
-athf metrics record --type hunt_outcome --hunt H-0019 --field outcome=tp
+athf metrics record --type hunt_outcome --hunt H-0019 --field outcome=suspected
+
+# The control held — record it, don't drop it
+athf metrics record --type hunt_outcome --hunt H-0020 --field outcome=attempted_not_vulnerable
 
 # Record a custom step
 athf metrics record --type manual --hunt H-0019 \
@@ -2234,7 +2249,7 @@ athf metrics record --type query --hunt H-0019 --field duration_ms=42 --field ro
 athf metrics extract                       # refresh aggregates
 athf metrics summary                       # overall view
 athf metrics show --hunt H-0019            # zoom into one hunt
-athf metrics record --type hunt_outcome --hunt H-0019 --field outcome=tp
+athf metrics record --type hunt_outcome --hunt H-0019 --field outcome=suspected
 ```
 
 ### Exit Codes

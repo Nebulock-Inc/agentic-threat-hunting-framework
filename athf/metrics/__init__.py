@@ -25,7 +25,7 @@ Typical use::
     m.record_query(sql="SELECT 1", duration_ms=15, rows=1)
     m.record_web_search(query="lsass dumping", duration_ms=900)
     m.record_similarity_search(query="kerberoast", duration_ms=12)
-    m.record_hunt_outcome(hunt_id="H-0001", outcome="TP")
+    m.record_hunt_outcome(hunt_id="H-0001", outcome="confirmed")
 
 Each helper takes optional explicit ``hunt_id`` / ``session_id``. If
 omitted, they look up the current active session via
@@ -49,6 +49,7 @@ from athf.core.metrics import (
     EventStore,
     MetricEvent,
 )
+from athf.core.verdicts import normalize_verdict
 
 logger = logging.getLogger(__name__)
 
@@ -315,16 +316,21 @@ def record_hunt_outcome(
     workspace: Optional[Union[str, Path]] = None,
     custom: Optional[Dict[str, Any]] = None,
 ) -> None:
-    """Record a hunt outcome (TP / FP / inconclusive).
+    """Record a hunt outcome from the verdict ladder.
 
-    ``outcome`` is canonicalized to lowercase. Anything other than
-    ``tp``, ``fp``, or ``inconclusive`` raises ``ValueError``.
+    ``outcome`` accepts the five ladder verdicts (``confirmed``,
+    ``suspected``, ``attempted_not_vulnerable``, ``benign``,
+    ``inconclusive``) plus the legacy ``tp`` / ``fp`` values, and is
+    canonicalized to lowercase. Legacy values are stored as-is rather than
+    remapped onto the ladder. Anything else raises ``ValueError``.
+
+    A ``confirmed`` outcome is stored for audit but never credited to the
+    gated ``confirmed`` / ``true_positives`` aggregates: the event names no
+    producer, and provenance is checked on the hunt-file path where a
+    ``findings`` entry does. Record the finding in the hunt file — with its
+    ``confirmation`` mapping — to have a confirmed result count.
     """
-    canonical = outcome.strip().lower()
-    if canonical not in {"tp", "fp", "inconclusive"}:
-        raise ValueError(
-            "outcome must be one of 'TP', 'FP', 'inconclusive'; got {!r}".format(outcome)
-        )
+    canonical = normalize_verdict(outcome)
 
     if session_id is None or organization_id is None:
         _, ctx_session, ctx_org = _resolve_active_context()
