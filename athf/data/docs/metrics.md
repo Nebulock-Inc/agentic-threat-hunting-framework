@@ -94,7 +94,7 @@ Fields that are `None` are dropped from the JSONL line, keeping the file compact
 | `benign` | `benign` | Explained as legitimate activity |
 | `inconclusive` | `inconclusive` | Insufficient telemetry to decide |
 
-Telemetry alone never records `confirmed`. See [FORMAT_GUIDELINES.md](../hunts/FORMAT_GUIDELINES.md) for the evidence gate and the routing rule.
+Telemetry alone never counts toward the gated `confirmed` aggregate. A bare `outcome=confirmed` event is still stored for audit, but aggregation drops it unless a provenance-backed `findings` entry earns it (see [Behavior contract](#behavior-contract) below). See [FORMAT_GUIDELINES.md](../hunts/FORMAT_GUIDELINES.md) for the evidence gate and the routing rule.
 
 ### Why `attempted_not_vulnerable` Gets Its Own Counter
 

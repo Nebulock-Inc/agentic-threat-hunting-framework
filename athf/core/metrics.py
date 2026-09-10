@@ -420,7 +420,7 @@ class Aggregator:
         if cached is None:
             from athf.core.provenance import load_registry
 
-            cached = load_registry(self.workspace)
+            cached = load_registry(self.workspace, root=self.workspace)
             self._registry_cache = cached
         return cached
 

@@ -626,3 +626,98 @@ class TestConfigCannotBeShadowedFromInsideTheHuntTree:
         assert is_valid == bool(counted), (
             f"validate says valid={is_valid} but tally counted {counted}"
         )
+
+
+class TestWorkspaceUnderAnAncestorNamedHunts:
+    """An unrelated ancestor named ``hunts`` must not disable ``confirmed``.
+
+    ``load_registry`` walks up from a starting directory and skips anything
+    inside the workspace hunt tree, so a shadow config beside a hunt file can't
+    license itself. That skip used to test ``"hunts" in directory.parts`` against
+    the full absolute path — so a workspace living under any ancestor named
+    ``hunts`` (``/srv/hunts/athf-ws``) had every candidate directory from the
+    root upward skipped. The root ``.athfconfig.yaml`` was never read, the
+    registry came back empty, and ``confirmed`` became unreachable for the whole
+    workspace with no diagnostic. Anchoring the check to the workspace root fixes
+    it while keeping the shadow-config protection.
+    """
+
+    CONFIRMED_ENTRY = (
+        "findings:\n"
+        "  - subject: host dev-20\n"
+        "    verdict: confirmed\n"
+        "    evidence: process_activity rows show crontab spawned by curl\n"
+        "    confirmation:\n"
+        "      method: host_forensics\n"
+        "      produced_by: baseline-agent\n"
+        "      attested_by: Sydney Marrone\n"
+        "      detail: recovered the dropped binary from the imaged disk\n"
+    )
+
+    LOCK = "\n## LEARN\nx\n\n## OBSERVE\nx\n\n## CHECK\nx\n\n## KEEP\nx\n"
+
+    ROOT_CONFIG = (
+        "provenance:\n"
+        "  producers:\n"
+        "    baseline-agent:\n"
+        "      capabilities: [clickhouse_query, host_forensics]\n"
+    )
+
+    def _workspace(self, tmp_path):
+        """Workspace root sits below an ancestor directory named ``hunts``."""
+        workspace = tmp_path / "hunts" / "athf-ws"
+        (workspace).mkdir(parents=True)
+        (workspace / ".athfconfig.yaml").write_text(
+            self.ROOT_CONFIG, encoding="utf-8"
+        )
+        deep = workspace / "hunts" / "production" / "2026" / "Q2"
+        deep.mkdir(parents=True)
+        hunt = deep / "H-0042.md"
+        hunt.write_text(
+            "---\nhunt_id: H-0042\ntitle: Nested\nstatus: completed\n"
+            f"date: 2026-08-26\n{self.CONFIRMED_ENTRY}---\n{self.LOCK}",
+            encoding="utf-8",
+        )
+        return workspace, hunt
+
+    def test_root_config_licenses_confirmed(self, tmp_path):
+        from athf.core.hunt_parser import HuntParser
+
+        _, hunt = self._workspace(tmp_path)
+        parser = HuntParser(hunt)
+        parser.parse()
+        is_valid, errors = parser.validate()
+        assert is_valid, errors
+
+    def test_shadow_config_beside_hunt_still_ignored(self, tmp_path):
+        """The nested ancestor must not weaken the self-declaration ban."""
+        from athf.core.hunt_parser import HuntParser
+
+        workspace, hunt = self._workspace(tmp_path)
+        (workspace / ".athfconfig.yaml").unlink()
+        (hunt.parent / ".athfconfig.yaml").write_text(
+            self.ROOT_CONFIG, encoding="utf-8"
+        )
+        parser = HuntParser(hunt)
+        parser.parse()
+        _, errors = parser.validate()
+        assert any("baseline-agent" in e for e in errors), (
+            "a config inside the hunt tree must not declare a producer even when "
+            f"the workspace sits under a 'hunts' ancestor; got errors={errors!r}"
+        )
+
+    def test_validation_and_aggregation_agree(self, tmp_path):
+        from athf.core.hunt_manager import HuntManager
+        from athf.core.hunt_parser import HuntParser
+
+        workspace, hunt = self._workspace(tmp_path)
+        manager = HuntManager(workspace / "hunts")
+
+        parser = HuntParser(hunt)
+        parser.parse()
+        is_valid, _ = parser.validate()
+
+        counted = sum(h.get("confirmed", 0) for h in manager.list_hunts())
+        assert is_valid and counted == 1, (
+            f"validate valid={is_valid}, tally counted {counted}"
+        )

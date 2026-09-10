@@ -374,7 +374,16 @@ class HuntParser:
         if self._registry is None:
             from athf.core.provenance import load_registry
 
-            self._registry = load_registry(self.file_path.parent)
+            # The workspace root is the parent of the hunt file's own ``hunts/``
+            # directory. Anchoring the registry walk there stops an unrelated
+            # ancestor named ``hunts`` (e.g. a workspace under ``/srv/hunts/``)
+            # from being mistaken for the workspace hunt tree and skipping the
+            # real root config.
+            root = next(
+                (a.parent for a in self.file_path.parents if a.name == "hunts"),
+                None,
+            )
+            self._registry = load_registry(self.file_path.parent, root=root)
 
         return [
             _GATE_MESSAGES.get(code, _unmapped_gate_message)(where, detail)

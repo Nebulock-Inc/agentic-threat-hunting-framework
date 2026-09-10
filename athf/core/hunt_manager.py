@@ -92,7 +92,7 @@ class HuntManager:
         if self._registry is None:
             from athf.core.provenance import load_registry
 
-            self._registry = load_registry(self.hunts_dir)
+            self._registry = load_registry(self.hunts_dir, root=self.hunts_dir.parent)
         return self._registry
 
     def list_hunts(

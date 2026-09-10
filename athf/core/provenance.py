@@ -109,7 +109,9 @@ def confirming_capabilities(registry: ProducerRegistry, producer: Any) -> Frozen
     return registry.capabilities_for(producer) - CORPUS_ONLY_CAPABILITIES
 
 
-def load_registry(workspace: Optional[Path] = None) -> ProducerRegistry:
+def load_registry(
+    workspace: Optional[Path] = None, *, root: Optional[Path] = None
+) -> ProducerRegistry:
     """Load the registry from workspace config, or an empty one.
 
     Both enforcement surfaces call this so they agree: ``athf hunt validate``
@@ -120,14 +122,22 @@ def load_registry(workspace: Optional[Path] = None) -> ProducerRegistry:
     A missing or unreadable config yields an empty registry, which is restrictive.
     Failing closed here is deliberate: an unparseable config must not become a
     reason that ``confirmed`` starts passing.
+
+    ``root`` is the workspace root. When given, the walk stops there and the
+    hunt-tree test is evaluated *relative* to it, so an unrelated ancestor
+    directory that happens to be named ``hunts`` (e.g. a workspace under
+    ``/srv/hunts/``) no longer skips the workspace root's own config. Callers
+    that know the root should always pass it; the ``None`` default keeps the
+    older absolute-path behavior for callers that don't.
     """
     import yaml
 
     base = Path(workspace) if workspace else Path.cwd()
+    root = Path(root) if root is not None else None
     # Walk up: hunt files live several directories below the workspace root
     # (hunts/production/2026/Q2/H-0042.md), and the config is at the root.
     for parent in (base, *base.parents):
-        if _inside_hunt_tree(parent):
+        if _inside_hunt_tree(parent, root):
             continue
         # Root before config/: `athf init` writes the config/ copy, so most
         # workspaces have both, and the root file is the one the docs tell hunters
@@ -140,11 +150,15 @@ def load_registry(workspace: Optional[Path] = None) -> ProducerRegistry:
                     return ProducerRegistry.from_config(yaml.safe_load(handle) or {})
             except (OSError, yaml.YAMLError):
                 return ProducerRegistry()
+        # The root's config is the last one the workspace legitimately owns.
+        # Never keep walking into ancestors above it looking for a stray config.
+        if root is not None and parent == root:
+            break
     return ProducerRegistry()
 
 
-def _inside_hunt_tree(directory: Path) -> bool:
-    """Return ``True`` for a directory at or below ``hunts/``.
+def _inside_hunt_tree(directory: Path, root: Optional[Path] = None) -> bool:
+    """Return ``True`` for a directory inside the workspace's ``hunts/`` tree.
 
     Config found there is ignored. The walk starts from a hunt file's own
     directory, which is a place the finding author writes to — so without this,
@@ -153,10 +167,22 @@ def _inside_hunt_tree(directory: Path) -> bool:
     a self-declaration with a different filename, and the whole reason
     capabilities live in config is that the claim cannot reach the grant.
 
-    A workspace whose own root is named ``hunts`` therefore declares no
-    producers. That fails closed, which is the right direction to be wrong in.
+    With ``root`` the test runs on the path *below* the workspace root, so a
+    ``hunts`` component sitting above the root (an unrelated ancestor) is no
+    longer mistaken for the workspace's own hunt tree — that false match made
+    ``load_registry`` skip the real root config and left ``confirmed``
+    unreachable workspace-wide with no diagnostic. A directory at or above the
+    root is never inside the tree. Without ``root`` the older behavior stands:
+    any ancestor named ``hunts`` skips, which also means a workspace whose own
+    root is named ``hunts`` fails closed.
     """
-    return "hunts" in directory.parts
+    if root is None:
+        return "hunts" in directory.parts
+    try:
+        relative = directory.relative_to(root)
+    except ValueError:
+        return False
+    return "hunts" in relative.parts
 
 
 __all__ = [
