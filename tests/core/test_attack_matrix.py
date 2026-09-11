@@ -1,9 +1,71 @@
 """Tests for athf.core.attack_matrix - ATT&CK data provider abstraction."""
 
 import importlib
+import json
+import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
+
+
+def _mk_id(stix_type: str) -> str:
+    return f"{stix_type}--{uuid.uuid4()}"
+
+
+def _write_synthetic_stix_bundle(path, tactics, techniques_per_tactic=3):
+    """Write a minimal STIX 2.x bundle exercising the StixProvider path.
+
+    Each tactic gets `techniques_per_tactic` attack-patterns whose
+    kill_chain_phases.phase_name matches the tactic shortname — the exact
+    field get_techniques_by_tactic filters on.
+    """
+    objects = []
+    for i, (name, shortname) in enumerate(tactics, start=1):
+        objects.append(
+            {
+                "type": "x-mitre-tactic",
+                "id": _mk_id("x-mitre-tactic"),
+                "spec_version": "2.1",
+                "name": name,
+                "x_mitre_shortname": shortname,
+                "external_references": [
+                    {"source_name": "mitre-attack", "external_id": f"TA{i:04d}"}
+                ],
+            }
+        )
+
+    counter = 1000
+    for name, shortname in tactics:
+        for _ in range(techniques_per_tactic):
+            counter += 1
+            objects.append(
+                {
+                    "type": "attack-pattern",
+                    "id": _mk_id("attack-pattern"),
+                    "spec_version": "2.1",
+                    "name": f"Technique {counter}",
+                    "external_references": [
+                        {
+                            "source_name": "mitre-attack",
+                            "external_id": f"T{counter}",
+                            "url": f"https://attack.mitre.org/techniques/T{counter}",
+                        }
+                    ],
+                    "kill_chain_phases": [
+                        {"kill_chain_name": "mitre-attack", "phase_name": shortname}
+                    ],
+                    "x_mitre_is_subtechnique": False,
+                }
+            )
+
+    bundle = {
+        "type": "bundle",
+        "id": _mk_id("bundle"),
+        "spec_version": "2.0",
+        "objects": objects,
+    }
+    path.write_text(json.dumps(bundle))
+    return len(tactics) * techniques_per_tactic
 
 
 # ---------------------------------------------------------------------------
@@ -283,3 +345,67 @@ class TestCachePaths:
         monkeypatch.chdir(tmp_path)
         cache_dir = _get_stix_cache_dir()
         assert "stix-data" in str(cache_dir)
+
+
+# ---------------------------------------------------------------------------
+# StixProvider tests (require mitreattack-python; use a synthetic bundle so no
+# network `attack update` is needed). Guards the regression where a STIX UUID
+# was passed to get_techniques_by_tactic instead of the tactic shortname,
+# making every technique_count == 0.
+# ---------------------------------------------------------------------------
+
+TACTICS = [
+    ("Credential Access", "credential-access"),
+    ("Execution", "execution"),
+    ("Persistence", "persistence"),
+]
+TECHNIQUES_PER_TACTIC = 3
+
+
+@pytest.mark.unit
+class TestStixProvider:
+    """Exercise the StixProvider path against a small synthetic STIX bundle."""
+
+    @pytest.fixture
+    def synthetic_provider(self, tmp_path):
+        pytest.importorskip(
+            "mitreattack",
+            reason="mitreattack-python not installed (optional [attack] extra)",
+        )
+        from athf.core.attack_matrix import StixProvider
+
+        bundle_path = tmp_path / "synthetic-enterprise-attack.json"
+        total = _write_synthetic_stix_bundle(
+            bundle_path, TACTICS, techniques_per_tactic=TECHNIQUES_PER_TACTIC
+        )
+        return StixProvider(stix_path=bundle_path), total
+
+    def test_tactics_have_nonzero_technique_count(self, synthetic_provider):
+        """Regression: every tactic must report technique_count > 0.
+
+        Pre-fix, a STIX UUID was passed to get_techniques_by_tactic (which
+        filters on the shortname), so every count was 0 and this assertion
+        would fail.
+        """
+        provider, _ = synthetic_provider
+        tactics = provider.get_tactics()
+
+        assert len(tactics) == len(TACTICS)
+        for shortname, info in tactics.items():
+            assert info["technique_count"] == TECHNIQUES_PER_TACTIC, (
+                f"{shortname} reported {info['technique_count']} techniques; "
+                "expected the shortname-filtered count"
+            )
+
+    def test_total_techniques_matches_bundle(self, synthetic_provider):
+        provider, total = synthetic_provider
+        assert provider.get_total_techniques() == total
+
+    def test_is_stix_true(self, synthetic_provider):
+        provider, _ = synthetic_provider
+        assert provider.is_stix() is True
+
+    def test_techniques_for_tactic_uses_shortname(self, synthetic_provider):
+        provider, _ = synthetic_provider
+        techniques = provider.get_techniques_for_tactic("credential-access")
+        assert len(techniques) == TECHNIQUES_PER_TACTIC
