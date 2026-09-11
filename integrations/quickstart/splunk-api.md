@@ -19,7 +19,7 @@ This guide shows how to use ATHF's built-in Splunk REST API client for direct qu
 ## Prerequisites
 
 - Splunk Enterprise 8.0+ or Splunk Cloud
-- Python 3.8+
+- Python 3.11+
 - ATHF installed with dependencies
 
 ## Setup
