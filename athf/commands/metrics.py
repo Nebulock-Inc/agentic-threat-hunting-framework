@@ -191,7 +191,11 @@ def summary(output_format: str, workspace: Path) -> None:
         table.add_row(label, fmt.format(value))
     console.print(table)
 
-    for title, key in (("By platform", "by_platform"), ("By tactic", "by_tactic")):
+    for title, key in (
+        ("By hunt type", "by_hunt_type"),
+        ("By platform", "by_platform"),
+        ("By tactic", "by_tactic"),
+    ):
         bucket = rollups.get(key, {})
         if not bucket:
             continue

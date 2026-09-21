@@ -596,6 +596,7 @@ Creates a new hunt file with proper YAML frontmatter and LOCK structure. Automat
 | `--platforms` | String | - | Comma-separated platforms (e.g., windows,linux,macos) |
 | `--data-sources` | String | - | Comma-separated data sources |
 | `--hunter` | String | AI Assistant | Your name or handle |
+| `--hunt-type` | Choice | hypothesis | Hunt category: `hypothesis`, `baseline`, `model-assisted`. Written to `hunt_type:` frontmatter and counted by `athf hunt stats --by hunt_type` |
 | `--severity` | Choice | medium | Severity: `low`, `medium`, `high`, `critical` |
 
 **Rich Content Options (for AI assistants & automation):**
@@ -720,6 +721,7 @@ status: in-progress
 date: 2025-12-02
 updated: 2025-12-02
 hunter: "Jane Doe"
+hunt_type: hypothesis
 techniques:
   - T1558.003
 tactics:
@@ -759,7 +761,7 @@ athf hunt list [OPTIONS]
 
 ### Description
 
-Display all hunts in a formatted table. Supports filtering by status, tactic, technique, and platform. Output formats include table (default), JSON, and YAML.
+Display all hunts in a formatted table, including a `Type` column showing each hunt's `hunt_type`. Supports filtering by status, tactic, technique, platform, and hunt type. Output formats include table (default), JSON, and YAML.
 
 ### Options
 
@@ -769,7 +771,16 @@ Display all hunts in a formatted table. Supports filtering by status, tactic, te
 | `--tactic` | String | - | Filter by MITRE ATT&CK tactic |
 | `--technique` | String | - | Filter by technique (e.g., T1003.001) |
 | `--platform` | String | - | Filter by platform |
+| `--directory` | Choice | - | Filter by environment directory: `test`, `production` |
+| `--hunt-type` | Choice | - | Filter by hunt category: `hypothesis`, `baseline`, `model-assisted`, or `uncategorized` (hunts missing the field) |
 | `--output` | Choice | table | Output format: `table`, `json`, `yaml` |
+
+**Filter to one category**:
+
+```bash
+athf hunt list --hunt-type baseline
+athf hunt list --hunt-type uncategorized   # find hunts that still need a hunt_type
+```
 
 ### Examples
 
@@ -862,6 +873,8 @@ athf hunt validate [HUNT_ID]
 
 Validates hunt files against the ATHF format specification. Checks YAML frontmatter, required fields, LOCK sections, and ATT&CK technique format.
 
+Validation also emits **non-blocking warnings** — they are printed but never change the exit code. Currently the only warning is a missing or unknown `hunt_type` (legacy hunts predate the field). Add `hunt_type: hypothesis | baseline | model-assisted` to clear it; until then the hunt is counted as `uncategorized` by `athf hunt stats`.
+
 ### Arguments
 
 | Argument | Type | Description |
@@ -934,6 +947,10 @@ Summary: 3 valid, 1 invalid
 **Status values**:
 - Must be one of: `in-progress`, `completed`, `paused`, `archived`
 
+**Hunt type** (warning only, never an error):
+- `hunt_type` should be one of: `hypothesis`, `baseline`, `model-assisted`
+- Missing or unknown values produce a warning; exit code is unaffected
+
 ### Exit Codes
 
 - `0`: All hunts valid
@@ -953,84 +970,97 @@ athf hunt stats [OPTIONS]
 
 ### Description
 
-Calculate and display statistics about your hunts, including success rates, true positive/false positive ratios, and hunt velocity.
+Calculate and display statistics about your hunts: totals, verdict counts, true positive/false positive ratios, and a breakdown of hunts by category (`hunt_type`). Use `--by` to group hunt counts by any enumerable frontmatter field — the quarterly "what kind of hunting are we doing?" snapshot.
 
 ### Options
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `--period` | Choice | all | Time period: `all`, `30d`, `90d`, `1y` |
-| `--output` | Choice | table | Output format: `table`, `json`, `yaml` |
+| `--by` | Choice | - | Group hunt counts by a field: `hunt_type`, `status`, `platform`, `tactic`, `technique`, `environment`. Switches to the breakdown view |
+| `--status` | String | - | Only count hunts with this status (e.g. `completed`). Implies the breakdown view (default `--by hunt_type`) |
+| `--directory` | Choice | - | Only count hunts in `test` or `production` |
+| `--output` / `--format` | Choice | table | Output format: `table`, `json`, `yaml` (`--format` is an alias) |
 
 ### Examples
 
-**Overall statistics**:
+**Overall statistics** (includes a hunts-by-type table):
 
 ```bash
 athf hunt stats
 ```
 
+**Hunt counts by category**:
+
+```bash
+athf hunt stats --by hunt_type
+```
+
 Output:
 ```
-Hunt Statistics
-───────────────────────────────────────
-Total Hunts:              23
-Completed:                15 (65%)
-In Progress:              5 (22%)
-Paused:                   2 (9%)
-Archived:                 1 (4%)
+📊 Hunts by hunt_type
 
-Success Metrics
-───────────────────────────────────────
-Hunts with Findings:      12 (80% of completed)
-True Positives:           18
-False Positives:          7
-TP/FP Ratio:              2.6:1
+  Hunt Type         Count        %
+ ──────────────────────────────────
+  hypothesis           38    80.9%
+  baseline              5    10.6%
+  model-assisted        3     6.4%
+  (uncategorized)       1     2.1%
 
-Average per Hunt
-───────────────────────────────────────
-True Positives:           1.2
-False Positives:          0.5
-Time to Complete:         4.2 days
-
-Coverage
-───────────────────────────────────────
-Unique Techniques:        15
-Unique Tactics:           8
-Platforms Covered:        4 (Windows, Linux, macOS, AWS)
+  Total                47   100.0%
 ```
 
-**Last 30 days**:
+`(uncategorized)` counts hunts whose frontmatter has no valid `hunt_type`. Run `athf hunt list --hunt-type uncategorized` to find them, or `athf hunt validate` to see them flagged as warnings.
+
+**Only completed hunts** (so in-progress work doesn't skew maturity reporting):
 
 ```bash
-athf hunt stats --period 30d
+athf hunt stats --by hunt_type --status completed
 ```
 
-**JSON output**:
+**JSON output** for dashboards and CI:
 
 ```bash
-athf hunt stats --output json
+athf hunt stats --by hunt_type --output json
 ```
 
 Output:
 ```json
 {
-  "total_hunts": 23,
-  "completed": 15,
-  "in_progress": 5,
-  "success_rate": 0.80,
-  "true_positives": 18,
-  "false_positives": 7,
-  "tp_fp_ratio": 2.6,
-  "unique_techniques": 15,
-  "unique_tactics": 8
+  "total": 47,
+  "filters": {},
+  "by_hunt_type": {
+    "hypothesis": 38,
+    "baseline": 5,
+    "model-assisted": 3,
+    "uncategorized": 1
+  },
+  "percentages": {
+    "hypothesis": 80.9,
+    "baseline": 10.6,
+    "model-assisted": 6.4,
+    "uncategorized": 2.1
+  }
 }
 ```
+
+Without `--by`, `--output json` returns the full program stats object, which also carries `by_hunt_type`:
+
+```bash
+athf hunt stats --output json | jq '.by_hunt_type'
+```
+
+**Group by another field**:
+
+```bash
+athf hunt stats --by platform
+athf hunt stats --by status --output yaml
+```
+
+The same `by_hunt_type` rollup is also available from `athf metrics summary --format json` under `rollups.by_hunt_type`.
 
 ### Exit Codes
 
 - `0`: Success
-- `1`: No hunts found
 
 ---
 

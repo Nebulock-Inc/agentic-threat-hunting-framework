@@ -4,6 +4,7 @@ title: [Hunt Title]
 status: planning
 date: YYYY-MM-DD
 hunter: [Your Name]
+hunt_type: hypothesis  # one of: hypothesis | baseline | model-assisted
 platform: [Windows/Linux/macOS/Cloud]
 tactics: [persistence, credential-access, etc.]
 techniques: [T1003.001, T1005, etc.]

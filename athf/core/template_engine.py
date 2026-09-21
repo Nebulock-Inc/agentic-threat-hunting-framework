@@ -13,7 +13,8 @@ title: {{ title }}
 status: {{ status }}
 date: {{ date }}
 hunter: {{ hunter }}
-platform: {{ platform }}
+{% if hunt_type %}hunt_type: {{ hunt_type }}
+{% endif %}platform: {{ platform }}
 tactics: {{ tactics }}
 techniques: {{ techniques }}
 data_sources: {{ data_sources }}
@@ -201,6 +202,7 @@ def render_hunt_template(
     evidence: Optional[str] = None,
     spawned_from: Optional[str] = None,
     hypothesis_duration_minutes: Optional[float] = None,
+    hunt_type: Optional[str] = None,
 ) -> str:
     """Render a hunt template with provided metadata.
 
@@ -220,6 +222,7 @@ def render_hunt_template(
         evidence: Evidence description (for ABLE)
         spawned_from: Research document ID (e.g., R-0001) that this hunt is based on
         hypothesis_duration_minutes: Time spent generating hypothesis (from athf agent run)
+        hunt_type: Hunt category (hypothesis | baseline | model-assisted); omitted if None
 
     Returns:
         Rendered hunt markdown content
@@ -254,4 +257,5 @@ def render_hunt_template(
         evidence=evidence,
         spawned_from=spawned_from,
         hypothesis_duration_minutes=hypothesis_duration_minutes,
+        hunt_type=hunt_type,
     ))

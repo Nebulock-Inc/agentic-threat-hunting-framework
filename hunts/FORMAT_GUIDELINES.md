@@ -72,6 +72,7 @@ title: [Hunt Title]                # Full hunt title (required)
 status: planning                   # Options: planning, in-progress, completed (required)
 date: YYYY-MM-DD                   # Hunt creation or last update date (required)
 hunter: [Your Name]                # Person or team conducting hunt (required)
+hunt_type: hypothesis              # Hunt category: hypothesis | baseline | model-assisted (recommended)
 platform: [Windows, macOS, Linux]  # Target platforms - array format (required)
 tactics: [credential-access]       # MITRE ATT&CK tactics (required)
 techniques: [T1003.001]            # MITRE ATT&CK technique IDs (required)
@@ -105,6 +106,7 @@ tags: [credential-theft]           # Freeform categorization tags (optional)
 
 | Field | Type | Purpose | Example | When to Use |
 |-------|------|---------|---------|-------------|
+| `hunt_type` | string | Hunt category, controlled vocabulary: `hypothesis`, `baseline`, `model-assisted`. Counted by `athf hunt stats --by hunt_type`; `athf hunt validate` warns (does not fail) when missing or unknown | `baseline` | Always — set at creation via `athf hunt new --hunt-type`; backfill legacy hunts |
 | `related_hunts` | array | Hunt IDs that relate to this hunt | `[H-0015, H-0038]` | When building on past work or pivoting |
 | `findings_count` | integer | Total findings (TP + FP + suspicious) | `15` | Post-execution or during KEEP phase |
 | `true_positives` | integer | Confirmed malicious activity | `3` | Post-execution summary |
