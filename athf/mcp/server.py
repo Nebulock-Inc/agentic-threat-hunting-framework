@@ -8,7 +8,6 @@ Usage:
 
 import json
 import logging
-import sys
 from pathlib import Path
 from typing import Any, Optional
 
@@ -50,14 +49,9 @@ def _json_result(data: Any) -> str:
 
 def _discover_plugin_tools() -> list:
     """Discover MCP tool registration functions from installed plugins."""
-    if sys.version_info >= (3, 10):
-        from importlib.metadata import entry_points
+    from importlib.metadata import entry_points
 
-        return list(entry_points(group="athf.mcp_tools"))
-    else:
-        from importlib.metadata import entry_points
-
-        return list(entry_points().get("athf.mcp_tools", []))
+    return list(entry_points(group="athf.mcp_tools"))
 
 
 def create_server(workspace_path: Optional[str] = None) -> "FastMCP":  # type: ignore[name-defined]  # noqa: F821

@@ -2,11 +2,26 @@
 Pytest configuration and shared fixtures for ATHF tests.
 """
 
-import shutil
-import tempfile
-from pathlib import Path
+import os
 
-import pytest
+# Neutralize color-forcing env vars BEFORE any athf module (and its module-level
+# rich Console objects) is imported. rich honors FORCE_COLOR/CLICOLOR_FORCE and
+# injects ANSI escapes into the click test-runner's captured output; several CLI
+# tests assert on substrings like "Created H-0004", which break when color codes
+# split "H-" from the digits. CI has no FORCE_COLOR so it stays green, but a
+# developer whose terminal exports FORCE_COLOR (e.g. Ghostty sets FORCE_COLOR=3)
+# sees ~10 spurious failures. Forcing NO_COLOR here makes local runs match CI.
+# A rich Console reads color settings at construction, so this must happen at
+# conftest import time, not in a fixture (fixtures run after collection imports).
+os.environ.pop("FORCE_COLOR", None)
+os.environ.pop("CLICOLOR_FORCE", None)
+os.environ["NO_COLOR"] = "1"
+
+import shutil  # noqa: E402
+import tempfile  # noqa: E402
+from pathlib import Path  # noqa: E402
+
+import pytest  # noqa: E402
 
 
 @pytest.fixture
