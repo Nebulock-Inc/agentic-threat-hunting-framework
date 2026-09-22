@@ -72,7 +72,7 @@ title: [Hunt Title]                # Full hunt title (required)
 status: planning                   # Options: planning, in-progress, completed (required)
 date: YYYY-MM-DD                   # Hunt creation or last update date (required)
 hunter: [Your Name]                # Person or team conducting hunt (required)
-hunt_type: hypothesis              # Hunt category: hypothesis | baseline | model-assisted (recommended)
+hunt_type: hypothesis              # Hunt category: hypothesis | baseline | model-assisted (required for new hunts; legacy files may omit)
 platform: [Windows, macOS, Linux]  # Target platforms - array format (required)
 tactics: [credential-access]       # MITRE ATT&CK tactics (required)
 techniques: [T1003.001]            # MITRE ATT&CK technique IDs (required)
@@ -106,7 +106,7 @@ tags: [credential-theft]           # Freeform categorization tags (optional)
 
 | Field | Type | Purpose | Example | When to Use |
 |-------|------|---------|---------|-------------|
-| `hunt_type` | string | Hunt category, controlled vocabulary: `hypothesis`, `baseline`, `model-assisted`. Counted by `athf hunt stats --by hunt_type`; `athf hunt validate` warns (does not fail) when missing or unknown | `baseline` | Always — set at creation via `athf hunt new --hunt-type`; backfill legacy hunts |
+| `hunt_type` | string | Hunt category, controlled vocabulary: `hypothesis`, `baseline`, `model-assisted`. Counted by `athf hunt stats --by hunt_type` | `baseline` | Required for new hunts (`athf hunt new` always writes it, `--hunt-type` picks the value). Optional only for legacy files created before the field existed: `athf hunt validate` warns rather than fails, and such hunts count as `uncategorized` until backfilled |
 | `related_hunts` | array | Hunt IDs that relate to this hunt | `[H-0015, H-0038]` | When building on past work or pivoting |
 | `findings_count` | integer | Total findings (TP + FP + suspicious) | `15` | Post-execution or during KEEP phase |
 | `true_positives` | integer | Confirmed malicious activity | `3` | Post-execution summary |
@@ -154,6 +154,7 @@ title: macOS Data Collection via AppleScript
 status: completed
 date: 2025-11-19
 hunter: Security Team
+hunt_type: hypothesis
 platform: [macOS]
 tactics: [collection]
 techniques: [T1005]
@@ -176,6 +177,7 @@ title: Kerberoasting Detection via Service Ticket Requests
 status: completed
 date: 2025-11-30
 hunter: Threat Hunting Team
+hunt_type: hypothesis
 platform: [Windows]
 tactics: [credential-access]
 techniques: [T1558.003]
@@ -198,6 +200,7 @@ title: JavaScript Malware Execution Detection
 status: in-progress
 date: 2025-12-01
 hunter: Detection Engineering
+hunt_type: hypothesis
 platform: [Windows, macOS, Linux]  # Cross-platform TTP
 tactics: [execution]
 techniques: [T1059.007]

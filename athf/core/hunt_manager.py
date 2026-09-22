@@ -11,10 +11,18 @@ from athf.utils.validation import validate_file_path, validate_hunt_id
 
 
 def _hunt_type_matches(actual: Optional[str], wanted: str) -> bool:
-    """Filter predicate for ``hunt_type``; ``"uncategorized"`` selects missing/unknown."""
+    """Filter predicate for ``hunt_type``; ``"uncategorized"`` selects missing/unknown.
+
+    A ``wanted`` value outside the vocabulary matches nothing — it must not
+    silently alias to the uncategorized bucket just because both normalize
+    to ``None``.
+    """
     if wanted == UNCATEGORIZED_LABEL:
         return actual is None
-    return actual == normalize_hunt_type(wanted)
+    canonical = normalize_hunt_type(wanted)
+    if canonical is None:
+        return False
+    return actual == canonical
 
 
 def _breakdown_labels(value: Any) -> List[str]:

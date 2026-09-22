@@ -65,6 +65,17 @@ def metrics() -> None:
     """
 
 
+EXPECTED_ROLLUPS = ("by_platform", "by_tactic", "by_technique", "by_data_source", "by_hunt_type")
+
+
+def _rollups_stale(payload: dict) -> bool:
+    """True when a cached aggregates.json predates one of the current rollups."""
+    rollups = payload.get("rollups")
+    if not isinstance(rollups, dict):
+        return True
+    return any(key not in rollups for key in EXPECTED_ROLLUPS)
+
+
 # ---------------------------------------------------------------------------
 # show
 # ---------------------------------------------------------------------------
@@ -158,7 +169,9 @@ def summary(output_format: str, workspace: Path) -> None:
     """Show workspace-wide totals + rollups."""
     aggregator = Aggregator(workspace=workspace)
     payload = aggregator.load()
-    if payload is None:
+    if payload is None or _rollups_stale(payload):
+        # Aggregates written before a rollup existed would otherwise render
+        # without it until someone remembers to run `athf metrics extract`.
         payload = aggregator.extract()
 
     if output_format == "json":

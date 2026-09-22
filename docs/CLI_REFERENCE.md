@@ -627,6 +627,7 @@ Hunt Title: Kerberoasting Detection via Unusual TGS Requests
 Primary Tactic [credential-access]: credential-access
 Target Platforms (comma-separated) [windows]: windows
 Data Sources (comma-separated) [windows-event-logs]: windows-event-logs,edr-telemetry
+Hunt Type [hypothesis]: hypothesis
 Your Name [Your Name]: Jane Doe
 Severity [medium]: high
 ```
@@ -771,7 +772,7 @@ Display all hunts in a formatted table, including a `Type` column showing each h
 | `--technique` | String | - | Filter by technique (e.g., T1003.001) |
 | `--platform` | String | - | Filter by platform |
 | `--directory` | Choice | - | Filter by environment directory: `test`, `production` |
-| `--hunt-type` | Choice | - | Filter by hunt category: `hypothesis`, `baseline`, `model-assisted`, or `uncategorized` (hunts missing the field) |
+| `--hunt-type` | Choice | - | Filter by hunt category: `hypothesis`, `baseline`, `model-assisted`, or `uncategorized` (hunts whose `hunt_type` is missing or not in the vocabulary) |
 | `--output` | Choice | table | Output format: `table`, `json`, `yaml` |
 
 **Filter to one category**:
@@ -791,12 +792,12 @@ athf hunt list
 
 Output:
 ```
-Hunt ID  Title                          Status      Technique   Findings
-─────────────────────────────────────────────────────────────────────────
-H-0001   macOS Information Stealer      completed   T1005       1 (1 TP)
-H-0002   Kerberoasting Detection        in-progress T1558.003   -
-H-0015   LSASS Memory Access            completed   T1003.001   3 (2 TP)
-H-0023   Cloud Persistence via Lambda   paused      T1098       -
+Hunt ID  Title                          Type            Status      Technique   Findings
+─────────────────────────────────────────────────────────────────────────────────────────
+H-0001   macOS Information Stealer      hypothesis      completed   T1005       1 (1 TP)
+H-0002   Kerberoasting Detection        hypothesis      in-progress T1558.003   -
+H-0015   LSASS Memory Access            baseline        completed   T1003.001   3 (2 TP)
+H-0023   Cloud Persistence via Lambda   model-assisted  paused      T1098       -
 ```
 
 **Filter by status**:
@@ -844,6 +845,7 @@ Output:
     "hunt_id": "H-0001",
     "title": "macOS Information Stealer Detection",
     "status": "completed",
+    "hunt_type": "hypothesis",
     "techniques": ["T1005"],
     "tactics": ["collection"],
     "platforms": ["macos"],

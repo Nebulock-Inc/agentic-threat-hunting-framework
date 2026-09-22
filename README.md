@@ -160,8 +160,9 @@ athf hunt new \
   --technique T1003.001 \
   --title "LSASS Dumping Detection" \
   --platform windows \
-  --hunt-type baseline \            # hypothesis (default) | baseline | model-assisted
+  --hunt-type baseline \
   --research R-0001                 # Link to research document
+# --hunt-type: hypothesis (default) | baseline | model-assisted
 ```
 
 ### List & Search

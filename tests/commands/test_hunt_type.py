@@ -156,6 +156,37 @@ class TestHuntNewWritesHuntType:
         assert result.exit_code != 0
         assert "anomaly" in result.output
 
+    def test_legacy_custom_template_still_gets_hunt_type(self, workspace):
+        """A workspace template snapshotted before hunt_type existed must not drop the value."""
+        legacy = Path("templates") / "HUNT_TEMPLATE.j2"
+        legacy.parent.mkdir(exist_ok=True)
+        legacy.write_text(
+            "---\nhunt_id: {{ hunt_id }}\ntitle: {{ title }}\nstatus: {{ status }}\ndate: {{ date }}\n"
+            "hunter: {{ hunter }}\nplatform: {{ platform }}\ntactics: {{ tactics }}\ntechniques: {{ techniques }}\n"
+            "data_sources: {{ data_sources }}\nfindings: []\nruled_out: []\ntags: {{ tags }}\n---\n\n"
+            "# {{ hunt_id }}\n\n## LEARN\n\n## OBSERVE\n\n## CHECK\n\n## KEEP\n",
+            encoding="utf-8",
+        )
+        _new(workspace, "Legacy template", "--hunt-type", "baseline")
+        fm = _frontmatter("H-0001")
+        assert fm["hunt_type"] == "baseline"
+        assert fm["hunter"]  # neighbouring fields intact
+        assert HuntManager().list_hunts()[0]["hunt_type"] == "baseline"
+
+    def test_injection_respects_template_that_already_emits_field(self):
+        from athf.core.template_engine import _ensure_frontmatter_field
+
+        rendered = "---\nhunt_id: H-0001\nhunt_type: baseline\n---\nbody"
+        assert _ensure_frontmatter_field(rendered, "hunt_type", "hypothesis") == rendered
+
+    def test_injection_appends_when_no_hunter_line(self):
+        from athf.core.template_engine import _ensure_frontmatter_field
+
+        rendered = "---\nhunt_id: H-0001\n---\nbody"
+        out = _ensure_frontmatter_field(rendered, "hunt_type", "baseline")
+        assert yaml.safe_load(out.split("---", 2)[1]) == {"hunt_id": "H-0001", "hunt_type": "baseline"}
+        assert out.endswith("---\nbody")
+
 
 # ---------------------------------------------------------------------------
 # hunt list
@@ -190,6 +221,14 @@ class TestHuntListShowsHuntType:
     def test_filter_rejects_unknown_value(self, mixed_workspace):
         result = mixed_workspace.invoke(hunt, ["list", "--hunt-type", "anomaly"])
         assert result.exit_code != 0
+
+    def test_manager_filter_unknown_value_matches_nothing(self, mixed_workspace):
+        """An out-of-vocabulary filter must not alias to the uncategorized bucket."""
+        assert HuntManager().list_hunts(hunt_type="anomaly") == []
+        assert [h["hunt_id"] for h in HuntManager().list_hunts(hunt_type="uncategorized")] == ["H-0004"]
+
+    def test_manager_filter_accepts_non_canonical_spelling(self, mixed_workspace):
+        assert [h["hunt_id"] for h in HuntManager().list_hunts(hunt_type="Baseline")] == ["H-0003"]
 
 
 # ---------------------------------------------------------------------------
@@ -379,6 +418,21 @@ class TestMetricsRollup:
         result = mixed_workspace.invoke(metrics, ["summary"])
         assert result.exit_code == 0, result.output
         assert "By hunt type" in result.output
+
+    def test_metrics_summary_refreshes_aggregates_missing_the_rollup(self, mixed_workspace):
+        """aggregates.json written before by_hunt_type existed must be re-extracted, not rendered stale."""
+        first = mixed_workspace.invoke(metrics, ["extract"])
+        assert first.exit_code == 0, first.output
+        agg_path = Path("metrics") / "aggregates.json"
+        payload = json.loads(agg_path.read_text(encoding="utf-8"))
+        payload["rollups"].pop("by_hunt_type")
+        agg_path.write_text(json.dumps(payload), encoding="utf-8")
+
+        result = mixed_workspace.invoke(metrics, ["summary", "--format", "json"])
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["rollups"]["by_hunt_type"]["baseline"] == 1
+        table = mixed_workspace.invoke(metrics, ["summary"])
+        assert "By hunt type" in table.output
 
 
 # ---------------------------------------------------------------------------

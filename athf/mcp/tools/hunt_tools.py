@@ -24,6 +24,15 @@ def register_hunt_tools(mcp: "FastMCP") -> None:  # type: ignore[name-defined]  
         hunt_type: Optional[str] = None,
     ) -> str:
         from athf.core.hunt_manager import HuntManager
+        from athf.core.hunt_types import HUNT_TYPES, UNCATEGORIZED_LABEL, normalize_hunt_type
+
+        if hunt_type is not None and hunt_type != UNCATEGORIZED_LABEL:
+            canonical = normalize_hunt_type(hunt_type)
+            if canonical is None:
+                return _json_result(
+                    {"error": f"Unknown hunt_type: {hunt_type!r}. Expected one of: {', '.join(HUNT_TYPES)}, {UNCATEGORIZED_LABEL}"}
+                )
+            hunt_type = canonical
 
         workspace = get_workspace()
         manager = HuntManager(hunts_dir=workspace / "hunts")
