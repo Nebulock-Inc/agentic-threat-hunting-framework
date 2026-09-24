@@ -5,7 +5,7 @@ All notable changes to the Agentic Threat Hunting Framework (ATHF) will be docum
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.15.0] - Unreleased
+## [0.20.0] - 2026-09-24
 
 ### Added
 - **Hunt categories (`hunt_type`)** — closes [#60](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/issues/60). New controlled-vocabulary frontmatter field `hunt_type: hypothesis | baseline | model-assisted` (`athf/core/hunt_types.py`) so hunt-program mix can be reported deterministically instead of grepping titles.
@@ -26,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `athf_agent_run_hypothesis` MCP response (PR #30 shape) now carries the contract's core fields (`preview`, `path`, `byte_count`) **in addition to** its existing fields (`research_id`, `file_path`, `hypothesis_preview`, `mitre_techniques`, `data_sources`, `persisted`, `metadata`). PR #30's regression test (`tests/core/test_research_manager_hypothesis.py`) passes unchanged. The shape is now described as a strict superset of the contract.
 
 ### Notes
-- **Existing workspaces:** `athf init` snapshots the hunt template into `templates/HUNT_TEMPLATE.j2`, and that local copy overrides the bundled one. To have `athf hunt new` write `hunt_type` in a workspace created before this release, add `{% if hunt_type %}hunt_type: {{ hunt_type }}\n{% endif %}` to that file (or delete it to fall back to the bundled template). Legacy hunts show a validate warning until `hunt_type` is backfilled; `athf hunt list --hunt-type uncategorized` lists them.
+- **Existing workspaces:** `athf init` snapshots the hunt template into `templates/HUNT_TEMPLATE.j2`, and that local copy overrides the bundled one. `athf hunt new` injects `hunt_type` into the frontmatter even when that snapshot predates the field, so no template edit is needed. Hunts created before this release show a validate warning until `hunt_type` is backfilled; `athf hunt list --hunt-type uncategorized` lists them.
 - The contract names the field shape, not the location of the bytes. Each producer picks its own env var for its scratch dir (this repo uses the existing `ATHF_HUNTS_DIR`; vault-side data-source query CLIs in vault plugins adopt their own `ATHF_QUERY_RESULTS_DIR` separately).
 
 ## [0.14.0] - 2026-05-22
