@@ -6,7 +6,35 @@ from typing import Any, Dict, List, Optional, Set
 
 from athf.core.attack_matrix import ATTACK_TACTICS, TOTAL_TECHNIQUES, get_sorted_tactics
 from athf.core.hunt_parser import parse_hunt_file
+from athf.core.hunt_types import HUNT_TYPES, UNCATEGORIZED_LABEL, normalize_hunt_type
 from athf.utils.validation import validate_file_path, validate_hunt_id
+
+
+def _hunt_type_matches(actual: Optional[str], wanted: str) -> bool:
+    """Filter predicate for ``hunt_type``; ``"uncategorized"`` selects missing/unknown.
+
+    A ``wanted`` value outside the vocabulary matches nothing — it must not
+    silently alias to the uncategorized bucket just because both normalize
+    to ``None``.
+    """
+    if wanted == UNCATEGORIZED_LABEL:
+        return actual is None
+    canonical = normalize_hunt_type(wanted)
+    if canonical is None:
+        return False
+    return actual == canonical
+
+
+def _breakdown_labels(value: Any) -> List[str]:
+    """Labels a hunt contributes to a breakdown: one per list item, or ``uncategorized``."""
+    if isinstance(value, list):
+        labels = [str(v) for v in value if v not in (None, "")]
+    elif value in (None, ""):
+        labels = []
+    else:
+        labels = [str(value)]
+    return labels or [UNCATEGORIZED_LABEL]
+
 
 # Documentation files to exclude when discovering hunt files at any directory level
 EXCLUDED_DOC_FILES = {"README.md", "FORMAT_GUIDELINES.md", "INDEX.md", "AGENTS.md", "WEEKLY_SUMMARY_TEMPLATE.md"}
@@ -65,6 +93,7 @@ class HuntManager:
         technique: Optional[str] = None,
         platform: Optional[str] = None,
         directory: Optional[str] = None,
+        hunt_type: Optional[str] = None,
     ) -> List[Dict]:
         """List all hunts with optional filters.
 
@@ -74,6 +103,8 @@ class HuntManager:
             technique: Filter by MITRE technique (e.g., T1003.001)
             platform: Filter by platform (Windows, Linux, macOS, Cloud)
             directory: Filter by environment directory (test or production)
+            hunt_type: Filter by hunt category (hypothesis, baseline, model-assisted).
+                Pass ``"uncategorized"`` to select hunts with no/unknown hunt_type.
 
         Returns:
             List of hunt metadata dicts
@@ -109,6 +140,14 @@ class HuntManager:
                 if directory and environment != directory:
                     continue
 
+                # Normalized for reporting; the raw value is kept in the file.
+                # Unknown/missing collapses to None so stats can bucket it as
+                # "uncategorized" rather than sprouting one row per typo.
+                hunt_type_val = normalize_hunt_type(frontmatter.get("hunt_type"))
+
+                if hunt_type and not _hunt_type_matches(hunt_type_val, hunt_type):
+                    continue
+
                 # Extract summary info
                 date_val = frontmatter.get("date")
                 # Convert date objects to strings for JSON serialization
@@ -123,6 +162,7 @@ class HuntManager:
                         "title": frontmatter.get("title"),
                         "status": frontmatter.get("status"),
                         "date": date_str,
+                        "hunt_type": hunt_type_val,
                         "platform": frontmatter.get("platform", []),
                         "tactics": frontmatter.get("tactics", []),
                         "techniques": frontmatter.get("techniques", []),
@@ -238,11 +278,86 @@ class HuntManager:
 
         return results
 
+    # Frontmatter fields `athf hunt stats --by` may group on. Each maps to the
+    # key in the list_hunts() summary dict. List-valued fields (platform,
+    # tactics, techniques) count a hunt once per value it carries.
+    GROUPABLE_FIELDS = {
+        "hunt_type": "hunt_type",
+        "status": "status",
+        "platform": "platform",
+        "tactic": "tactics",
+        "technique": "techniques",
+        "environment": "environment",
+    }
+
+    def calculate_breakdown(
+        self,
+        by: str = "hunt_type",
+        status: Optional[str] = None,
+        directory: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Count hunts grouped by an enumerable frontmatter field.
+
+        Args:
+            by: Field to group on — one of ``GROUPABLE_FIELDS``.
+            status: Optional status filter (e.g. ``completed``) applied first.
+            directory: Optional environment filter (``test`` / ``production``).
+
+        Returns:
+            ``{"by": by, "total": N, "filters": {...}, "counts": {label: n},
+            "percentages": {label: pct}}``. Hunts with no value for the field
+            are counted under ``"uncategorized"``. For ``hunt_type`` every
+            vocabulary value is present (possibly 0) so reports stay stable
+            as the corpus changes.
+        """
+        if by not in self.GROUPABLE_FIELDS:
+            raise ValueError(f"Cannot group by {by!r}; choose one of: {', '.join(self.GROUPABLE_FIELDS)}")
+
+        key = self.GROUPABLE_FIELDS[by]
+        hunts = self.list_hunts(status=status, directory=directory)
+
+        counts: Dict[str, int] = {}
+        if by == "hunt_type":
+            counts = {name: 0 for name in HUNT_TYPES}
+
+        for hunt in hunts:
+            for label in _breakdown_labels(hunt.get(key)):
+                counts[label] = counts.get(label, 0) + 1
+
+        # For hunt_type keep the vocabulary order and only show
+        # "uncategorized" when it is non-zero; other fields sort by count.
+        if by == "hunt_type":
+            ordered = {name: counts[name] for name in HUNT_TYPES}
+            if counts.get(UNCATEGORIZED_LABEL):
+                ordered[UNCATEGORIZED_LABEL] = counts[UNCATEGORIZED_LABEL]
+        else:
+            ordered = dict(sorted(counts.items(), key=lambda kv: (-kv[1], kv[0])))
+
+        total = len(hunts)
+        percentages = {
+            label: (round(n / total * 100, 1) if total else 0.0) for label, n in ordered.items()
+        }
+
+        filters: Dict[str, str] = {}
+        if status:
+            filters["status"] = status
+        if directory:
+            filters["directory"] = directory
+
+        return {
+            "by": by,
+            "total": total,
+            "filters": filters,
+            "counts": ordered,
+            "percentages": percentages,
+        }
+
     def calculate_stats(self) -> Dict:
         """Calculate hunt program statistics.
 
         Returns:
-            Dict with success rates, TP/FP ratios, coverage metrics
+            Dict with success rates, TP/FP ratios, coverage metrics, and a
+            ``by_hunt_type`` breakdown (hypothesis / baseline / model-assisted).
         """
         hunts = self.list_hunts()
 
@@ -255,6 +370,7 @@ class HuntManager:
                 "false_positives": 0,
                 "success_rate": 0.0,
                 "tp_fp_ratio": 0.0,
+                "by_hunt_type": {name: 0 for name in HUNT_TYPES},
             }
 
         total_hunts = len(hunts)
@@ -279,6 +395,7 @@ class HuntManager:
             "false_positives": total_fp,
             "success_rate": round(success_rate, 1),
             "tp_fp_ratio": round(tp_fp_ratio, 2) if tp_fp_ratio != float("inf") else "∞",
+            "by_hunt_type": self.calculate_breakdown(by="hunt_type")["counts"],
         }
 
     def calculate_attack_coverage(self) -> Dict[str, Any]:

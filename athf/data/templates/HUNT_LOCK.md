@@ -4,6 +4,7 @@ title: [Hunt Title]
 status: planning  # Options: planning, in-progress, completed
 date: YYYY-MM-DD
 hunter: [Your Name]
+hunt_type: hypothesis  # Options: hypothesis | baseline | model-assisted — counted by `athf hunt stats --by hunt_type`
 platform: [Windows, macOS, Linux, Cloud, Network]  # Array - can include multiple platforms
 tactics: [initial-access, persistence, privilege-escalation, defense-evasion, credential-access, discovery, lateral-movement, collection, command-and-control, exfiltration, impact]
 techniques: [T1003.001, T1059.001]  # MITRE ATT&CK technique IDs

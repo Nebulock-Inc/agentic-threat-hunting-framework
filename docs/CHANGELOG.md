@@ -5,9 +5,18 @@ All notable changes to the Agentic Threat Hunting Framework (ATHF) will be docum
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.15.0] - Unreleased
+## [0.21.0] - 2026-09-24
 
 ### Added
+- **Hunt categories (`hunt_type`)** — closes [#60](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/issues/60). New controlled-vocabulary frontmatter field `hunt_type: hypothesis | baseline | model-assisted` (`athf/core/hunt_types.py`) so hunt-program mix can be reported deterministically instead of grepping titles.
+  - `athf hunt new --hunt-type <value>` populates it (defaults to `hypothesis`; interactive mode prompts). Bundled Jinja2 template, `HUNT_LOCK.md`, and `athf init` templates carry the field.
+  - `athf hunt stats` gains `--by <hunt_type|status|platform|tactic|technique|environment>`, `--status`, `--directory`, and `--output table|json|yaml` (`--format` accepted as alias). Default view now includes a "Hunts by type" table; JSON output carries `by_hunt_type`. Hunts without a valid `hunt_type` are counted as `uncategorized`.
+  - `athf hunt list` shows a `Type` column and accepts `--hunt-type <value|uncategorized>`.
+  - `athf hunt validate` now prints **non-blocking warnings** (exit code unchanged) — first use: missing/unknown `hunt_type` on legacy hunts. `HuntParser.warnings()` / `hunt_file_warnings()` added.
+  - `athf metrics summary` rollups include `by_hunt_type`; the table view renders it alongside platform/tactic.
+  - MCP: `athf_hunt_list` accepts `hunt_type`; `athf_hunt_stats` accepts `by`/`status`; `athf_hunt_validate` returns `warnings`.
+  - `HuntManager.calculate_breakdown()` is the shared aggregation; `HuntManager.list_hunts()` summaries and `athf hunt export` include `hunt_type`.
+  - Bundled example hunts backfilled with `hunt_type: hypothesis`.
 - **Envelope-reduction response contract** — formal spec at [docs/envelope-reduction-contract.md](envelope-reduction-contract.md) describing the canonical shape MCP tools and CLI commands use to keep tool-result payloads off the cached prefix. Core fields: `preview`, `path`, `persisted`, `byte_count`, plus a producer-defined `metadata` extension. Two persistence gates: parent-artifact (e.g. `research_id` → write to that artifact) or byte-threshold (default 2048 bytes → write to scratch dir).
 - `athf.core.envelope.build_envelope()` — reference Python implementation. Accepts a payload plus gate parameters and returns a contract-compliant dict. Idempotent; emits absolute paths.
 - `tests/core/test_envelope.py` — full coverage of both gates, the threshold boundary, metadata pass-through, error cases, and idempotent absolute-path output.
@@ -17,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `athf_agent_run_hypothesis` MCP response (PR #30 shape) now carries the contract's core fields (`preview`, `path`, `byte_count`) **in addition to** its existing fields (`research_id`, `file_path`, `hypothesis_preview`, `mitre_techniques`, `data_sources`, `persisted`, `metadata`). PR #30's regression test (`tests/core/test_research_manager_hypothesis.py`) passes unchanged. The shape is now described as a strict superset of the contract.
 
 ### Notes
+- **Existing workspaces:** `athf init` snapshots the hunt template into `templates/HUNT_TEMPLATE.j2`, and that local copy overrides the bundled one. `athf hunt new` injects `hunt_type` into the frontmatter even when that snapshot predates the field, so no template edit is needed. Hunts created before this release show a validate warning until `hunt_type` is backfilled; `athf hunt list --hunt-type uncategorized` lists them.
 - The contract names the field shape, not the location of the bytes. Each producer picks its own env var for its scratch dir (this repo uses the existing `ATHF_HUNTS_DIR`; vault-side data-source query CLIs in vault plugins adopt their own `ATHF_QUERY_RESULTS_DIR` separately).
 
 ## [0.14.0] - 2026-05-22

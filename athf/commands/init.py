@@ -241,6 +241,7 @@ title: [Hunt Title]
 status: planning
 date: YYYY-MM-DD
 hunter: [Your Name]
+hunt_type: hypothesis  # one of: hypothesis | baseline | model-assisted
 platform: [Windows/Linux/macOS/Cloud]
 tactics: [persistence, credential-access, etc.]
 techniques: [T1003.001, T1005, etc.]
@@ -435,7 +436,7 @@ def _create_jinja2_hunt_template(path: Path) -> None:
         "{#- Edit this file to change the structure of new hunt files -#}\n"
         "{#- Available variables: hunt_id, title, status, date, hunter, platform, -#}\n"
         "{#-   tactics, techniques, data_sources, tags, hypothesis, threat_context, -#}\n"
-        "{#-   actor, behavior, location, evidence, spawned_from -#}\n"
+        "{#-   actor, behavior, location, evidence, spawned_from, hunt_type -#}\n"
     )
 
     with open(path, "w", encoding="utf-8") as f:

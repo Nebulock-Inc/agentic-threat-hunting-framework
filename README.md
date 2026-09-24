@@ -160,7 +160,9 @@ athf hunt new \
   --technique T1003.001 \
   --title "LSASS Dumping Detection" \
   --platform windows \
+  --hunt-type baseline \
   --research R-0001                 # Link to research document
+# --hunt-type: hypothesis (default) | baseline | model-assisted
 ```
 
 ### List & Search
@@ -169,6 +171,7 @@ athf hunt new \
 athf hunt list                      # Show all hunts
 athf hunt list --status completed   # Filter by status
 athf hunt list --directory test     # Filter by environment (test/production)
+athf hunt list --hunt-type baseline # Filter by hunt category
 athf hunt list --output json        # JSON output
 athf hunt search "kerberoasting"    # Full-text search
 athf hunt search "credential" --directory production  # Search with directory filter
@@ -180,7 +183,8 @@ athf research search "credential"   # Search research docs
 ```bash
 athf hunt validate                  # Validate all hunts
 athf hunt validate H-0001           # Validate specific hunt
-athf hunt stats                     # Show statistics
+athf hunt stats                     # Show statistics (incl. hunts by type)
+athf hunt stats --by hunt_type --status completed --output json  # Category breakdown
 athf hunt coverage                  # MITRE ATT&CK coverage
 athf research stats                 # Research metrics
 ```
