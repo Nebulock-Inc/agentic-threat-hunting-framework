@@ -390,6 +390,17 @@ athf --version
 7. **Execute queries** - Use appropriate data source tools (SIEM interface, query CLI, etc.)
 8. **STOP after each query** - Wait for user feedback before next query
 9. **Document findings** - Update hunt file with results and conclusions
+10. **Validate with GATES** - After documenting findings in KEEP phase:
+    - Run `/gates --hunt H-XXXX` to validate detection quality
+    - Document verdict in hunt file under `### GATES Verdict`
+    - **If PROMOTE**: Proceed to ADEF for detection engineering
+      - Install ADEF: `pip install agentic-detection-engineering-framework`
+      - Switch to ADEF workspace: `cd ~/adef-workspace/`
+      - Run FORGE: `adef forge --input ~/athf-workspace/hunt-promotion-analysis/H-XXXX_GATES.yaml`
+      - ADEF Repo: https://github.com/Nebulock-Inc/agentic-detection-engineering-framework
+      - **Note:** GATES "PROMOTE" means deploy detection rule to production. This is separate from `athf hunt promote` which moves hunt files between directories.
+    - **If CONDITIONAL**: Complete prerequisites first, then proceed to ADEF
+    - **If HOLD/TIME-BOX/RECURRING**: Document strategy (see GATES output)
 
 ---
 

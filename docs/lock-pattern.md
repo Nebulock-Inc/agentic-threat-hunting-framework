@@ -144,6 +144,69 @@ Next iteration: expand to include remote registry and PSExec telemetry for broad
 
 By capturing every hunt in this format, ATHF makes it possible for AI assistants to recall prior work, generate new hypotheses, and suggest refined queries based on past results.
 
+## Beyond LOCK: From Hunt to Detection
+
+After completing the KEEP phase, validated findings can be promoted to production detections using the GATES method and ADEF framework.
+
+### The Complete Workflow
+
+```
+ATHF Workspace                    ADEF Workspace
+──────────────                    ──────────────
+LOCK Pattern
+  Learn
+    ↓
+  Observe
+    ↓
+  Check
+    ↓
+  Keep ──────────────────────┐
+                             │
+GATES Validation             │
+  /gates --hunt H-XXXX       │
+    ↓                        │
+  H-XXXX_GATES.yaml ─────────┴──→ ADEF FORGE
+                                  (Detection Engineering)
+                                      ↓
+                                  Production Rule
+```
+
+**Step 1: Complete LOCK phases**
+Document your hunt through Learn → Observe → Check → Keep
+
+**Step 2: Validate with GATES**
+```bash
+/gates --hunt H-XXXX
+# → hunt-promotion-analysis/H-XXXX_GATES.yaml
+```
+
+GATES evaluates your findings using 5 BASE criteria:
+- **G**eneralizable - Is this repeatable?
+- **A**dditive - Does it fill a coverage gap?
+- **T**unable - Can we distinguish attack from normal?
+- **E**xposure-tested - Did we cover evasions?
+- **S**ustainable - Can we maintain this?
+
+**Verdict types:**
+- ✅ **PROMOTE** (4-5/5) - Ready for production
+- ⚠️ **CONDITIONAL** (3/5) - Deploy after prerequisites
+- ❌ **HOLD** (0-2/5) - Preserve for future
+- ⏱️ **TIME-BOX** - IOC-based, 90-day refresh
+- 🔄 **RECURRING HUNT** - Quarterly execution
+
+**Step 3: Engineer with ADEF (if PROMOTE/CONDITIONAL)**
+```bash
+# Switch to ADEF workspace
+cd ~/adef-workspace/
+
+# Run FORGE with path to GATES output
+adef forge --input ~/athf-workspace/hunt-promotion-analysis/H-XXXX_GATES.yaml
+```
+
+**ADEF Repository:** https://github.com/Nebulock-Inc/agentic-detection-engineering-framework
+
+**Read more about GATES:** [.claude/skills/gates/README.md](../.claude/skills/gates/README.md)
+
 ## Templates
 
 See [templates/](../templates/) for ready-to-use LOCK hunt templates.

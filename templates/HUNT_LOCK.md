@@ -155,6 +155,15 @@ tags: []
 [Detection rule if applicable]
 ```
 
+**⚠️ Next Step: Validate with GATES**
+
+If you documented detection logic above, run:
+```bash
+/gates --hunt H-XXXX
+```
+
+GATES validates detection quality using 5 criteria (Generalizable, Additive, Tunable, Exposure-tested, Sustainable) and provides verdict: PROMOTE, CONDITIONAL, HOLD, TIME-BOX, or RECURRING HUNT.
+
 ### Lessons Learned
 
 **What Worked Well:**
@@ -168,8 +177,41 @@ tags: []
 
 ### Follow-up Actions
 
+- [ ] Run GATES validation: `/gates --hunt H-XXXX`
+- [ ] Document GATES verdict in "GATES Verdict" section below
 - [ ] [Action item 1]
 - [ ] [Action item 2]
+
+### GATES Verdict
+
+**Status:** [Not yet evaluated | PROMOTE | CONDITIONAL | HOLD | TIME-BOX | RECURRING HUNT]  
+**BASE Score:** [X/5]
+
+**How to run:** `/gates --hunt H-XXXX`
+
+**Rationale:** 
+- **G** (Generalizable): [PASS/PARTIAL/FAIL - Why?]
+- **A** (Additive): [PASS/PARTIAL/FAIL - Why?]
+- **T** (Tunable): [PASS/PARTIAL/FAIL - Why?]
+- **E** (Exposure-tested): [PASS/PARTIAL/FAIL - Why?]
+- **S** (Sustainable): [PASS/PARTIAL/FAIL - Why?]
+
+**Verdict Meaning:**
+- **PROMOTE** (4-5/5): Deploy immediately to production
+- **CONDITIONAL** (3/5): Deploy after prerequisites (allowlists, tuning, etc.)
+- **HOLD** (0-2/5): Preserve for future, not ready for deployment
+- **TIME-BOX**: IOC-based detection with expiration date (e.g., 90 days)
+- **RECURRING HUNT**: High volume, run quarterly instead of 24/7 alerting
+
+**Next Steps:**
+- [ ] [Action items based on verdict]
+- [ ] **If PROMOTE**: Proceed to detection engineering with ADEF
+  - Install ADEF: `pip install agentic-detection-engineering-framework`
+  - Switch to ADEF workspace: `cd ~/adef-workspace/`
+  - Run FORGE: `adef forge --input ~/athf-workspace/hunt-promotion-analysis/H-XXXX_GATES.yaml`
+  - Repository: https://github.com/Nebulock-Inc/agentic-detection-engineering-framework
+- [ ] **If CONDITIONAL**: Complete prerequisites first, then proceed to ADEF
+- [ ] **If HOLD/TIME-BOX/RECURRING**: Document strategy (see GATES output for details)
 
 ### Follow-up Hunts
 

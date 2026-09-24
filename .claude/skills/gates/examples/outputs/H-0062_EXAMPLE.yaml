@@ -1,0 +1,116 @@
+# Example: PROMOTE Verdict (ClickFix Attack)
+# Real hunt validation showing 4 detections from clipboard abuse campaign
+
+hunt_metadata:
+  hunt_id: H-0062
+  title: "ClickFix Clipboard Abuse - Run Dialog Attack Chain"
+  techniques: [T1204.001, T1059.001, T1176.001]
+  tactics: [execution, initial-access]
+
+  hunt_outcomes:
+    true_positives: 0  # Proactive hunt, no active attacks
+    false_positives: 0
+    baseline_events: ~1000000000  # ~1B events, 30 days
+    findings_count: 4
+
+gates_validation:
+  verdict: PROMOTE
+  detections_promoted: 4
+  base_score_average: 4.25
+
+  key_learnings:
+    - "Zero baseline FPs = exceptional deployment confidence"
+    - "Multi-angle coverage (process, network, task) better than single detection"
+    - "Proactive deployment validated by 30-day baseline"
+
+detections:
+  - detection_id: 2
+    name: "Remote Package Installer Execution (ClickFix Primary)"
+
+    gates_assessment:
+      verdict: PROMOTE
+      base_score: 5.0
+      criteria:
+        generalizable: PASS
+        additive: PASS
+        tunable: PASS
+        exposure_tested: PASS
+        sustainable: PASS
+
+      pattern_learned: "Remote msiexec = #1 ClickFix pattern, zero baseline FPs"
+
+    deployment:
+      engine: sigma
+      status: EXPERIMENTAL
+      severity: high
+
+      detection_logic:
+        selection:
+          process_name: msiexec.exe
+          command_line|contains: '/i http'
+        condition: selection
+
+      operational_parameters:
+        expected_volume: "0 baseline events / ~1B total"
+        fp_rate: "0% (30-day baseline)"
+        deployment_priority: 1  # Deploy first
+
+  - detection_id: 1
+    name: "Run Dialog Rare LOLBin Execution"
+
+    gates_assessment:
+      verdict: PROMOTE
+      base_score: 4.5
+      criteria:
+        generalizable: PASS
+        additive: PASS
+        tunable: PASS
+        exposure_tested: PASS
+        sustainable: PASS
+
+    deployment:
+      engine: sigma
+      status: EXPERIMENTAL
+      severity: high
+
+      operational_parameters:
+        expected_volume: "0 of 13,082 executions matched"
+        fp_rate: "0%"
+        deployment_priority: 2
+
+  - detection_id: 4
+    name: "WebDAV-Anchored Script Execution"
+
+    gates_assessment:
+      verdict: PROMOTE
+      base_score: 4.0
+
+    deployment:
+      status: EXPERIMENTAL
+      deployment_priority: 3
+
+  - detection_id: 3
+    name: "Paste-Delivered Payload (RunMRU Registry)"
+
+    gates_assessment:
+      verdict: CONDITIONAL
+      base_score: 3.5
+      criteria:
+        tunable: FAIL  # Requires allowlist
+
+    deployment:
+      status: EXPERIMENTAL
+      deployment_priority: 4
+      prerequisites:
+        - "Build RunMRU allowlist (7 baseline patterns)"
+
+aggregate_insights:
+  successful_patterns:
+    - pattern: "Zero baseline FP detections"
+      example: "Remote msiexec: 0 FPs in ~1B events"
+      confidence: "Deploy immediately with 7-day soak"
+
+operational_handoff:
+  deployment_order:
+    - "Detection 2 (msiexec) → Detection 1 (LOLBin) → Detection 4 (WebDAV) → Detection 3 (RunMRU)"
+  soak_period: "7 days for D1-D4, extend D3 to 30 days if FPs appear"
