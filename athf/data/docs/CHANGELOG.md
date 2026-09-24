@@ -5,7 +5,7 @@ All notable changes to the Agentic Threat Hunting Framework (ATHF) will be docum
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.20.0] - 2026-09-24
+## [0.21.0] - 2026-09-24
 
 ### Added
 - **Hunt categories (`hunt_type`)** — closes [#60](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/issues/60). New controlled-vocabulary frontmatter field `hunt_type: hypothesis | baseline | model-assisted` so hunt-program mix can be reported deterministically instead of grepping titles.
