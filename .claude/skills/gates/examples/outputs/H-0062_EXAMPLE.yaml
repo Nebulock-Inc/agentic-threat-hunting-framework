@@ -1,0 +1,270 @@
+# Example: PROMOTE Verdict (ClickFix Attack)
+# Real hunt validation showing 4 detections from clipboard abuse campaign
+#
+# This file is a conformance example: every candidate below satisfies the
+# "Required fields" rule in AGENT_MEMORY_SCHEMA.md, every base_score is the exact
+# sum of its criteria, and every verdict follows the precedence rule in SKILL.md
+# Step 4. If you change one, change the others to match.
+
+hunt_metadata:
+  hunt_id: H-0062
+  title: "ClickFix Clipboard Abuse - Run Dialog Attack Chain"
+  techniques: [T1204.001, T1059.001, T1176.001]
+  tactics: [execution, initial-access]
+  platforms: [windows]
+
+  hunt_outcomes:
+    true_positives: 0  # Proactive hunt, no active attacks
+    false_positives: 0
+    baseline_events: 1000000000  # ~1B events, 30 days
+    findings_count: 4
+
+gates_validation:
+  # Hunt-level verdict: picks the file type (.yaml). It is NOT an aggregate of the
+  # candidate verdicts below — note that one candidate here is CONDITIONAL.
+  verdict: PROMOTE
+  verdict_breakdown:
+    PROMOTE: 3
+    CONDITIONAL: 1
+  base_score_average: 4.25  # (5.0 + 4.5 + 4.0 + 3.5) / 4 — informational only
+
+  key_learnings:
+    - "Zero baseline FPs = exceptional deployment confidence"
+    - "Multi-angle coverage (process, network, task) better than single detection"
+    - "Proactive deployment validated by 30-day baseline"
+
+detections:
+  # candidate_id is a stable kebab-case slug, not an ordinal: this list is ordered
+  # by deployment priority, which changes between runs, so a positional key would
+  # re-point at a different candidate every time GATES re-runs.
+  - candidate_id: remote-package-installer-execution
+    name: "Remote Package Installer Execution (ClickFix Primary)"
+
+    gates_assessment:
+      verdict: PROMOTE       # no FAIL; 5.0 is in the PROMOTE band
+      base_score: 5.0        # PASS x5
+      criteria:
+        generalizable: PASS
+        additive: PASS
+        tunable: PASS
+        exposure_tested: PASS
+        sustainable: PASS
+
+      pattern_learned: "Remote msiexec = #1 ClickFix pattern, zero baseline FPs"
+
+    deployment:
+      engine: sigma
+      status: EXPERIMENTAL
+      severity: high
+
+      detection_logic:
+        query: |
+          selection:
+            process.name: msiexec.exe
+            process.command_line|contains:
+              - '/i http://'
+              - '/i https://'
+          condition: selection
+        description: |
+          Detects Windows Installer fetching a package directly over HTTP(S).
+          The ClickFix lure pastes an msiexec command into the Run dialog to stage
+          a remote MSI (T1204.001). Local-path installs do not match.
+
+      entities:
+        - name: endpoint.uid
+          type: endpoint
+        - name: actor.user.name
+          type: user
+
+      operational_parameters:
+        expected_volume: "0 baseline events / ~1B total"
+        fp_rate: "0% (30-day baseline)"
+        deployment_priority: 1  # Deploy first
+        soak_period_days: 7
+
+      mitre_attack:
+        - T1204.001  # User Execution: Malicious Link
+        - T1218.007  # System Binary Proxy Execution: Msiexec
+
+  - candidate_id: run-dialog-rare-lolbin-execution
+    name: "Run Dialog Rare LOLBin Execution"
+
+    gates_assessment:
+      verdict: PROMOTE       # no FAIL; 4.5 is in the PROMOTE band
+      base_score: 4.5        # PASS x4 + PARTIAL x1
+      criteria:
+        generalizable: PASS
+        additive: PASS
+        tunable: PASS
+        exposure_tested: PARTIAL  # Run dialog covered; other launchers untested
+        sustainable: PASS
+
+      pattern_learned: "explorer.exe as LOLBin parent is rare enough to alert on without an allowlist"
+
+    deployment:
+      engine: sigma
+      status: EXPERIMENTAL
+      severity: high
+
+      detection_logic:
+        query: |
+          selection:
+            parent.process.name: explorer.exe
+            process.name:
+              - mshta.exe
+              - certutil.exe
+              - bitsadmin.exe
+              - curl.exe
+              - wscript.exe
+          condition: selection
+        description: |
+          Detects rarely-launched LOLBins started directly by the shell, which is
+          what a Run-dialog paste looks like in process telemetry (T1059.001).
+          Normal use of these binaries is scripted or service-launched, not
+          explorer-parented.
+
+      entities:
+        - name: endpoint.uid
+          type: endpoint
+        - name: actor.user.name
+          type: user
+
+      operational_parameters:
+        expected_volume: "0 of ~13,000 executions matched"
+        fp_rate: "0%"
+        deployment_priority: 2
+        soak_period_days: 7
+
+      mitre_attack:
+        - T1059.001  # Command and Scripting Interpreter: PowerShell
+        - T1218      # System Binary Proxy Execution
+
+  - candidate_id: webdav-anchored-script-execution
+    name: "WebDAV-Anchored Script Execution"
+
+    gates_assessment:
+      verdict: PROMOTE       # no FAIL; 4.0 is in the PROMOTE band
+      base_score: 4.0        # PASS x3 + PARTIAL x2
+      criteria:
+        generalizable: PASS
+        additive: PASS
+        tunable: PASS
+        exposure_tested: PARTIAL  # UNC path tested; mapped-drive variant not
+        sustainable: PARTIAL      # WebDAV is legitimate in some orgs; revisit at soak
+
+      pattern_learned: "UNC-path script execution is a durable delivery signal independent of the campaign's domains"
+
+    deployment:
+      engine: sigma
+      status: EXPERIMENTAL
+      severity: medium
+
+      detection_logic:
+        query: |
+          selection:
+            process.name:
+              - wscript.exe
+              - cscript.exe
+              - mshta.exe
+              - rundll32.exe
+            process.command_line|contains:
+              - '\\\\'
+              - '@SSL\\'
+          condition: selection
+        description: |
+          Detects scripting hosts executing content from a remote WebDAV/UNC path
+          rather than local disk (T1204.001). ClickFix chains stage the second
+          stage over WebDAV to avoid writing to disk first.
+
+      entities:
+        - name: endpoint.uid
+          type: endpoint
+        - name: actor.user.name
+          type: user
+
+      operational_parameters:
+        expected_volume: "0 baseline events / ~1B total"
+        fp_rate: "0% in hunt; WebDAV use is org-dependent"
+        deployment_priority: 3
+        soak_period_days: 7
+
+      mitre_attack:
+        - T1204.001  # User Execution: Malicious Link
+        - T1059.005  # Command and Scripting Interpreter: Visual Basic
+
+  - candidate_id: runmru-paste-delivered-payload
+    name: "Paste-Delivered Payload (RunMRU Registry)"
+
+    gates_assessment:
+      # T=FAIL, so the precedence rule pins this to CONDITIONAL. The 3.5 band
+      # happens to agree; when they disagree, the gate failure decides.
+      verdict: CONDITIONAL
+      base_score: 3.5        # PASS x3 + FAIL x1 + PARTIAL x1
+      criteria:
+        generalizable: PASS
+        additive: PASS
+        tunable: FAIL             # Requires allowlist — admins use Run legitimately
+        exposure_tested: PASS
+        sustainable: PARTIAL      # Volume acceptable only once allowlisted
+
+      failure_mode: "T-fail: legitimate administrative Run-dialog use is indistinguishable without a baseline"
+
+      conditional_requirements:
+        - "Build RunMRU allowlist (7 baseline patterns observed in hunt)"
+        - "Deploy only after the allowlist is configured"
+
+    deployment:
+      engine: sigma
+      status: EXPERIMENTAL
+      severity: medium
+
+      detection_logic:
+        query: |
+          selection:
+            registry.key|contains: '\Explorer\RunMRU'
+            registry.value|contains:
+              - 'powershell'
+              - 'cmd.exe /c'
+              - 'mshta'
+              - 'curl '
+          condition: selection
+        description: |
+          Detects command-like strings written to the Run dialog's MRU registry key,
+          the artifact a ClickFix paste leaves behind (T1204.001). Requires an
+          allowlist of sanctioned administrative commands before deployment.
+
+      entities:
+        - name: endpoint.uid
+          type: endpoint
+        - name: actor.user.name
+          type: user
+
+      alert_configuration:
+        baseline_required: true
+
+      operational_parameters:
+        expected_volume: "~7/day before allowlisting"
+        fp_rate: "HIGH without allowlist (all 7 baseline patterns were admin use)"
+        tuning_required: true
+        allowlist_needed: true
+        deployment_priority: 4
+        soak_period_days: 30  # Longer soak to build the allowlist
+
+      mitre_attack:
+        - T1204.001  # User Execution: Malicious Link
+
+aggregate_insights:
+  successful_patterns:
+    - pattern: "Zero baseline FP detections"
+      example: "Remote msiexec: 0 FPs in ~1B events"
+      confidence: "Deploy immediately with 7-day soak"
+
+operational_handoff:
+  # Reference candidates by candidate_id, never by ordinal — "Detection 2" is
+  # meaningless to a consumer and ambiguous after a re-run.
+  deployment_order:
+    - remote-package-installer-execution
+    - run-dialog-rare-lolbin-execution
+    - webdav-anchored-script-execution
+    - runmru-paste-delivered-payload
+  soak_period: "7 days for the three PROMOTE candidates; 30 days for runmru-paste-delivered-payload while its allowlist is built"

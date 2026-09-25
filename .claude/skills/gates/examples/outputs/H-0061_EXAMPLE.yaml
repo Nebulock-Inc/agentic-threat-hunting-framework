@@ -1,0 +1,138 @@
+# Example: CONDITIONAL Verdict (Requires Prerequisites)
+# Detection needs SPN allowlist before deployment
+
+hunt_metadata:
+  hunt_id: H-0061
+  title: "Kerberos RC4 Cipher Detection"
+  techniques: [T1558.003]
+  tactics: [credential-access]
+  platforms: [windows]
+
+  hunt_outcomes:
+    true_positives: 0  # Proactive hunt
+    false_positives: 18  # Benign Azure NetApp Files SPNs
+    baseline_events: 213  # 7 days
+    findings_count: 1
+
+gates_validation:
+  verdict: CONDITIONAL
+  # One candidate, CONDITIONAL. Earlier drafts wrote `detections_promoted: 1` here,
+  # which told a consumer a detection was ready to deploy when none was — a
+  # CONDITIONAL candidate is cleared to promote *once its prerequisites are met*, not
+  # promoted. Per-verdict counts now live only in verdict_breakdown.
+  verdict_breakdown:
+    CONDITIONAL: 1
+  base_score_average: 3.5  # single candidate, so equal to its base_score
+
+  key_learnings:
+    - "SPN allowlist required before deployment"
+    - "Azure NetApp Files + Azure Files use RC4 legitimately"
+    - "Quarterly allowlist review needed as infrastructure changes"
+
+detections:
+  # Stable slug, not an ordinal. Note the old value here was `detection_id: 3` in a
+  # list of one — the clearest possible demonstration that the ordinal carried no
+  # meaning and could not be matched on.
+  - candidate_id: kerberos-deprecated-cipher-ticket
+    name: "Kerberos Ticket with Deprecated Cipher"
+
+    gates_assessment:
+      # No gate FAILed, so the score band decides: 3.5 → CONDITIONAL.
+      verdict: CONDITIONAL
+      base_score: 3.5  # PASS x2 + PARTIAL x3
+      criteria:
+        generalizable: PASS
+        additive: PASS
+        tunable: PARTIAL  # Requires allowlist
+        exposure_tested: PARTIAL
+        sustainable: PARTIAL  # Allowlist maintenance
+
+      rationale: |
+        **T (Tunable): PARTIAL**
+        - Baseline: 213 events / 7 days = 30/day
+        - Legitimate use: Azure NetApp Files (7 SPNs), Azure Files
+        - Cannot distinguish attack from normal WITHOUT SPN allowlist
+
+        **E (Exposure-tested): PARTIAL**
+        - Only tests RC4 presence, not actual Kerberoasting exploitation
+        - No emulation testing performed
+
+        **S (Sustainable): PARTIAL**
+        - 30/day informational volume sustainable
+        - BUT requires ongoing SPN allowlist maintenance as infrastructure changes
+
+    deployment:
+      engine: sigma
+      status: EXPERIMENTAL
+      severity: informational
+
+      # One shape for every engine: {query, description}. The sigma body is a block
+      # scalar inside `query` so a consumer never branches on engine to find it.
+      detection_logic:
+        query: |
+          selection:
+            event_type: kerberos_activity
+            encryption_type: rc4-hmac
+          filter_legitimate:
+            service_principal_name:
+              # Placeholders. Populate from YOUR 30-day SPN baseline; do not ship
+              # another environment's allowlist. See prerequisites below.
+              - '<managed-file-service-spn-prefix>*'
+              - '<storage-account>.file.core.windows.net'
+              - '<legacy-app-spn>'
+          condition: selection and not filter_legitimate
+        description: |
+          Detects Kerberos tickets negotiated with the deprecated RC4-HMAC cipher,
+          the precondition for offline Kerberoasting (T1558.003). Requires an SPN
+          allowlist: managed file services legitimately negotiate RC4.
+
+      operational_parameters:
+        expected_volume: "30/day without allowlist, ~5/day after allowlist"
+        fp_rate: "100% without allowlist, <5% after allowlist"
+        deployment_priority: 3  # After allowlist built
+
+    prerequisites:
+      - title: "Build SPN Allowlist"
+        description: "Identify all known RC4 SPNs before deploying"
+        steps:
+          - "Baseline: 30-day SPN inventory (Azure NetApp Files, Azure Files, on-prem)"
+          - "Customer validation: Verify each unrecognized SPN is legitimate with the client"
+          - "Document: Why each SPN uses RC4 (legacy infrastructure, compliance)"
+
+      - title: "Quarterly Allowlist Review"
+        description: "SPN allowlist maintenance schedule"
+        steps:
+          - "Q1: Review allowlist - new SPNs? Decommissioned SPNs?"
+          - "Q2: Validate RC4 usage still necessary (upgrade path?)"
+          - "Update allowlist as infrastructure changes"
+
+      - title: "Emulation Testing"
+        description: "Validate detection before deployment"
+        steps:
+          - "Atomic Red Team: T1558.003 Kerberoasting test"
+          - "Confirm: New SPNs (not in allowlist) trigger detection"
+
+aggregate_insights:
+  tuning_patterns:
+    - pattern: "SPN allowlist for deprecated ciphers"
+      example: "Azure NetApp Files uses RC4 legitimately"
+      confidence: "Deploy after 30-day baseline + allowlist"
+
+  conditional_deployment:
+    - condition: "Allowlist built and validated"
+      action: "Deploy to EXPERIMENTAL for 30-day soak"
+      success_criteria: "FP rate <5%, <10 alerts/day"
+
+operational_handoff:
+  deployment_order:
+    - "Step 1: Build SPN allowlist (30-day baseline)"
+    - "Step 2: Customer validation (unrecognized SPNs)"
+    - "Step 3: Deploy to EXPERIMENTAL (30-day soak)"
+    - "Step 4: Promote to ACTIVE if FP <5%"
+
+  soak_period: "30 days (longer than PROMOTE detections due to tuning risk)"
+
+  promotion_criteria:
+    - "FP rate <5% after allowlist"
+    - "Alert volume <10/day"
+    - "Allowlist maintenance documented"

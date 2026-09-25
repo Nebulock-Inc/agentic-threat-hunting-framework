@@ -51,6 +51,96 @@ Every threat hunt follows the same basic loop: **Learn → Observe → Check →
 
 **Read more:** [docs/lock-pattern.md](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/blob/main/docs/lock-pattern.md)
 
+## GATES Method: Hunt-to-Detection Promotion Validation
+
+After completing a hunt's **KEEP** phase, the **GATES method** validates whether your findings should be promoted to production detections, recurring hunts, or advisories.
+
+**G**eneralizable, **A**dditive, **T**unable, **E**xposure-tested, **S**ustainable
+
+> **Note:** GATES is designed to work with the ATHF framework and has been extensively tested in that context. While the methodology (5 BASE criteria, verdict types) is conceptually portable, we recommend using it as part of the complete ATHF workflow for best results. See `.claude/skills/gates/` for the full integration.
+
+> **Installation:** GATES is currently available via `git clone` only. Users who installed via `pip install` should clone the repository to access GATES. We're working on including GATES in the pip distribution (tracked as Issue #21).
+
+GATES evaluates hunt-derived detections using a two-tier framework: 5 BASE criteria (assessed from hunt data) identify deployment candidates, while 5 ADVANCED criteria (validated in production) ensure **resilient detections with low false positive and false negative rates**:
+
+| Gate | Question | Catches |
+|------|----------|---------|
+| **G** - Generalizable | Is this repeatable? | IOC-based rules that expire quickly |
+| **A** - Additive | Does it fill a coverage gap? | Duplicate or redundant detections |
+| **T** - Tunable | Can we distinguish attack from normal? | Baseline noise mismatch (top FP cause) |
+| **E** - Exposure-tested | Did we cover evasions? | Single-dimensional detections |
+| **S** - Sustainable | Can we maintain this? | High-volume, low-TP rules |
+
+Verdicts are based on BASE scores (/5). See `.claude/skills/gates/` for ADVANCED validation methods.
+
+**Quick Start** — type this to your assistant; `/gates` is a skill, not a shell command:
+
+```text
+/gates --hunt H-0001
+```
+
+**Verdict Types:**
+- ✅ **PROMOTE** (4.0-5.0) - Deploy as standing detection
+- ⚠️ **CONDITIONAL** (3.0-3.9) - Deploy after prerequisites met
+- ❌ **HOLD** (0.0-2.9) - Preserve logic, don't deploy
+- ⏱️ **TIME_BOX** - Campaign-specific, 90-day refresh
+- 🔄 **RECURRING_HUNT** - Quarterly execution, not 24/7
+- 🚫 **DROP** - Not worth detecting; recorded so it isn't re-proposed
+
+A **gate FAIL overrides the score band**, and when two gates fail the first match in
+this order wins: A→DROP, G→TIME_BOX, E→HOLD, S→RECURRING_HUNT, T→CONDITIONAL. The
+bands above apply only when no gate FAILed. Full rule:
+`.claude/skills/gates/SKILL.md` Step 4.
+
+**Note:** GATES "PROMOTE" verdict means deploying a detection rule. This is distinct from `athf hunt promote`, which moves hunt files between directories.
+
+**Integration with ADEF (Detection Engineering Framework):**
+
+After GATES validation, proceed to ADEF for production detection engineering:
+
+```
+ATHF Workspace                    ADEF Workspace
+──────────────                    ──────────────
+Hunt (LOCK)                       
+   ↓
+GATES Validate                    
+   ↓
+H-XXXX_GATES.yaml  ────────────→  FORGE (F-O-R-G-E)
+                                     ↓
+                                  Production Rule
+```
+
+**Complete Workflow:**
+
+1. In the ATHF workspace, validate the hunt — assistant input, not a shell command:
+
+   ```text
+   /gates --hunt H-0062
+   ```
+
+   → writes `hunt-promotion-analysis/H-0062_GATES.yaml` (one file per hunt, N
+   candidates inside). A hunt whose verdict is archival (`HOLD`, `DROP`, `TIME_BOX`,
+   `RECURRING_HUNT`) emits a `.md` narrative instead — there is no rule to build, so
+   step 2 applies to `.yaml` output only.
+
+2. Import that document into ADEF:
+
+   ```bash
+   adef hunt-promote --gates ~/athf-workspace/hunt-promotion-analysis/H-0062_GATES.yaml
+   # --dry-run first to preview what it would mint
+   ```
+
+   Deployable candidates each land at the Find stage with a `D-XXXX`, a catalog record
+   and a journal; archival ones are reported as skipped. No `cd` needed — ADEF resolves
+   its workspace from `ADEF_WORKSPACE` (default `~/work/adef-workspace/`). Confirm your
+   ADEF has this mode with `adef hunt-promote --help`.
+
+**ADEF Repository:** https://github.com/Nebulock-Inc/agentic-detection-engineering-framework
+
+GATES ensures you deploy the right detections the right way, avoiding alert fatigue and operational friction.
+
+**Read more:** [.claude/skills/gates/README.md](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/blob/main/.claude/skills/gates/README.md)
+
 ## The Five Levels of Agentic Hunting
 
 ATHF defines a simple maturity model. Each level builds on the previous one.
@@ -189,6 +279,13 @@ athf hunt coverage                  # MITRE ATT&CK coverage
 athf research stats                 # Research metrics
 ```
 
+Detection quality is scored by the GATES **skill**, which your assistant invokes —
+it is not part of the `athf` CLI, so it does not belong in the shell block above:
+
+```text
+/gates --hunt H-0001
+```
+
 ### ATT&CK Data Management (NEW in v0.11.0)
 
 ```bash
@@ -273,6 +370,7 @@ See the [Quick Start](#-quick-start) section above for installation options (PyP
 ### Integration & Customization
 
 - [Installation & Development](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/blob/main/docs/INSTALL.md) - Setup, fork customization, testing
+- [GATES Method](.claude/skills/gates/README.md) - Detection validation skill (bridges LOCK → ADEF)
 - [MCP Catalog](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/blob/main/integrations/MCP_CATALOG.md) - Available tool integrations
 - [Quickstart Guides](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/tree/main/integrations/quickstart/) - Setup for specific tools
 - [Using ATHF](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/blob/main/USING_ATHF.md) - Adoption and customization
