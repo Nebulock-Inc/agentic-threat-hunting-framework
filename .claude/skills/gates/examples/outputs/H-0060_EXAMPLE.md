@@ -106,7 +106,12 @@ Deploy detections if:
 3. Peer victimization reported
 4. A specific threat model requires browser-extension monitoring
 
-**Quarterly recurring hunt:** Re-run every Q to monitor for emergence (30-day window, expand to macOS Chromium).
+**Re-run on trigger, not on a calendar.** Any of the four conditions above warrants
+re-running this hunt (30-day window, expanded to macOS Chromium). Note what this is
+*not*: a standing quarterly cadence. That would be `RECURRING_HUNT`, and it is the
+wrong verdict here — re-running on a schedule cannot find what has zero prevalence, so
+the calendar would burn analyst time to reconfirm the same nothing. `HOLD` preserves the
+logic until something external makes it worth looking again.
 
 ---
 

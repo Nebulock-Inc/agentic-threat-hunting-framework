@@ -180,8 +180,10 @@ Document your hunt through Learn → Observe → Check → Keep
 /gates --hunt H-XXXX
 ```
 
-→ writes `hunt-promotion-analysis/H-XXXX_GATES.yaml`: one file per hunt, holding every
-candidate that hunt produced.
+→ writes one file per hunt, holding every candidate that hunt produced. The extension
+depends on the hunt-level verdict: `H-XXXX_GATES.yaml` when something is deployable
+(PROMOTE / CONDITIONAL), `H-XXXX_GATES.md` when nothing is (HOLD, DROP, TIME_BOX,
+RECURRING_HUNT) — so look for the `.md` if the `.yaml` isn't there.
 
 GATES evaluates your findings using 5 BASE criteria:
 - **G**eneralizable - Is this repeatable?

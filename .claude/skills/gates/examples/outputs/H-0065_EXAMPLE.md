@@ -73,7 +73,7 @@ High maintenance burden:
 ### Time-Boxed Deployment (90 Days)
 
 **Activation Date:** 2026-09-20 (ClickFix campaign reported)  
-**Expiration Date:** 2026-12-20 (90 days)  
+**Expiration Date:** 2026-12-19 (90 days)  
 **Review Date:** 2026-12-15 (assess campaign status)
 
 **IOC Watchlist (Domains):**

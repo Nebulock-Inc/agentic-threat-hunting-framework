@@ -157,8 +157,10 @@ tags: []
 
 **⚠️ Next Step: Validate with GATES**
 
-If you documented detection logic above, ask your assistant to run GATES — this is
-assistant input, not a shell command:
+Ask your assistant to run GATES whether or not you filled in the detection logic above —
+this is assistant input, not a shell command. An empty **Proposed Detection** is not a
+reason to skip it: GATES derives candidates from your queries, their results and your
+"What Suspicious Looks Like" bullets, so an exploration hunt is the case it helps most.
 
 ```text
 /gates --hunt H-XXXX

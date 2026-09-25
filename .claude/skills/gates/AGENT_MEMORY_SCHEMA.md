@@ -207,7 +207,7 @@ gates_validation:
   # informational — it is NOT a hunt-level score and nothing may be verdicted from
   # it. A hunt with one 5.0 and one 0.0 candidate averages 2.5, which describes
   # neither candidate.
-  base_score_average: 4.25
+  base_score_average: 4.5   # (5.0 + 5.0 + 3.5) / 3 — the three candidates below
   
   # NEW: Fast-path decisions
   # true when the hunt found 0 instances of the behavior AND the deciding gate is
@@ -258,15 +258,15 @@ gates_validation:
   detection_patterns:
     - pattern_type: process_execution
       verdict: PROMOTE
-      base_score: 5
+      base_score: 5.0
       typical_fp_rate: low
     - pattern_type: scheduled_task
       verdict: PROMOTE
-      base_score: 5
+      base_score: 5.0
       typical_fp_rate: very_low
     - pattern_type: network_connection
       verdict: CONDITIONAL
-      base_score: 3
+      base_score: 3.5   # must match the candidate below, not a rounded 3
       typical_fp_rate: high
 
 # =============================================================================
