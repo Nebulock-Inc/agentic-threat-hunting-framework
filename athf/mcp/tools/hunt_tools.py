@@ -12,7 +12,8 @@ def register_hunt_tools(mcp: "FastMCP") -> None:  # type: ignore[name-defined]  
         name="athf_hunt_list",
         description=(
             "List threat hunts with optional filters. "
-            "Returns hunt metadata including ID, title, status, technique, tactic, and platform."
+            "Returns hunt metadata including ID, title, status, hunt_type, technique, tactic, and platform. "
+            "hunt_type filter accepts hypothesis, baseline, model-assisted, or uncategorized."
         ),
     )
     def hunt_list(
@@ -20,12 +21,24 @@ def register_hunt_tools(mcp: "FastMCP") -> None:  # type: ignore[name-defined]  
         tactic: Optional[str] = None,
         technique: Optional[str] = None,
         platform: Optional[str] = None,
+        hunt_type: Optional[str] = None,
     ) -> str:
         from athf.core.hunt_manager import HuntManager
+        from athf.core.hunt_types import HUNT_TYPES, UNCATEGORIZED_LABEL, normalize_hunt_type
+
+        if hunt_type is not None and hunt_type != UNCATEGORIZED_LABEL:
+            canonical = normalize_hunt_type(hunt_type)
+            if canonical is None:
+                return _json_result(
+                    {"error": f"Unknown hunt_type: {hunt_type!r}. Expected one of: {', '.join(HUNT_TYPES)}, {UNCATEGORIZED_LABEL}"}
+                )
+            hunt_type = canonical
 
         workspace = get_workspace()
         manager = HuntManager(hunts_dir=workspace / "hunts")
-        hunts = manager.list_hunts(status=status, tactic=tactic, technique=technique, platform=platform)
+        hunts = manager.list_hunts(
+            status=status, tactic=tactic, technique=technique, platform=platform, hunt_type=hunt_type
+        )
         return _json_result({"count": len(hunts), "hunts": hunts})
 
     @mcp.tool(
@@ -56,13 +69,22 @@ def register_hunt_tools(mcp: "FastMCP") -> None:  # type: ignore[name-defined]  
 
     @mcp.tool(
         name="athf_hunt_stats",
-        description="Get hunt statistics: total hunts, status breakdown, true/false positive counts, and success rate.",
+        description=(
+            "Get hunt statistics: total hunts, true/false positive counts, success rate, and a "
+            "by_hunt_type breakdown. Pass `by` (hunt_type, status, platform, tactic, technique, environment) "
+            "and optionally `status` to get counts/percentages grouped by that field instead."
+        ),
     )
-    def hunt_stats() -> str:
+    def hunt_stats(by: Optional[str] = None, status: Optional[str] = None) -> str:
         from athf.core.hunt_manager import HuntManager
 
         workspace = get_workspace()
         manager = HuntManager(hunts_dir=workspace / "hunts")
+        if by or status:
+            try:
+                return _json_result(manager.calculate_breakdown(by=by or "hunt_type", status=status))
+            except ValueError as exc:
+                return _json_result({"error": str(exc)})
         stats = manager.calculate_stats()
         return _json_result(stats)
 
@@ -92,10 +114,13 @@ def register_hunt_tools(mcp: "FastMCP") -> None:  # type: ignore[name-defined]  
 
     @mcp.tool(
         name="athf_hunt_validate",
-        description="Validate a hunt file's structure and YAML frontmatter. Returns validation errors if any.",
+        description=(
+            "Validate a hunt file's structure and YAML frontmatter. Returns validation errors if any, "
+            "plus non-blocking warnings (e.g. missing hunt_type)."
+        ),
     )
     def hunt_validate(hunt_id: str) -> str:
-        from athf.core.hunt_parser import validate_hunt_file
+        from athf.core.hunt_parser import hunt_file_warnings, validate_hunt_file
 
         workspace = get_workspace()
         from athf.core.hunt_manager import HuntManager
@@ -106,7 +131,8 @@ def register_hunt_tools(mcp: "FastMCP") -> None:  # type: ignore[name-defined]  
             return _json_result({"valid": False, "error": f"Hunt not found: {hunt_id}"})
 
         is_valid, errors = validate_hunt_file(hunt_file)
-        return _json_result({"valid": is_valid, "hunt_id": hunt_id, "errors": errors})
+        warnings = hunt_file_warnings(hunt_file)
+        return _json_result({"valid": is_valid, "hunt_id": hunt_id, "errors": errors, "warnings": warnings})
 
     @mcp.tool(
         name="athf_hunt_new",

@@ -6,6 +6,8 @@ from typing import Dict, List, Tuple
 
 import yaml
 
+from athf.core.hunt_types import HUNT_TYPES, normalize_hunt_type
+
 
 class HuntParser:
     """Parser for ATHF hunt files."""
@@ -141,6 +143,36 @@ class HuntParser:
 
         return (len(errors) == 0, errors)
 
+    def warnings(self) -> List[str]:
+        """Non-fatal advisories about the hunt file.
+
+        Unlike :meth:`validate`, nothing here affects the exit code of
+        ``athf hunt validate``. Warnings flag fields that are optional for
+        legacy hunts but needed for reporting to be accurate.
+
+        Returns:
+            List of warning messages (empty when there is nothing to say)
+        """
+        warnings: List[str] = []
+        if not self.frontmatter:
+            return warnings
+
+        vocab = ", ".join(HUNT_TYPES)
+        if "hunt_type" not in self.frontmatter or self.frontmatter.get("hunt_type") in (None, ""):
+            warnings.append(
+                f"Missing hunt_type (counted as 'uncategorized' by `athf hunt stats`). "
+                f"Add `hunt_type: <{vocab}>` to the frontmatter."
+            )
+        else:
+            raw = self.frontmatter.get("hunt_type")
+            canonical = normalize_hunt_type(raw)
+            if canonical is None:
+                warnings.append(f"Unknown hunt_type: {raw!r} (expected one of: {vocab})")
+            elif raw != canonical:
+                warnings.append(f"Non-canonical hunt_type: {raw!r} — use {canonical!r}")
+
+        return warnings
+
 
 def parse_hunt_file(file_path: Path) -> Dict:
     """Convenience function to parse a hunt file.
@@ -167,3 +199,17 @@ def validate_hunt_file(file_path: Path) -> Tuple[bool, List[str]]:
     parser = HuntParser(file_path)
     parser.parse()
     return parser.validate()
+
+
+def hunt_file_warnings(file_path: Path) -> List[str]:
+    """Convenience function returning non-fatal warnings for a hunt file.
+
+    Best-effort: a file that cannot be parsed yields no warnings — the
+    corresponding errors come from :func:`validate_hunt_file`.
+    """
+    try:
+        parser = HuntParser(file_path)
+        parser.parse()
+        return parser.warnings()
+    except Exception:
+        return []

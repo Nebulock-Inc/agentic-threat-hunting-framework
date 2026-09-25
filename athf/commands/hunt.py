@@ -15,7 +15,8 @@ from rich.table import Table
 
 from athf.core.attack_matrix import get_technique
 from athf.core.hunt_manager import HuntManager
-from athf.core.hunt_parser import validate_hunt_file
+from athf.core.hunt_parser import hunt_file_warnings, validate_hunt_file
+from athf.core.hunt_types import DEFAULT_HUNT_TYPE, HUNT_TYPE_DESCRIPTIONS, HUNT_TYPES, UNCATEGORIZED_LABEL
 from athf.core.template_engine import render_hunt_template
 from athf.utils.validation import validate_hunt_id, validate_research_id
 
@@ -132,6 +133,12 @@ def hunt() -> None:
 @click.option("--tactic", multiple=True, help="MITRE tactics (can specify multiple)")
 @click.option("--platform", multiple=True, help="Target platforms (can specify multiple)")
 @click.option("--data-source", multiple=True, help="Data sources (can specify multiple)")
+@click.option(
+    "--hunt-type",
+    type=click.Choice(list(HUNT_TYPES)),
+    default=None,
+    help=f"Hunt category (default: {DEFAULT_HUNT_TYPE}). Reported by `athf hunt stats --by hunt_type`.",
+)
 @click.option("--test", is_flag=True, help="Create as test hunt (hunts/test/...) instead of production")
 @click.option("--non-interactive", is_flag=True, help="Skip interactive prompts")
 @click.option("--hypothesis", help="Full hypothesis statement")
@@ -154,6 +161,7 @@ def new(
     tactic: Tuple[str, ...],
     platform: Tuple[str, ...],
     data_source: Tuple[str, ...],
+    hunt_type: Optional[str],
     test: bool,
     non_interactive: bool,
     hypothesis: Optional[str],
@@ -251,6 +259,7 @@ def new(
             hunt_tactics = derived if derived else ["collection"]
         hunt_platforms = list(platform) if platform else ["Windows"]
         hunt_data_sources = list(data_source) if data_source else ["SIEM", "EDR"]
+        hunt_type = hunt_type or DEFAULT_HUNT_TYPE
     else:
         # Interactive prompts
         console.print("\n[bold]🔍 Let's build your hypothesis:[/bold]")
@@ -286,6 +295,13 @@ def new(
         ds_input = Prompt.ask("   Data Sources", default=default_sources)
         hunt_data_sources = [ds.strip() for ds in ds_input.split(",")]
 
+        # Hunt type — controlled vocabulary so `athf hunt stats` can count it.
+        if not hunt_type:
+            console.print("\n6. Hunt Type:")
+            for name in HUNT_TYPES:
+                console.print(f"   [cyan]{name}[/cyan] — {HUNT_TYPE_DESCRIPTIONS[name]}")
+            hunt_type = Prompt.ask("   Hunt Type", choices=list(HUNT_TYPES), default=DEFAULT_HUNT_TYPE)
+
     # Render template
     hunt_content = render_hunt_template(
         hunt_id=hunt_id,
@@ -303,6 +319,7 @@ def new(
         evidence=evidence,
         spawned_from=research,
         hypothesis_duration_minutes=hypothesis_duration,
+        hunt_type=hunt_type,
     )
 
     # Write hunt file using hierarchical directory structure
@@ -354,13 +371,21 @@ def new(
 @click.option("--technique", help="Filter by MITRE technique (e.g., T1003.001)")
 @click.option("--platform", help="Filter by platform")
 @click.option("--directory", type=click.Choice(["test", "production"]), help="Filter by environment directory")
+@click.option(
+    "--hunt-type",
+    type=click.Choice([*HUNT_TYPES, UNCATEGORIZED_LABEL]),
+    help="Filter by hunt category (use 'uncategorized' for hunts missing hunt_type)",
+)
 @click.option("--output", type=click.Choice(["table", "json", "yaml"]), default="table", help="Output format")
-def list_hunts(status: str, tactic: str, technique: str, platform: str, directory: str, output: str) -> None:
+def list_hunts(
+    status: str, tactic: str, technique: str, platform: str, directory: str, hunt_type: Optional[str], output: str
+) -> None:
     """List all hunts with filtering and formatting options.
 
     \b
     Displays hunt catalog with:
     • Hunt ID and title
+    • Hunt type (hypothesis / baseline / model-assisted)
     • Current status
     • Environment directory (test/production)
     • MITRE ATT&CK techniques
@@ -376,6 +401,12 @@ def list_hunts(status: str, tactic: str, technique: str, platform: str, director
 
       # Filter by tactic
       athf hunt list --tactic credential-access
+
+      # Show only baseline hunts
+      athf hunt list --hunt-type baseline
+
+      # Find hunts that still need a hunt_type
+      athf hunt list --hunt-type uncategorized
 
       # Filter by environment directory
       athf hunt list --directory test
@@ -395,7 +426,9 @@ def list_hunts(status: str, tactic: str, technique: str, platform: str, director
     Note: Use --output instead of --format for specifying output format.
     """
     manager = HuntManager()
-    hunts = manager.list_hunts(status=status, tactic=tactic, technique=technique, platform=platform, directory=directory)
+    hunts = manager.list_hunts(
+        status=status, tactic=tactic, technique=technique, platform=platform, directory=directory, hunt_type=hunt_type
+    )
 
     if not hunts:
         console.print("[yellow]No hunts found.[/yellow]")
@@ -405,11 +438,11 @@ def list_hunts(status: str, tactic: str, technique: str, platform: str, director
     if output == "json":
         import json
 
-        console.print(json.dumps(hunts, indent=2))
+        console.print(json.dumps(hunts, indent=2), soft_wrap=True)
         return
 
     if output == "yaml":
-        console.print(yaml.dump(hunts, default_flow_style=False))
+        console.print(yaml.dump(hunts, default_flow_style=False), soft_wrap=True)
         return
 
     # Table format
@@ -418,6 +451,7 @@ def list_hunts(status: str, tactic: str, technique: str, platform: str, director
     table = Table(box=box.ROUNDED)
     table.add_column("Hunt ID", style="cyan", no_wrap=True)
     table.add_column("Title", style="white", no_wrap=True, max_width=30)
+    table.add_column("Type", style="bright_magenta", no_wrap=True)
     table.add_column("Date", style="dim", no_wrap=True)
     table.add_column("Status", style="yellow", no_wrap=True)
     table.add_column("Env", style="blue", no_wrap=True)
@@ -430,6 +464,7 @@ def list_hunts(status: str, tactic: str, technique: str, platform: str, director
         title = title_full[:30] + ("..." if len(title_full) > 30 else "")
         date_val = hunt.get("date") or "-"
         date_str = str(date_val) if date_val != "-" else "-"
+        type_str = hunt.get("hunt_type") or "-"
         status_val = hunt.get("status", "")
         environment = hunt.get("environment", "-")
         env_display = environment if environment else "-"
@@ -440,7 +475,7 @@ def list_hunts(status: str, tactic: str, technique: str, platform: str, director
         fp = hunt.get("false_positives", 0)
         findings_str = f"{tp + fp} ({tp} TP)" if (tp + fp) > 0 else "-"
 
-        table.add_row(hunt_id, title, date_str, status_val, env_display, technique_str, findings_str)
+        table.add_row(hunt_id, title, type_str, date_str, status_val, env_display, technique_str, findings_str)
 
     console.print(table)
     console.print()
@@ -517,20 +552,30 @@ def validate(hunt_id: str) -> None:
 
         valid_count = 0
         invalid_count = 0
+        warning_count = 0
 
         for hunt_file in hunt_files:
             is_valid, errors = validate_hunt_file(hunt_file)
+            warnings = hunt_file_warnings(hunt_file)
 
             if is_valid:
                 valid_count += 1
-                console.print(f"[green]✓[/green] {hunt_file.name}")
+                marker = "[yellow]⚠[/yellow]" if warnings else "[green]✓[/green]"
+                console.print(f"{marker} {hunt_file.name}")
             else:
                 invalid_count += 1
                 console.print(f"[red]✗[/red] {hunt_file.name}")
                 for error in errors:
                     console.print(f"    - {error}")
+            if warnings:
+                warning_count += 1
+                for warning in warnings:
+                    console.print(f"    [yellow]warning:[/yellow] {warning}")
 
-        console.print(f"\n[bold]Results:[/bold] {valid_count} valid, {invalid_count} invalid")
+        summary = f"{valid_count} valid, {invalid_count} invalid"
+        if warning_count:
+            summary += f", {warning_count} with warnings"
+        console.print(f"\n[bold]Results:[/bold] {summary}")
 
 
 def _validate_single_hunt(hunt_file: Path) -> None:
@@ -538,6 +583,7 @@ def _validate_single_hunt(hunt_file: Path) -> None:
     console.print(f"\n[bold]🔍 Validating {hunt_file.name}...[/bold]\n")
 
     is_valid, errors = validate_hunt_file(hunt_file)
+    warnings = hunt_file_warnings(hunt_file)
 
     if is_valid:
         console.print("[green]✅ Hunt is valid![/green]")
@@ -546,9 +592,53 @@ def _validate_single_hunt(hunt_file: Path) -> None:
         for error in errors:
             console.print(f"  - {error}")
 
+    if warnings:
+        console.print("\n[yellow]⚠ Warnings (non-blocking):[/yellow]")
+        for warning in warnings:
+            console.print(f"  - {warning}")
+
+
+def _render_breakdown_table(breakdown: Dict[str, Any]) -> Table:
+    """Build the `Hunt Type | Count | %` table for a calculate_breakdown() result."""
+    by = breakdown["by"]
+    header = "Hunt Type" if by == "hunt_type" else by.replace("_", " ").title()
+
+    table = Table(box=box.SIMPLE)
+    table.add_column(header, style="cyan")
+    table.add_column("Count", style="white", justify="right")
+    table.add_column("%", style="white", justify="right")
+
+    for label, count in breakdown["counts"].items():
+        pct = breakdown["percentages"].get(label, 0.0)
+        display = f"({label})" if label == UNCATEGORIZED_LABEL else label
+        style = "dim" if label == UNCATEGORIZED_LABEL else None
+        table.add_row(display, str(count), f"{pct:.1f}%", style=style)
+
+    table.add_section()
+    total = breakdown["total"]
+    table.add_row("Total", str(total), "100.0%" if total else "0.0%", style="bold")
+    return table
+
 
 @hunt.command()
-def stats() -> None:
+@click.option(
+    "--by",
+    "by_field",
+    type=click.Choice(list(HuntManager.GROUPABLE_FIELDS)),
+    default=None,
+    help="Group hunt counts by a frontmatter field (hunt_type, status, platform, tactic, technique, environment)",
+)
+@click.option("--status", help="Only count hunts with this status (e.g. completed)")
+@click.option("--directory", type=click.Choice(["test", "production"]), help="Only count hunts in this environment")
+@click.option(
+    "--output",
+    "--format",
+    "output",
+    type=click.Choice(["table", "json", "yaml"]),
+    default="table",
+    help="Output format (--format is accepted as an alias)",
+)
+def stats(by_field: Optional[str], status: Optional[str], directory: Optional[str], output: str) -> None:
     """Show hunt program statistics and success metrics.
 
     \b
@@ -557,21 +647,63 @@ def stats() -> None:
     • Total findings (True Positives + False Positives)
     • Success rate (hunts with TPs / completed hunts)
     • TP/FP ratio (quality of detections)
-    • Hunt velocity metrics
+    • Hunt counts by type (hypothesis / baseline / model-assisted)
 
     \b
-    Example:
+    Examples:
+      # Program-wide summary (includes hunt-type breakdown)
       athf hunt stats
+
+      # Just the hunt-type breakdown, as a table
+      athf hunt stats --by hunt_type
+
+      # Only completed hunts, machine-readable
+      athf hunt stats --by hunt_type --status completed --output json
+
+      # Group by another field
+      athf hunt stats --by platform
 
     \b
     Use this to:
     • Track hunting program effectiveness over time
-    • Identify areas for improvement
+    • Spot imbalances (e.g. 90% hypothesis-driven, no baseline hunts)
     • Demonstrate hunting value to leadership
     • Set quarterly goals and OKRs
     """
     manager = HuntManager()
+
+    # --by (or a scoping filter) selects the focused breakdown view.
+    if by_field or status or directory:
+        breakdown = manager.calculate_breakdown(by=by_field or "hunt_type", status=status, directory=directory)
+
+        if output == "json":
+            payload = {
+                "total": breakdown["total"],
+                "filters": breakdown["filters"],
+                f"by_{breakdown['by']}": breakdown["counts"],
+                "percentages": breakdown["percentages"],
+            }
+            console.print(json.dumps(payload, indent=2), soft_wrap=True)
+            return
+        if output == "yaml":
+            console.print(yaml.dump(breakdown, default_flow_style=False, sort_keys=False), soft_wrap=True)
+            return
+
+        scope = ", ".join(f"{k}={v}" for k, v in breakdown["filters"].items())
+        title = f"📊 Hunts by {breakdown['by']}" + (f" ({scope})" if scope else "")
+        console.print(f"\n[bold cyan]{title}[/bold cyan]\n")
+        console.print(_render_breakdown_table(breakdown))
+        console.print()
+        return
+
     stats = manager.calculate_stats()
+
+    if output == "json":
+        console.print(json.dumps(stats, indent=2, default=str), soft_wrap=True)
+        return
+    if output == "yaml":
+        console.print(yaml.dump(stats, default_flow_style=False, sort_keys=False, allow_unicode=True), soft_wrap=True)
+        return
 
     console.print("\n[bold cyan]📊 Hunt Program Statistics[/bold cyan]\n")
 
@@ -589,6 +721,11 @@ def stats() -> None:
 
     console.print(table)
     console.print()
+
+    if stats["total_hunts"] > 0:
+        console.print("[bold]Hunts by type[/bold]")
+        console.print(_render_breakdown_table(manager.calculate_breakdown(by="hunt_type")))
+        console.print()
 
     # Easter egg: First True Positive milestone
     if stats["true_positives"] == 1 and stats["completed_hunts"] > 0:
@@ -1143,6 +1280,7 @@ def _build_export_dict(
         "status": frontmatter.get("status"),
         "date": frontmatter.get("date"),
         "hunter": frontmatter.get("hunter"),
+        "hunt_type": frontmatter.get("hunt_type"),
         "platform": frontmatter.get("platform", []),
         "tactics": frontmatter.get("tactics", []),
         "techniques": frontmatter.get("techniques", []),

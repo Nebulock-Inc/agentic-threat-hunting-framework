@@ -1,5 +1,6 @@
 """Render hunt templates with metadata."""
 
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -13,7 +14,8 @@ title: {{ title }}
 status: {{ status }}
 date: {{ date }}
 hunter: {{ hunter }}
-platform: {{ platform }}
+{% if hunt_type %}hunt_type: {{ hunt_type }}
+{% endif %}platform: {{ platform }}
 tactics: {{ tactics }}
 techniques: {{ techniques }}
 data_sources: {{ data_sources }}
@@ -185,6 +187,34 @@ def _load_hunt_template() -> str:
     return HUNT_TEMPLATE
 
 
+_FRONTMATTER_RE = re.compile(r"\A---\r?\n(.*?)\r?\n---", re.S)
+
+
+def _ensure_frontmatter_field(rendered: str, key: str, value: str) -> str:
+    """Insert ``key: value`` into rendered YAML frontmatter if it is absent.
+
+    Workspaces snapshot the hunt template into ``templates/HUNT_TEMPLATE.j2``
+    at ``athf init`` time, and that snapshot wins over the bundled template.
+    A snapshot taken before a field existed silently drops it, so the value
+    the user chose on the command line would never reach the file. Fields
+    the template already emits (even as an empty value) are left alone.
+    """
+    match = _FRONTMATTER_RE.match(rendered)
+    if not match:
+        return rendered
+    block = match.group(1)
+    if re.search(rf"^{re.escape(key)}\s*:", block, re.M):
+        return rendered
+    # Prefer to sit after the hunter line (mirrors the bundled template);
+    # otherwise append to the end of the frontmatter.
+    hunter_line = re.search(r"^hunter\s*:[^\n]*\n", block, re.M)
+    if hunter_line:
+        insert_at = match.start(1) + hunter_line.end()
+        return rendered[:insert_at] + f"{key}: {value}\n" + rendered[insert_at:]
+    insert_at = match.end(1)
+    return rendered[:insert_at] + f"\n{key}: {value}" + rendered[insert_at:]
+
+
 def render_hunt_template(
     hunt_id: str,
     title: str,
@@ -201,6 +231,7 @@ def render_hunt_template(
     evidence: Optional[str] = None,
     spawned_from: Optional[str] = None,
     hypothesis_duration_minutes: Optional[float] = None,
+    hunt_type: Optional[str] = None,
 ) -> str:
     """Render a hunt template with provided metadata.
 
@@ -220,6 +251,7 @@ def render_hunt_template(
         evidence: Evidence description (for ABLE)
         spawned_from: Research document ID (e.g., R-0001) that this hunt is based on
         hypothesis_duration_minutes: Time spent generating hypothesis (from athf agent run)
+        hunt_type: Hunt category (hypothesis | baseline | model-assisted); omitted if None
 
     Returns:
         Rendered hunt markdown content
@@ -235,7 +267,7 @@ def render_hunt_template(
 
     template = Template(_load_hunt_template())
 
-    return str(template.render(
+    rendered = str(template.render(
         hunt_id=hunt_id,
         title=title,
         status="planning",
@@ -254,4 +286,10 @@ def render_hunt_template(
         evidence=evidence,
         spawned_from=spawned_from,
         hypothesis_duration_minutes=hypothesis_duration_minutes,
+        hunt_type=hunt_type,
     ))
+
+    if hunt_type:
+        rendered = _ensure_frontmatter_field(rendered, "hunt_type", hunt_type)
+
+    return rendered

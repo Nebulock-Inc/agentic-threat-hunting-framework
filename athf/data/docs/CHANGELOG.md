@@ -5,6 +5,20 @@ All notable changes to the Agentic Threat Hunting Framework (ATHF) will be docum
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.21.0] - 2026-09-24
+
+### Added
+- **Hunt categories (`hunt_type`)** — closes [#60](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/issues/60). New controlled-vocabulary frontmatter field `hunt_type: hypothesis | baseline | model-assisted` so hunt-program mix can be reported deterministically instead of grepping titles.
+  - `athf hunt new --hunt-type <value>` populates it (defaults to `hypothesis`; interactive mode prompts).
+  - `athf hunt stats` gains `--by`, `--status`, `--directory`, and `--output table|json|yaml` (`--format` alias). Default view includes a "Hunts by type" table; JSON carries `by_hunt_type`. Hunts without a valid `hunt_type` count as `uncategorized`.
+  - `athf hunt list` shows a `Type` column and accepts `--hunt-type <value|uncategorized>`.
+  - `athf hunt validate` prints non-blocking warnings (exit code unchanged) for missing/unknown `hunt_type`.
+  - `athf metrics summary` rollups include `by_hunt_type`.
+  - MCP: `athf_hunt_list` accepts `hunt_type`; `athf_hunt_stats` accepts `by`/`status`; `athf_hunt_validate` returns `warnings`.
+
+### Notes
+- **Existing workspaces:** the workspace-local `templates/HUNT_TEMPLATE.j2` overrides the bundled template, but `athf hunt new` injects `hunt_type` even when that snapshot predates the field, so no template edit is needed. Backfill legacy hunts; `athf hunt list --hunt-type uncategorized` lists them.
+
 ## [0.11.0] - Unreleased
 
 ### Added
