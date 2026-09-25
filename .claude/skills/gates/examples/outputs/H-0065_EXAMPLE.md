@@ -1,8 +1,8 @@
-# Example: TIME-BOX Verdict (Campaign-Specific IOC Detection)
+# Example: TIME_BOX Verdict (Campaign-Specific IOC Detection)
 
 **Hunt:** H-0065 - ClickFix C2 Infrastructure Detection  
-**Verdict:** TIME-BOX (90-day campaign tracking)  
-**BASE Score:** 2/5
+**Verdict:** TIME_BOX (90-day campaign tracking)  
+**BASE Score:** 2.0
 
 ---
 
@@ -54,7 +54,7 @@ High maintenance burden:
 
 ## Verdict Rationale
 
-**TIME-BOX (not PROMOTE) because:**
+**TIME_BOX (not PROMOTE) because:**
 1. ❌ IOC-based = not generalizable (expires when campaign ends)
 2. ❌ Single-dimensional = adversary easily evades (domain rotation)
 3. ❌ High maintenance = quarterly IOC refresh required
@@ -77,12 +77,21 @@ High maintenance burden:
 **Review Date:** 2026-12-15 (assess campaign status)
 
 **IOC Watchlist (Domains):**
+
+> ⚠️ **These are illustrative placeholders, written defanged (`[.]`).** Do not paste
+> this block into a rule. Defanged strings match nothing — a watchlist deployed with
+> `[.]` intact silently never fires, which looks identical to "no activity observed."
+> Replace the placeholders with the real domains from your threat intel, convert
+> `[.]` → `.`, and confirm the rule fires against a known-good test event before
+> trusting its silence.
+
 ```yaml
 c2_domains:
-  - "clickfix-cdn[.]com"
-  - "legitimate-update[.]net"
-  - "windows-patch[.]org"
-  - "secure-auth-verify[.]com"
+  # placeholders — substitute real IOCs, un-defanged, before deploying
+  - "example-lure-cdn[.]invalid"
+  - "example-fake-update[.]invalid"
+  - "example-patch-portal[.]invalid"
+  - "example-auth-verify[.]invalid"
 ```
 
 **Refresh Triggers:**
@@ -115,7 +124,7 @@ c2_domains:
 
 **Comparison: IOC Detection vs Behavioral Detection**
 
-| Criterion | IOC (TIME-BOX) | Behavioral (PROMOTE) |
+| Criterion | IOC (TIME_BOX) | Behavioral (PROMOTE) |
 |-----------|----------------|----------------------|
 | **Generalizable** | ❌ NO (campaign-specific) | ✅ YES (repeatable TTP) |
 | **Evasion Resistance** | ❌ LOW (domain rotation) | ✅ HIGH (behavior-based) |
@@ -137,9 +146,9 @@ c2_domains:
 
 ## Integration with Behavioral Detections
 
-**TIME-BOX IOC detections complement PROMOTE behavioral detections:**
+**TIME_BOX IOC detections complement PROMOTE behavioral detections:**
 
-### Detection 1 (TIME-BOX): ClickFix C2 Domain Watchlist
+### Detection 1 (TIME_BOX): ClickFix C2 Domain Watchlist
 - **Pattern:** Connection to known ClickFix C2 domains
 - **Lifespan:** 90 days (campaign-specific)
 - **Value:** Immediate hits during campaign window
@@ -160,13 +169,13 @@ c2_domains:
 
 ## Activation Triggers
 
-**Deploy TIME-BOX detection when:**
+**Deploy TIME_BOX detection when:**
 1. Active campaign reported (threat intel)
 2. High-confidence IOCs available (domains, IPs, hashes)
 3. Campaign targets your customer base
 4. Behavioral detection doesn't exist yet (gap fill)
 
-**Deactivate TIME-BOX detection when:**
+**Deactivate TIME_BOX detection when:**
 1. 90 days elapse (mandatory review)
 2. Campaign ends (all IOCs dead/sinkholed)
 3. Zero hits for 30 days (IOCs expired)
@@ -176,8 +185,8 @@ c2_domains:
 
 ## Key Lesson
 
-**IOC detections have value, but limited lifespan** - they're campaign-specific tools, not standing detections. TIME-BOX verdict acknowledges this: deploy for 90 days, review, extend or deactivate.
+**IOC detections have value, but limited lifespan** - they're campaign-specific tools, not standing detections. TIME_BOX verdict acknowledges this: deploy for 90 days, review, extend or deactivate.
 
-**Don't confuse TIME-BOX with HOLD:**
-- **TIME-BOX:** Deploy now, expires in 90 days (campaign tracking)
+**Don't confuse TIME_BOX with HOLD:**
+- **TIME_BOX:** Deploy now, expires in 90 days (campaign tracking)
 - **HOLD:** Don't deploy now, preserve for future (zero TPs observed)

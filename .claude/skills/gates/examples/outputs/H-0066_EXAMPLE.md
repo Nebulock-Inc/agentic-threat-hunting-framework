@@ -22,23 +22,28 @@ Are findings configuration/risk issues? → YES
 
 ## Findings (Not Detectable)
 
+> The findings below are paraphrased and de-identified. A risk assessment's output is
+> a list of a specific organization's *unremediated* weaknesses, so the details are
+> more sensitive than a detection rule's — publish the shape of the finding, never the
+> environment that has it.
+
 ### Finding 1: Flat Network Segmentation
-**Issue:** ~300 workstations share L2 with camera fleet  
+**Issue:** General-purpose workstations share an L2 segment with the camera fleet  
 **Why not a detection:** This is a **network topology state**, not a behavioral event  
 **Output:** Remediation guidance (VLAN segmentation)
 
-### Finding 2: NDAA Compliance Violation
-**Issue:** Hikvision/Dahua cameras present with federal nexus  
+### Finding 2: Prohibited-Vendor Hardware
+**Issue:** Camera models from a vendor barred by the organization's procurement policy  
 **Why not a detection:** This is **vendor identification**, not malicious behavior  
 **Output:** Vendor replacement plan, compliance advisory
 
 ### Finding 3: CVE Exposure
-**Issue:** Cameras vulnerable to KEV CVEs (CVE-2021-36260)  
+**Issue:** Camera firmware vulnerable to a KEV-listed CVE  
 **Why not a detection:** This is **vulnerability presence**, not active exploitation  
 **Output:** Patch guidance, disable default credentials
 
 ### Finding 4: No External Exposure
-**Issue:** 0 cameras exposed on public IPs (Shodan validated)  
+**Issue:** No cameras reachable from the public internet (externally validated)  
 **Why not a detection:** This is **positive assurance**, not threat detection  
 **Output:** Client advisory (perimeter is clean)
 
@@ -51,13 +56,19 @@ Are findings configuration/risk issues? → YES
 **Pattern:** Camera IP initiating SMB to non-VMS host
 
 **Why it would FAIL GATES:**
-- **G:** ⚠️ Partial (pattern is generalizable)
-- **A:** ✅ Pass (lateral movement gap)
-- **T:** ❌ FAIL (requires per-tenant camera/VMS inventory - high maintenance)
-- **E:** ⚠️ Partial (no evasion testing)
-- **S:** ❌ FAIL (camera + VMS inventory updates on every camera deployment)
+- **G:** ⚠️ PARTIAL (0.5) — the pivot pattern generalizes, but the host roles don't
+- **A:** ✅ PASS (1.0) — lateral movement gap
+- **T:** ❌ FAIL (0.0) — requires a per-environment camera/VMS inventory to tell a pivot from normal VMS traffic
+- **E:** ⚠️ PARTIAL (0.5) — no evasion testing
+- **S:** ❌ FAIL (0.0) — that inventory has to be re-derived on every camera deployment
 
-**Verdict:** ❌ RECURRING HUNT (too much operational overhead for standing detection)
+**BASE Score:** 2.0
+
+**Verdict:** ❌ RECURRING_HUNT (too much operational overhead for standing detection)
+
+Two gates FAILed. `S` (row 4) is evaluated before `T` (row 5), so RECURRING_HUNT wins
+over CONDITIONAL — and correctly: an allowlist you must rebuild continuously isn't a
+prerequisite you can finish, which is what CONDITIONAL promises.
 
 **Better approach:** Quarterly manual assessment
 
@@ -68,14 +79,14 @@ Are findings configuration/risk issues? → YES
 ### Client: Organization A
 
 **Findings:**
-- HIGH: Flat network (~300 workstations share L2 with cameras)
-- MEDIUM: NDAA compliance violation (federal nexus confirmed)
-- MEDIUM: Camera server lateral movement (SMB reach to 30+ hosts)
+- HIGH: Flat network (workstations share L2 with cameras)
+- MEDIUM: Procurement-policy violation (prohibited camera vendor present)
+- MEDIUM: Camera server lateral movement (broad SMB reach)
 
 **Remediation Plan:**
 1. Priority 1: VLAN segmentation (isolate camera subnet)
 2. Priority 2: Audit camera server connections (principle of least privilege)
-3. Priority 3: Vendor replacement plan (NDAA compliance)
+3. Priority 3: Vendor replacement plan (procurement compliance)
 
 **Timeline:** Quarterly re-assessment
 
@@ -85,7 +96,7 @@ Are findings configuration/risk issues? → YES
 
 **Findings:**
 - POSITIVE: Properly segmented (cameras on routed VLAN)
-- POSITIVE: No external exposure (Shodan validated)
+- POSITIVE: No external exposure (externally validated)
 
 **Assessment:** Security best practices demonstrated. Annual validation recommended.
 

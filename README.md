@@ -73,18 +73,24 @@ GATES evaluates hunt-derived detections using a two-tier framework: 5 BASE crite
 
 Verdicts are based on BASE scores (/5). See `.claude/skills/gates/` for ADVANCED validation methods.
 
-**Quick Start:**
-```bash
-# Validate hunt detections for production readiness
+**Quick Start** — type this to your assistant; `/gates` is a skill, not a shell command:
+
+```text
 /gates --hunt H-0001
 ```
 
 **Verdict Types:**
-- ✅ **PROMOTE** (4-5/5) - Deploy as standing detection
-- ⚠️ **CONDITIONAL** (3/5) - Deploy after prerequisites met
-- ❌ **HOLD** (0-2/5) - Preserve logic, don't deploy
-- ⏱️ **TIME-BOX** - Campaign-specific, 90-day refresh
-- 🔄 **RECURRING HUNT** - Quarterly execution, not 24/7
+- ✅ **PROMOTE** (4.0-5.0) - Deploy as standing detection
+- ⚠️ **CONDITIONAL** (3.0-3.9) - Deploy after prerequisites met
+- ❌ **HOLD** (0.0-2.9) - Preserve logic, don't deploy
+- ⏱️ **TIME_BOX** - Campaign-specific, 90-day refresh
+- 🔄 **RECURRING_HUNT** - Quarterly execution, not 24/7
+- 🚫 **DROP** - Not worth detecting; recorded so it isn't re-proposed
+
+A **gate FAIL overrides the score band**, and when two gates fail the first match in
+this order wins: A→DROP, G→TIME_BOX, E→HOLD, S→RECURRING_HUNT, T→CONDITIONAL. The
+bands above apply only when no gate FAILed. Full rule:
+`.claude/skills/gates/SKILL.md` Step 4.
 
 **Note:** GATES "PROMOTE" verdict means deploying a detection rule. This is distinct from `athf hunt promote`, which moves hunt files between directories.
 
@@ -105,17 +111,29 @@ H-XXXX_GATES.yaml  ────────────→  FORGE (F-O-R-G-E)
 ```
 
 **Complete Workflow:**
-```bash
-# 1. In ATHF workspace: Validate hunt detection
-/gates --hunt H-0064
-# → hunt-promotion-analysis/H-0064_GATES.yaml
 
-# 2. Switch to ADEF workspace
-cd ~/adef-workspace/
+1. In the ATHF workspace, validate the hunt — assistant input, not a shell command:
 
-# 3. Run ADEF FORGE with path to GATES output
-adef forge --input ~/athf-workspace/hunt-promotion-analysis/H-0064_GATES.yaml
-```
+   ```text
+   /gates --hunt H-0062
+   ```
+
+   → writes `hunt-promotion-analysis/H-0062_GATES.yaml` (one file per hunt, N
+   candidates inside). A hunt whose verdict is archival (`HOLD`, `DROP`, `TIME_BOX`,
+   `RECURRING_HUNT`) emits a `.md` narrative instead — there is no rule to build, so
+   step 2 applies to `.yaml` output only.
+
+2. Import that document into ADEF:
+
+   ```bash
+   adef hunt-promote --gates ~/athf-workspace/hunt-promotion-analysis/H-0062_GATES.yaml
+   # --dry-run first to preview what it would mint
+   ```
+
+   Deployable candidates each land at the Find stage with a `D-XXXX`, a catalog record
+   and a journal; archival ones are reported as skipped. No `cd` needed — ADEF resolves
+   its workspace from `ADEF_WORKSPACE` (default `~/work/adef-workspace/`). Confirm your
+   ADEF has this mode with `adef hunt-promote --help`.
 
 **ADEF Repository:** https://github.com/Nebulock-Inc/agentic-detection-engineering-framework
 
@@ -255,9 +273,13 @@ athf hunt validate H-0001           # Validate specific hunt
 athf hunt stats                     # Show statistics
 athf hunt coverage                  # MITRE ATT&CK coverage
 athf research stats                 # Research metrics
+```
 
-# Validate detection quality (GATES method)
-/gates --hunt H-0001                # Score hunt detections for production readiness
+Detection quality is scored by the GATES **skill**, which your assistant invokes —
+it is not part of the `athf` CLI, so it does not belong in the shell block above:
+
+```text
+/gates --hunt H-0001
 ```
 
 ### ATT&CK Data Management (NEW in v0.11.0)

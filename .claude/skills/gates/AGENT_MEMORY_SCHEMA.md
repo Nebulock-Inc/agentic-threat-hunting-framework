@@ -18,8 +18,117 @@
 
 3. **Output Format by Verdict:**
    - **PROMOTE/CONDITIONAL** → YAML format (`H-XXXX_GATES.yaml`) - deployment-ready
-   - **HOLD/TIME-BOX/RECURRING** → Markdown format (`H-XXXX_GATES.md`) - analysis/guidance
-   - Single file per hunt, format determined by verdict type
+   - **HOLD/TIME_BOX/RECURRING_HUNT** → Markdown format (`H-XXXX_GATES.md`) - analysis/guidance
+   - Single file per hunt, format determined by the **hunt-level** verdict
+
+## This document is the contract
+
+Consumers parse these files. Anything not defined here is not guaranteed to exist,
+and anything defined here must not change shape without a version bump.
+
+`SKILL.md` contains an abbreviated output template for the authoring agent. That
+template is an **instance** of this schema, not a second schema — where the two ever
+disagree, this document wins and SKILL.md is the bug. Field names are identical in
+both by construction.
+
+## Hunt-level vs candidate-level verdicts
+
+There are **two** verdicts in every document and they are not the same thing:
+
+| Field | Scope | What it drives |
+|-------|-------|----------------|
+| `gates_validation.verdict` | the whole hunt | which **file** gets written (`.yaml` vs `.md`) |
+| `detections[].gates_assessment.verdict` | one candidate | what the consumer **does** with that candidate |
+
+A hunt whose verdict is PROMOTE writes a `.yaml`, and that file may legitimately
+contain candidates verdicted TIME_BOX, HOLD or DROP — a strong hunt routinely
+produces one good detection and two rejected ideas. **Consumers must handle every
+verdict inside a `.yaml`, not only the deployable ones.**
+
+Do not infer one verdict from the other. `gates_validation.verdict` is the hunt's
+headline, not a max() or a mode() over the candidates.
+
+## Canonical enums
+
+Single source of truth. These are closed sets — a value outside them is invalid,
+not an extension point. Uppercase, underscores, no hyphens and no spaces.
+
+```yaml
+# Verdict (both hunt-level and candidate-level)
+PROMOTE         # ready to build now
+CONDITIONAL     # build after stated prerequisites are met
+TIME_BOX        # build with an expiry date (IOC-shelf-life logic)
+RECURRING_HUNT  # do not build a standing detection; re-run as a periodic hunt
+HOLD            # not ready; reasoning recorded, nothing to build
+DROP            # do not build; already covered or not worth covering
+
+# Criteria result (per BASE gate)
+PASS | PARTIAL | FAIL
+
+# Deployment status
+EXPERIMENTAL | ACTIVE | INACTIVE
+
+# Engine — the detection engines the receiving framework can execute.
+# Adding a value here is a breaking change and requires a matching change
+# downstream; ADEF CI-enforces exactly this set.
+sigma | sql | sch_sql | composite
+```
+
+`RECURRING_HUNT` is a first-class verdict, not a `HOLD` with an annotation. Prior
+drafts had no slot for it and forced authors to write `verdict: HOLD` plus a
+free-form `classification` field; consumers then had to read two fields to learn
+one fact. Read `verdict` and nothing else.
+
+## Candidate identity
+
+**GATES does not assign detection IDs.** At validation time it is not yet known
+which candidates become detections — that is the whole point of the verdict — so
+minting a durable detection identifier here would name things that will never
+exist. The detection system downstream owns its own IDs (ADEF mints `D-XXXX`) and
+is solely responsible for them.
+
+What GATES owns is a **stable handle for a candidate within its hunt**:
+
+```yaml
+detections:
+  - candidate_id: megasync-process-execution   # kebab-case, hunt-scoped, required
+```
+
+Rules:
+
+1. **Derive it from the candidate's behavior, never its position.** Earlier drafts
+   used a bare ordinal (`1`, `2`, `3`). Ordinals are not stable: the list gets
+   reordered by score or priority between runs (an earlier example emitted them in
+   the order 2, 1, 4, 3), so a consumer keyed on the ordinal silently re-attributes
+   candidate 2's history to candidate 1. A slug survives reordering, insertion and
+   deletion of siblings.
+2. **Keep it byte-identical when GATES is re-run on an edited hunt.** This is the
+   only thing that makes re-import idempotent: a consumer matches on
+   `(hunt_id, candidate_id)`, so a changed slug reads as a brand-new candidate.
+3. **Change it only when the candidate's meaning changes** — at which point it *is*
+   a new candidate and a new slug is correct.
+4. **Hybrid decomposition** (one finding split into behavioral + IOC layers, see
+   SKILL.md) shares a stem and suffixes the layer:
+   `powershell-download-cradle-behavioral` / `powershell-download-cradle-ioc`.
+   This replaces the old `1a` / `1b` ordinal variants.
+
+A slug is not a perfect key — renaming the candidate breaks the match. That is the
+intended trade: a rename is a visible, deliberate edit that a human can reconcile,
+whereas an ordinal reshuffle is invisible and corrupts silently.
+
+## Required fields
+
+A candidate whose verdict is **deployable** — PROMOTE, CONDITIONAL, or TIME_BOX —
+is a promise that something can be built from it, so it MUST carry:
+
+- `candidate_id`
+- `name`
+- `gates_assessment.verdict`
+- `deployment.engine`
+- `deployment.detection_logic.query`
+
+A candidate verdicted RECURRING_HUNT, HOLD or DROP needs no `deployment` block at
+all; omit it rather than emitting an empty one.
 
 ## Schema Structure
 
@@ -42,21 +151,34 @@ hunt_metadata:
     - exfiltration
     - persistence
   
+  # Which OS/platform the candidates target. REQUIRED when any candidate is
+  # deployable: a detection has to be filed against a platform, and a consumer
+  # that has to infer one from field names is guessing. Use a single-element list
+  # for the common case; multiple entries mean genuinely cross-platform logic.
+  platforms:
+    - windows   # windows | macos | linux | cloud | network | saas | container
+  
   # Hunt outcomes (for pattern analysis)
   hunt_outcomes:
     true_positives: 0
     false_positives: 14
     findings_count: 3
     hunt_window_days: 30
-    events_analyzed: 71800000000
+    events_analyzed: 70000000000  # round order-of-magnitude, not a verbatim production count
     data_sources:
-      - ClickHouse nocsf_unified_events
+      - ClickHouse unified_events
       - Microsoft Defender EDR
 
 # =============================================================================
 # SECTION 2: GATES VALIDATION SUMMARY (for agent learning)
 # =============================================================================
 gates_validation:
+  # --- REQUIRED ---------------------------------------------------------------
+  # The hunt-level verdict. Drives the .yaml-vs-.md file choice and nothing else;
+  # see "Hunt-level vs candidate-level verdicts". Canonical enum only.
+  verdict: PROMOTE
+  
+  # --- OPTIONAL ---------------------------------------------------------------
   date: 2026-MM-DD
   validator: "Agent/Human name"
   framework_version: "2.0"
@@ -65,19 +187,36 @@ gates_validation:
   hunt_classification:
     type: behavioral_detection  # behavioral_detection | risk_assessment | multi_step | baseline | telemetry_gap
     detections_proposed: 3
-    detections_promoted: 2
-    detections_conditional: 1
   
-  # NEW: For mixed-verdict hunts (multiple detections with different scores)
-  aggregate_verdict: "MIXED"  # PROMOTE | CONDITIONAL | HOLD | MIXED
+  # Per-verdict candidate counts. Keys are the canonical verdict enum; omit the
+  # zeroes if you like. This is derived data — `detections` is authoritative, and
+  # a consumer that disagrees with these counts should trust `detections`.
+  #
+  # This is the ONLY place per-verdict counts live. Earlier drafts also carried
+  # `detections_promoted` / `detections_conditional` under `hunt_classification`,
+  # which meant two independently-maintained tallies of the same fact and no rule
+  # for which won when they disagreed — and they did disagree (one example counted
+  # its single CONDITIONAL candidate as `detections_promoted: 1`, telling a
+  # consumer a detection was deploy-ready when none was). A closed enum keyed map
+  # also can't drift as verdicts are added; a field-per-verdict can.
   verdict_breakdown:
     PROMOTE: 2
     CONDITIONAL: 1
-    HOLD: 0
-    TIME_BOX: 0
+  
+  # Mean of the candidates' base_score values. Float. Derived and purely
+  # informational — it is NOT a hunt-level score and nothing may be verdicted from
+  # it. A hunt with one 5.0 and one 0.0 candidate averages 2.5, which describes
+  # neither candidate.
+  base_score_average: 4.25
   
   # NEW: Fast-path decisions
-  fast_path_hold: false  # true if IOC-based + 0 TPs → automatic HOLD
+  # true when the hunt found 0 instances of the behavior AND the deciding gate is
+  # G or S, i.e. the zero-prevalence rule under Step 4's precedence table: a
+  # TIME_BOX refresh cycle and a RECURRING_HUNT cadence are both maintenance with
+  # no expected yield when the behavior does not occur here, so both resolve to
+  # HOLD. Do NOT set this for a candidate with no FAIL — 0 TPs over a clean
+  # baseline is a proactive PROMOTE, which is the opposite call.
+  fast_path_hold: false
   
   # NEW: Proactive deployment confidence (for zero-TP hunts)
   proactive_deployment_confidence: "HIGH"  # HIGH | MEDIUM | LOW | N/A
@@ -109,7 +248,7 @@ gates_validation:
   
   # Aggregate learnings (for agent pattern recognition)
   key_learnings:
-    - "Tool signatures with low volume (<2/day) typically score 5/5"
+    - "Tool signatures with low volume (<2/day) typically score 5.0"
     - "Cloud service detections require per-tenant baseline"
     - "Scheduled task detections have zero FP rate when specific to tool name"
     - "Zero-baseline proactive hunts (0 suspicious / large sample) boost T-gate confidence"
@@ -136,13 +275,16 @@ gates_validation:
 detections:
   
   # Detection 1
-  - detection_id: 1
+  - candidate_id: megasync-process-execution
     name: "MEGAsync Process Execution Detection"
     
     # GATES metadata (for agent learning)
     gates_assessment:
-      verdict: PROMOTE  # PROMOTE | CONDITIONAL | HOLD | TIME_BOX | DROP
-      base_score: 5/5
+      # Canonical verdict enum — see "Canonical enums". No other value is valid.
+      verdict: PROMOTE
+      # Float on a 0.0-5.0 scale. PASS=1.0, PARTIAL=0.5, FAIL=0.0, summed over the
+      # five BASE gates. Never the "5/5" string form — consumers do arithmetic on it.
+      base_score: 5.0
       criteria:
         generalizable: PASS    # Behavioral pattern, repeatable
         additive: PASS          # Fills T1567.002 gap
@@ -162,12 +304,19 @@ detections:
       pattern_learned: "Tool-specific process detection with low volume scores high on T and S gates"
       recommended_for_similar: "Other cloud sync tools (Dropbox, Box, OneDrive personal)"
     
-    # Deployment template (ready for automation)
+    # Deployment template (ready for automation).
+    # REQUIRED whenever the verdict is PROMOTE | CONDITIONAL | TIME_BOX.
+    # Omit entirely for RECURRING_HUNT | HOLD | DROP.
     deployment:
-      engine: sql
+      engine: sql  # sigma | sql | sch_sql | composite — closed set, see "Canonical enums"
       status: EXPERIMENTAL  # EXPERIMENTAL | ACTIVE | INACTIVE
       severity: medium
       
+      # Always these two keys, for every engine. `query` is an opaque string in
+      # whatever language `engine` names — consumers store it verbatim and must not
+      # have to branch on engine to find it. A sigma candidate puts its rule body
+      # here as a block scalar; it does NOT inline `selection:`/`condition:` as
+      # sibling mapping keys.
       detection_logic:
         query: |
           `process.name` = 'MEGAsync.exe'
@@ -214,12 +363,12 @@ detections:
         - "GATES validation: hunt-promotion-analysis/H-0063_GATES.yaml"
   
   # Detection 2
-  - detection_id: 2
+  - candidate_id: megasync-scheduled-task-persistence
     name: "MEGAsync Scheduled Task Persistence"
     
     gates_assessment:
       verdict: PROMOTE
-      base_score: 5/5
+      base_score: 5.0
       criteria:
         generalizable: PASS
         additive: PASS
@@ -271,12 +420,15 @@ detections:
         - T1567.002  # Exfiltration to Cloud Storage
   
   # Detection 3
-  - detection_id: 3
+  - candidate_id: browser-connection-to-mega
     name: "Browser Connection to MEGA Cloud Storage"
     
     gates_assessment:
+      # T=FAIL forces CONDITIONAL regardless of the score band — see the verdict
+      # precedence rule in SKILL.md. The 3.5 score happens to agree here; when a
+      # gate failure and the band disagree, the gate failure wins.
       verdict: CONDITIONAL
-      base_score: 3/5
+      base_score: 3.5
       criteria:
         generalizable: PASS
         additive: PASS
@@ -329,7 +481,7 @@ detections:
         baseline_query: |
           -- 30-day per-user baseline
           SELECT `actor.user.name`, COUNT(*) as connection_count
-          FROM nocsf_unified_events
+          FROM unified_events
           WHERE `dns.query.name` ILIKE '%.mega.nz'
           AND time >= now() - INTERVAL 30 DAY
           GROUP BY `actor.user.name`
@@ -359,17 +511,17 @@ aggregate_insights:
   # What worked well (agents learn success patterns)
   successful_patterns:
     - pattern: "Tool-specific process execution with low volume"
-      gates_scores: "Typically 5/5"
+      gates_scores: "Typically 5.0"
       example: "MEGAsync.exe: 1/month volume, no tuning needed"
     
     - pattern: "Tool-specific scheduled task detection"
-      gates_scores: "Typically 5/5 if task name is specific"
+      gates_scores: "Typically 5.0 if task name is specific"
       example: "Task name contains 'MEGAsync': 0 FPs in 30 days"
   
   # What required tuning (agents learn conditional patterns)
   conditional_patterns:
     - pattern: "Network connection to cloud storage domains"
-      gates_scores: "Typically 3/5 (T-fail, S-partial)"
+      gates_scores: "Typically 3.0 (T FAIL, S PARTIAL) — the T FAIL is what makes it CONDITIONAL"
       reason: "High legitimate usage, requires per-user baseline"
       solution: "Build 30-day baseline, dynamic allowlist"
       example: "Browser → *.mega.nz: 23/day, needs baseline"
@@ -395,12 +547,17 @@ aggregate_insights:
   # NEW: Proactive deployment patterns (learned from 43-hunt validation)
   proactive_deployment_patterns:
     - pattern: "Zero baseline with strong behavioral pattern"
-      confidence_boost: "T-gate UNKNOWN → LIKELY_PASS when 0 suspicious / large baseline"
+      # A clean baseline is evidence that the T gate is satisfiable, so it lifts T
+      # from PARTIAL to PASS. It does not license a new score token: the only gate
+      # results are PASS | PARTIAL | FAIL. The lift needs a >=30-day window, not
+      # just a big event count — see the T row in SKILL.md Step 2. Under 30 days,
+      # T stays PARTIAL and the candidate soaks as EXPERIMENTAL.
+      confidence_boost: "T-gate PARTIAL → PASS when 0 suspicious over a >=30-day baseline"
       examples:
-        - "H-0023: 0/30 days web server account creation → 4.5/5 PROMOTE"
-        - "H-0043: 0/2.2M Defender processes spawn shells → 4.5/5 PROMOTE"
-        - "H-0052: 0.1/day VS Code tunnels → 4.5/5 PROMOTE"
-      frequency: "~35% of hunts (15/43)"
+        - "0 hits over 30 days of web server account creation → 4.5, PROMOTE"
+        - "0 hits over 30 days of AV-process events spawning shells → 4.5, PROMOTE"
+        - "0.1/day remote dev-tunnel creation over 30 days → 4.5, PROMOTE"
+      frequency: "~35% of hunts in the corpus this skill was built from"
       learning: "Zero-TP proactive hunts with clean baseline = high deployment confidence"
   
   # NEW: Detection decomposition patterns
@@ -409,9 +566,9 @@ aggregate_insights:
     action: "Split into layers with independent verdicts"
     why: "IOC shelf life (90 days) != behavioral logic (durable)"
     examples:
-      - "H-0028: download cradle (CONDITIONAL) + URI pattern (TIME-BOX)"
-      - "H-0037: Python chain (PROMOTE) + C2 domains (TIME-BOX)"
-      - "H-0038: npm shell spawn (RECURRING_HUNT) + C2 domains (TIME-BOX)"
+      - "H-0028: download cradle (CONDITIONAL) + URI pattern (TIME_BOX)"
+      - "H-0037: Python chain (PROMOTE) + C2 domains (TIME_BOX)"
+      - "H-0038: npm shell spawn (RECURRING_HUNT) + C2 domains (TIME_BOX)"
     frequency: "~7% of hunts (3/43)"
   
   # NEW: Recurring hunt patterns
@@ -570,7 +727,7 @@ detection-tool deploy \
 - Contains: Deployment templates, agent learning artifacts, operational parameters
 - Purpose: Machine-readable, deployment-ready detection rules
 
-**HOLD/TIME-BOX/RECURRING Verdicts:** Markdown file
+**HOLD/TIME_BOX/RECURRING_HUNT Verdicts:** Markdown file
 - File: `hunt-promotion-analysis/H-XXXX_GATES.md`
 - Contains: Analysis, rationale, activation triggers, strategy documentation
 - Purpose: Human-readable guidance and preservation of reasoning
@@ -582,7 +739,7 @@ Example Markdown structure (HOLD verdict):
 
 ## Verdict: ❌ HOLD
 
-**BASE Score:** 2/5
+**BASE Score:** 2.0
 
 ## Analysis
 
@@ -606,7 +763,7 @@ Example Markdown structure (HOLD verdict):
 
 1. **Agent Learning:**
    - Query across hunts: "Show me all tool-specific detections"
-   - Pattern recognition: "Low volume + specific signature = 5/5"
+   - Pattern recognition: "Low volume + specific signature = 5.0"
    - Cross-hunt application: "Use per-user baseline for cloud services"
 
 2. **Deployment Ready:**

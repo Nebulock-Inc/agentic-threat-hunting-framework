@@ -157,12 +157,14 @@ tags: []
 
 **⚠️ Next Step: Validate with GATES**
 
-If you documented detection logic above, run:
-```bash
+If you documented detection logic above, ask your assistant to run GATES — this is
+assistant input, not a shell command:
+
+```text
 /gates --hunt H-XXXX
 ```
 
-GATES validates detection quality using 5 criteria (Generalizable, Additive, Tunable, Exposure-tested, Sustainable) and provides verdict: PROMOTE, CONDITIONAL, HOLD, TIME-BOX, or RECURRING HUNT.
+GATES validates detection quality using 5 criteria (Generalizable, Additive, Tunable, Exposure-tested, Sustainable) and returns a verdict per candidate: PROMOTE, CONDITIONAL, TIME_BOX, RECURRING_HUNT, HOLD, or DROP.
 
 ### Lessons Learned
 
@@ -184,8 +186,8 @@ GATES validates detection quality using 5 criteria (Generalizable, Additive, Tun
 
 ### GATES Verdict
 
-**Status:** [Not yet evaluated | PROMOTE | CONDITIONAL | HOLD | TIME-BOX | RECURRING HUNT]  
-**BASE Score:** [X/5]
+**Status:** [Not yet evaluated | PROMOTE | CONDITIONAL | TIME_BOX | RECURRING_HUNT | HOLD | DROP]  
+**BASE Score:** [X.X]  *(float 0.0–5.0, not "X/5")*
 
 **How to run:** `/gates --hunt H-XXXX`
 
@@ -197,21 +199,40 @@ GATES validates detection quality using 5 criteria (Generalizable, Additive, Tun
 - **S** (Sustainable): [PASS/PARTIAL/FAIL - Why?]
 
 **Verdict Meaning:**
-- **PROMOTE** (4-5/5): Deploy immediately to production
-- **CONDITIONAL** (3/5): Deploy after prerequisites (allowlists, tuning, etc.)
-- **HOLD** (0-2/5): Preserve for future, not ready for deployment
-- **TIME-BOX**: IOC-based detection with expiration date (e.g., 90 days)
-- **RECURRING HUNT**: High volume, run quarterly instead of 24/7 alerting
+
+Each gate scores PASS (1.0), PARTIAL (0.5) or FAIL (0.0), summed to 0.0–5.0. Bands:
+
+- **PROMOTE** (4.0-5.0): Deploy immediately to production
+- **CONDITIONAL** (3.0-3.9): Deploy after prerequisites (allowlists, tuning, etc.)
+- **HOLD** (0.0-2.9): Preserve for future, not ready for deployment
+
+A **gate FAIL overrides the band**, because a FAIL names a specific defect and the fix
+for that defect is a specific verdict:
+
+Evaluate in this order and stop at the first match — when two gates fail, the earlier
+one has to be solved first:
+
+1. **A** FAIL → **DROP**: already covered, so there's nothing to add
+2. **G** FAIL → **TIME_BOX**: IOC-based, so give it an expiry (e.g. 90 days)
+3. **E** FAIL → **HOLD**: expand coverage, then re-assess
+4. **S** FAIL → **RECURRING_HUNT**: too high-volume for 24/7 alerting; run it quarterly
+5. **T** FAIL → **CONDITIONAL**: needs a baseline/allowlist before it can ship
+
+Rows 2 and 4 both mean *carry the rule anyway, on a cycle*. If the hunt found **zero
+instances** of the behavior, neither is worth the maintenance — the verdict is **HOLD**.
+This does not apply when no gate FAILed: 0 TPs over a clean baseline is a proactive
+**PROMOTE**.
 
 **Next Steps:**
 - [ ] [Action items based on verdict]
-- [ ] **If PROMOTE**: Proceed to detection engineering with ADEF
+- [ ] **If PROMOTE or CONDITIONAL**: Proceed to detection engineering with ADEF
   - Install ADEF: `pip install agentic-detection-engineering-framework`
-  - Switch to ADEF workspace: `cd ~/adef-workspace/`
-  - Run FORGE: `adef forge --input ~/athf-workspace/hunt-promotion-analysis/H-XXXX_GATES.yaml`
+  - Import: `adef hunt-promote --gates ~/athf-workspace/hunt-promotion-analysis/H-XXXX_GATES.yaml`
+    (`--dry-run` to preview). No `cd` needed — ADEF resolves its workspace from
+    `ADEF_WORKSPACE`. A CONDITIONAL candidate lands flagged
+    `needs_review: gates_conditional`, so finish its prerequisites before deploying.
   - Repository: https://github.com/Nebulock-Inc/agentic-detection-engineering-framework
-- [ ] **If CONDITIONAL**: Complete prerequisites first, then proceed to ADEF
-- [ ] **If HOLD/TIME-BOX/RECURRING**: Document strategy (see GATES output for details)
+- [ ] **If HOLD/DROP/TIME_BOX/RECURRING_HUNT**: Document strategy (see GATES output for details)
 
 ### Follow-up Hunts
 
