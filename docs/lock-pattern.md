@@ -144,6 +144,84 @@ Next iteration: expand to include remote registry and PSExec telemetry for broad
 
 By capturing every hunt in this format, ATHF makes it possible for AI assistants to recall prior work, generate new hypotheses, and suggest refined queries based on past results.
 
+## Beyond LOCK: From Hunt to Detection
+
+After completing the KEEP phase, validated findings can be promoted to production detections using the GATES method and ADEF framework.
+
+### The Complete Workflow
+
+```
+ATHF Workspace                    ADEF Workspace
+──────────────                    ──────────────
+LOCK Pattern
+  Learn
+    ↓
+  Observe
+    ↓
+  Check
+    ↓
+  Keep ──────────────────────┐
+                             │
+GATES Validation             │
+  /gates --hunt H-XXXX       │
+    ↓                        │
+  H-XXXX_GATES.yaml ─────────┴──→ ADEF FORGE
+                                  (Detection Engineering)
+                                      ↓
+                                  Production Rule
+```
+
+**Step 1: Complete LOCK phases**
+Document your hunt through Learn → Observe → Check → Keep
+
+**Step 2: Validate with GATES** — assistant input, not a shell command:
+
+```text
+/gates --hunt H-XXXX
+```
+
+→ writes one file per hunt, holding every candidate that hunt produced. The extension
+depends on the hunt-level verdict: `H-XXXX_GATES.yaml` when something is deployable
+(PROMOTE / CONDITIONAL), `H-XXXX_GATES.md` when nothing is (HOLD, DROP, TIME_BOX,
+RECURRING_HUNT) — so look for the `.md` if the `.yaml` isn't there.
+
+GATES evaluates your findings using 5 BASE criteria:
+- **G**eneralizable - Is this repeatable?
+- **A**dditive - Does it fill a coverage gap?
+- **T**unable - Can we distinguish attack from normal?
+- **E**xposure-tested - Did we cover evasions?
+- **S**ustainable - Can we maintain this?
+
+Each scores PASS (1.0), PARTIAL (0.5) or FAIL (0.0) — summed to 0.0–5.0.
+
+**Verdict types:**
+- ✅ **PROMOTE** (4.0-5.0) - Ready for production
+- ⚠️ **CONDITIONAL** (3.0-3.9) - Deploy after prerequisites
+- ❌ **HOLD** (0.0-2.9) - Preserve for future
+- ⏱️ **TIME_BOX** - IOC-based, 90-day refresh
+- 🔄 **RECURRING_HUNT** - Quarterly execution
+- 🚫 **DROP** - Not worth detecting
+
+A **gate FAIL overrides the band**, and when two gates fail the first match in this
+order wins: A→DROP, G→TIME_BOX, E→HOLD, S→RECURRING_HUNT, T→CONDITIONAL. The bands
+apply only when no gate FAILed — see `.claude/skills/gates/SKILL.md` Step 4 for the
+authoritative rule.
+
+**Step 3: Engineer with ADEF (if PROMOTE/CONDITIONAL)**
+```bash
+adef hunt-promote --gates ~/athf-workspace/hunt-promotion-analysis/H-XXXX_GATES.yaml
+# --dry-run first to preview; no `cd` needed — ADEF resolves its workspace from
+# ADEF_WORKSPACE (default ~/work/adef-workspace/)
+```
+
+Deployable candidates each get a `D-XXXX`, a catalog record and a journal at the Find
+stage; archival ones are reported as skipped. Confirm your ADEF has this import mode
+with `adef hunt-promote --help`.
+
+**ADEF Repository:** https://github.com/Nebulock-Inc/agentic-detection-engineering-framework
+
+**Read more about GATES:** [.claude/skills/gates/README.md](../.claude/skills/gates/README.md)
+
 ## Templates
 
 See [templates/](../templates/) for ready-to-use LOCK hunt templates.

@@ -390,6 +390,23 @@ athf --version
 7. **Execute queries** - Use appropriate data source tools (SIEM interface, query CLI, etc.)
 8. **STOP after each query** - Wait for user feedback before next query
 9. **Document findings** - Update hunt file with results and conclusions
+10. **Validate with GATES** - After documenting findings in KEEP phase:
+    - Run `/gates --hunt H-XXXX` to validate detection quality
+    - Document verdict in hunt file under `### GATES Verdict`
+    - **If PROMOTE**: Proceed to ADEF for detection engineering
+      - Install ADEF: `pip install agentic-detection-engineering-framework`
+      - Import the GATES document: `adef hunt-promote --gates ~/athf-workspace/hunt-promotion-analysis/H-XXXX_GATES.yaml`
+        (`--dry-run` to preview). One file in, N detections out — deployable candidates
+        get a `D-XXXX`, a catalog record and a journal at Find; archival ones are
+        reported as skipped. No `cd` needed; ADEF resolves its workspace from
+        `ADEF_WORKSPACE`. Confirm the mode exists with `adef hunt-promote --help`.
+      - ADEF Repo: https://github.com/Nebulock-Inc/agentic-detection-engineering-framework
+      - **Note:** GATES "PROMOTE" means deploy detection rule to production. This is separate from `athf hunt promote` which moves hunt files between directories.
+    - **If CONDITIONAL**: import the same way, then complete the prerequisites — ADEF
+      marks the record `needs_review: gates_conditional` so it can't ship unnoticed
+    - **If HOLD/DROP/TIME_BOX/RECURRING_HUNT**: Document strategy (see GATES output).
+      Note a PROMOTE hunt's `.yaml` can still contain TIME_BOX and HOLD candidates —
+      the hunt-level verdict picks the file format, not each candidate's fate.
 
 ---
 
