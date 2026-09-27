@@ -1,14 +1,15 @@
-# Example: HOLD Verdict (Zero TPs, Preserve Detection Logic)
+# Example: PROMOTE Verdict (Zero TPs, TEST Deployment)
 
 **Hunt:** H-0060 - Browser Extension Installer Technique  
-**Verdict:** HOLD (no operational need, preserve for threat-intel activation)  
-**BASE Score:** 3.0  *(G 1.0 + A 0.5 + T 0.5 + E 1.0 + S 0.0)*
+**Verdict:** PROMOTE  
+**Deployment Status:** TEST (30-day soak required)  
+**BASE Score:** 4.0  *(G 1.0 + A 1.0 + T 0.5 + E 1.0 + S 0.5)*
 
 ---
 
 ## Summary
 
-Hunt validated detection logic via emulation but found 0 true positives across a multi-billion-event Windows sample (7 days). Detection pattern is sound but zero prevalence = no operational need. Preserve as quarterly threat-intel-driven hunt.
+Hunt validated detection logic via emulation but found 0 true positives across a multi-billion-event Windows sample (7 days). Volume and FP rate unmeasured. No gates FAILED → score 4.0 → PROMOTE verdict. Deploys to TEST (not PRODUCTION) for 30-day soak to validate operational assumptions before graduating to PRODUCTION.
 
 ---
 
@@ -24,97 +25,48 @@ Evidence:
 - Detection angles: 5 different approaches documented
 - All behavioral, zero IOCs embedded
 
-**A - Additive: ⚠️ PARTIAL**
+**A - Additive: ✅ PASS**
 
-Fills T1176.001 gap (browser extension abuse), BUT zero TPs = no demonstrated operational need.
-
-Coverage gap confirmed:
-- No existing browser extension detections
-- Technique documented in public ClickFix-style campaign reporting
-- Zero observed activity in the hunted environment = no urgency
+Fills T1176.001 gap (browser extension abuse). No existing coverage for this technique. Zero TPs is valid - proactive detection for emerging attack pattern documented in public ClickFix campaign reporting.
 
 **T - Tunable: ⚠️ PARTIAL**
 
-No execution results to validate FP rate, and developer workstations make legitimate use of headless Chrome (Puppeteer, Playwright). Tuning is clearly *possible* — the flags and parent process are specific — but unmeasured, so this is PARTIAL, not PASS.
+FP rate unvalidated. Tuning possible (specific flags/parent process) but unmeasured → PARTIAL.
 
-> Missing measurement is **PARTIAL**, never `UNKNOWN`. `UNKNOWN` is not a gate result and has no point value, so scoring it silently drops the total.
+> Missing measurement = **PARTIAL**, not UNKNOWN (UNKNOWN has no point value).
 
 **E - Exposure-tested: ✅ PASS**
 
-Five detection angles cover full attack chain:
-1. Headless Chrome + extension loading flags
-2. Browser → script interpreter chain
-3. Browser user-data-dir manipulation
-4. Malicious extension artifacts
-5. C2 domains (IOC watchlist)
+Five angles: headless Chrome flags, browser→script chain, user-data-dir manipulation, extension artifacts, C2 domains. Emulation validated on synthetic ClickFix chain.
 
-Emulation: ✅ Validated on synthetic ClickFix chain
+**S - Sustainable: ⚠️ PARTIAL**
 
-**S - Sustainable: ❌ FAIL**
-
-Unknown alert volume + potential high allowlist maintenance. Zero TPs = cannot justify investigation burden.
+Volume unmeasured (projected 10-50/day). Allowlist burden unknown - TEST soak validates.
 
 ---
 
 ## Verdict Rationale
 
-**HOLD (not PROMOTE) because:**
-1. ✅ Detection logic is sound (validated by emulation)
-2. ❌ Zero prevalence = no operational need (0 hits across the full sample)
-3. ❌ Unmeasured FP rate on developer workstations
-4. ❌ Cannot justify investigation burden with zero expected yield
-5. ✅ Better suited as quarterly threat-intel-driven hunt
+No gates FAILED → score 4.0 → PROMOTE verdict. Deploys to TEST (not PRODUCTION) because T and S are PARTIAL (unmeasured). ADVANCED-S soak validates volume assumptions before PRODUCTION graduation.
 
-**This is distinct from DROP:**
-- Detection logic preserved for future activation
-- Validated patterns documented
-- Fast-track deployment plan ready
-
-**Why HOLD and not RECURRING_HUNT, given S FAILed?**
-
-The `S` FAIL → RECURRING_HUNT mapping assumes the behavior *happens* and is merely too
-noisy for 24/7 alerting — so you trade coverage for cadence and run it periodically.
-Here the behavior does not occur at all (0 hits). Periodic execution would have the same
-zero yield as standing deployment, so there is nothing to trade. Zero prevalence
-resolves an `S` FAIL to HOLD instead: preserve the logic, re-assess when threat intel
-moves. Note the score (3.0) sits in the CONDITIONAL band — the `S` FAIL overrides it,
-exactly as Step 4 of `SKILL.md` requires.
+**ADVANCED-S Requirements:**
+1. 30-day TEST soak measuring alert volume
+2. Build developer tool allowlist (Puppeteer, Playwright, Selenium)
+3. Confirm post-filter volume <10/day
+4. Graduate to PRODUCTION after successful soak
 
 ---
 
-## Preserved Detection Logic
+## Deployment Plan
 
-### Detection Angle 5: C2 Domain IOC Watchlist (Fast-Track)
+**Phase 1 (TEST - 30 days):** Deploy angle 1 (headless Chrome + extension flags), measure volume, build allowlist from observed legitimate use. Target: <10/day post-filter.
 
-**Pattern:** Connection to campaign C2 domains
-
-**Deployment timeline:**
-- Day 0: Threat intel triggers (campaign activity reported)
-- Day 1-7: Deploy IOC watchlist (immediate value)
-- Day 7-14: Deploy behavioral detection after dev tool allowlist
-- Day 14-30: Expand to full 5-angle coverage
-
-**Why preserve:** If threat landscape changes, this detection can deploy in 1 week.
-
----
-
-## Activation Triggers
-
-Deploy detections if:
-1. Campaign activity reported against similar organizations
-2. Associated domains observed in DNS logs
-3. Peer victimization reported
-4. A specific threat model requires browser-extension monitoring
-
-**Re-run on trigger, not on a calendar.** Any of the four conditions above warrants
-re-running this hunt (30-day window, expanded to macOS Chromium). Note what this is
-*not*: a standing quarterly cadence. That would be `RECURRING_HUNT`, and it is the
-wrong verdict here — re-running on a schedule cannot find what has zero prevalence, so
-the calendar would burn analyst time to reconfirm the same nothing. `HOLD` preserves the
-logic until something external makes it worth looking again.
+**Phase 2 (PRODUCTION):** If soak successful (FPs reduced >90%), deploy angles 2-4. IOC angle 5 deploys separately as threat intel becomes available.
 
 ---
 
 ## Key Lesson
 
-**Zero TPs is valid HOLD outcome** - not every validated detection needs immediate deployment. Preserve logic, monitor threat landscape, activate when operational need appears.
+**Zero TPs + unmeasured volume = PROMOTE to TEST** - sound detection logic with proactive value. No gates FAILED (T and S are PARTIAL, not FAIL), so score 4.0 → PROMOTE verdict. Deployment status = TEST (not PRODUCTION). ADVANCED-S soak validates operational assumptions (volume, allowlist burden) before graduating to PRODUCTION. 
+
+**Two-tier validation:** BASE tier asserts detection quality → verdict. ADVANCED tier demonstrates operational viability → TEST → PRODUCTION graduation.

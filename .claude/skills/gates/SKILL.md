@@ -389,7 +389,7 @@ If detection repository IS accessible (ATHF/ADEF integrated), automatically chec
 |------|---------------|-------------------|
 | **G - Generalizable** | Repeatable behavior, or a one-off? | **✅ Available:** Techniques (T1XXX), pattern vs. IOC, behavior chains<br>**❌ IOC pattern:** Domain literals, specific IPs, campaign hashes → G-fail |
 | **A - Additive** | Does it fill a coverage gap? | **✅ Check:** Technique coverage in detection repo<br>**→ PROMPT USER** if detection repository not available |
-| **T - Tunable** | Tell attack from normal? Can FPs be managed? | **✅ If available:** Hunt TP/FP counts from Findings table<br>**⚠️ If unavailable:** Assess from query volumes, documented exclusions, "normal" behaviors<br>**✅ Tunable:** Filters/allowlists documented in hunt<br>**❌ High risk:** Widespread legitimate use, no clear filters<br>**🎯 Clean baseline:** 0 suspicious over a large sample is evidence the gate is satisfiable, so it lifts **T from PARTIAL to PASS**. It is not a separate bonus — there is no `+0.5` to add on top of a gate result<br>**⏱️ The lift is only as good as its window.** A hunt-length sample (≤7 days) shows the pattern *can* be tuned, not that it *is*: event volume is not the same as time coverage, and a clean week says nothing about monthly batch jobs, patch cycles or quarterly automation. Under 30 days the clean baseline holds **T at PARTIAL** and the candidate deploys `EXPERIMENTAL` for a soak — record the window you measured, not just the event count |
+| **T - Tunable** | Tell attack from normal? Can FPs be managed? | **✅ If available:** Hunt TP/FP counts from Findings table<br>**⚠️ If unavailable:** Assess from query volumes, documented exclusions, "normal" behaviors<br>**✅ Tunable:** Filters/allowlists documented in hunt<br>**❌ High risk:** Widespread legitimate use, no clear filters<br>**🎯 Clean baseline:** 0 suspicious over a large sample is evidence the gate is satisfiable, so it lifts **T from PARTIAL to PASS**. It is not a separate bonus — there is no `+0.5` to add on top of a gate result<br>**⏱️ The lift is only as good as its window.** A hunt-length sample (≤7 days) shows the pattern *can* be tuned, not that it *is*: event volume is not the same as time coverage, and a clean week says nothing about monthly batch jobs, patch cycles or quarterly automation. Under 30 days the clean baseline holds **T at PARTIAL** and the candidate deploys `TEST` for a soak — record the window you measured, not just the event count |
 | **E - Exposure-tested** | Covered the bypasses, or just the obvious path? | **✅ Multiple angles:** Count of queries/detection layers<br>**✅ Bypass testing:** Documented evasion scenarios<br>**⚠️ Single path:** Only one query pattern tested |
 | **S - Sustainable** | Juice worth the squeeze: can we see it, is upkeep fair? | **✅ If available:** Hunt alert volumes from queries<br>**⚠️ If unavailable:** Project from query result counts<br>**✅ Low burden:** Static allowlist, reliable telemetry<br>**❌ High burden:** Dynamic allowlist, requires correlation<br>**📊 VOLUME THRESHOLDS:**<br>- **<10/day:** Sustainable (manual triage feasible)<br>- **10-100/day:** Conditional (requires aggregation/throttling)<br>- **>100/day:** Likely unsustainable unless TP rate >1%<br>**🤖 AUTOMATION CHECK:** Can SOC act without per-alert human context?<br>- ✅ "Is user authorized?" (allowlist lookup = automatable)<br>- ❌ "Does policy allow this tool?" (business judgment = not automatable)<br>- **If per-alert context required:** S-FAIL → RECURRING_HUNT |
 
@@ -428,7 +428,7 @@ When hunt doesn't provide explicit TP/FP counts or detection logic:
 |--------------|--------------|----------|
 | **No TP/FP table** | Use query volumes + findings descriptions | T-score: PARTIAL if volumes manageable but unvalidated<br>S-score: PARTIAL if volume unknown, project from query results |
 | **No detection logic proposed** | Identify from queries/observations (Step 1.5) | Score the behavioral patterns you extract |
-| **No query volumes** | Project from hunt scope (days × tenants) | S-score: **PARTIAL** — volume is projected, not measured. Recommend EXPERIMENTAL soak to confirm. Never UNKNOWN: it has no point value, so it would silently drop the score |
+| **No query volumes** | Project from hunt scope (days × tenants) | S-score: **PARTIAL** — volume is projected, not measured. Recommend TEST soak to confirm. Never UNKNOWN: it has no point value, so it would silently drop the score |
 | **No exclusion filters** | Assess from "normal" behavior descriptions | T-score: PARTIAL if tuning possible, FAIL if no clear filters |
 | **Hunt found 0 TPs** | Valid outcome, doesn't fail GATES | G/A/E can still PASS; T/S may be PARTIAL (unvalidated). Step 4's zero-prevalence rule decides: with a `G` or `S` FAIL it is `HOLD`; with no FAIL and a clean baseline it is a proactive `PROMOTE` |
 | **Multi-step correlation** | `S` = FAIL (automation check) | Score all five gates; Step 4 resolves the `S` FAIL to `RECURRING_HUNT` |
@@ -460,7 +460,7 @@ ADVANCED criteria are **PENDING** until deployment. Provide recommendations:
 | **A - Actionable** | Validated or automated playbook? | SOC walkthrough, wire auto-enrichment |
 | **T - Tunable** | Reusable allowlist? | Build shared allowlist other rules can reference |
 | **E - Exposure-tested** | Run emulation — gap revealed? | Atomic Red Team, purple team validation |
-| **S - Soaked** | Performance with concurrent detections? | 48h–7d EXPERIMENTAL soak, volume < threshold |
+| **S - Soaked** | Performance with concurrent detections? | 48h–7d TEST soak, volume < threshold |
 
 These are the **ADVANCED** words (`A` = Actionable, `S` = Soaked), per the Framework
 Reference. They are recommendations only — ADVANCED is never scored into the BASE score.
@@ -502,8 +502,8 @@ prerequisite is worth building regardless of current prevalence). Critically, it
 **not** apply to a candidate with no FAIL at all: a generalizable, well-baselined, quiet
 detection that found 0 TPs is a **proactive `PROMOTE`** — a clean baseline over a large
 sample *and a long enough window* is exactly what buys you the confidence to deploy
-ahead of the threat. Under 30 days it is still `PROMOTE` (4.5, `T` PARTIAL), but as an
-`EXPERIMENTAL` soak rather than a settled rule.
+ahead of the threat. Under 30 days it is still `PROMOTE` (4.5, `T` PARTIAL), but as a
+`TEST` soak rather than a settled rule.
 
 Two or more FAILs: the earliest matching row wins. It is the one that has to be
 solved first, and solving it changes the assessment of the rest.
@@ -568,14 +568,14 @@ hunt-level vs candidate-level table in `AGENT_MEMORY_SCHEMA.md`.
 
 | Hunt-level verdict | File Generated | Purpose | Contains |
 |--------------------|----------------|---------|----------|
-| **PROMOTE / CONDITIONAL** | `H-XXXX_GATES.yaml` | Deployment + learning | Structured data, narrative (embedded), deployment templates, agent-queryable metadata |
-| **HOLD / DROP / TIME_BOX / RECURRING_HUNT** | `H-XXXX_GATES.md` | Analysis only | Narrative verdict, reasoning, recommendations (no deployment) |
+| **PROMOTE / CONDITIONAL / TIME_BOX** | `H-XXXX_GATES.yaml` | Deployment + learning | Structured data, narrative (embedded), deployment templates, agent-queryable metadata |
+| **HOLD / DROP / RECURRING_HUNT** | `H-XXXX_GATES.md` | Analysis only | Narrative verdict, reasoning, recommendations (no deployment) |
 | **Risk Assessment / Non-GATES** | `H-XXXX_ASSESSMENT.md` | Advisory | Client advisory, remediation guidance (not detection) |
 
 **Result:** exactly **one file per hunt** — never one per detection — and the extension
 tells a consumer whether there is anything deployable inside.
 
-### YAML Structure (when verdict = PROMOTE/CONDITIONAL)
+### YAML Structure (when verdict = PROMOTE/CONDITIONAL/TIME_BOX)
 
 See `AGENT_MEMORY_SCHEMA.md` for complete schema. Key sections:
 
@@ -585,10 +585,38 @@ See `AGENT_MEMORY_SCHEMA.md` for complete schema. Key sections:
 4. **detections[]** - Each with:
    - `gates_assessment` - Scoring rationale, patterns learned
    - `deployment` - Engine, query, entities, operational params (ready to deploy)
+     - For **TIME_BOX** verdicts: add `activation_date`, `expiration_date`, `review_date`, `refresh_cycle_days` to `operational_parameters`
 5. **aggregate_insights** - Successful patterns, tuning strategies (cross-hunt learning)
 6. **operational_handoff** - SOC playbook, next steps, purple team validation
 
-### Markdown Structure (when verdict = HOLD/DROP/TIME_BOX or non-GATES)
+#### Engine Field (CRITICAL - ADEF Compatibility)
+
+The `deployment.engine` field **MUST** use one of these 4 values only. ADEF CI-enforces this set:
+
+```yaml
+sigma      # Sigma rule format
+sql        # SQL queries (including KQL, Elasticsearch DSL)
+sch_sql    # Scheduled SQL queries (including Splunk SPL)
+composite  # Multiple detection types combined
+```
+
+**Query Format → Engine Mapping:**
+
+| Query Format | Engine Value | Example |
+|--------------|--------------|---------|
+| Sigma YAML | `sigma` | `selection:`/`condition:` blocks |
+| Splunk SPL | `sch_sql` | `index=... \| stats ...` |
+| KQL (Kusto) | `sql` | `SecurityEvent \| where ...` |
+| SQL | `sql` | `SELECT * FROM events WHERE ...` |
+| Elasticsearch DSL | `sql` | Query DSL in JSON |
+| Multiple types | `composite` | Combination of above |
+
+**WRONG:** `engine: splunk`, `engine: kql`, `engine: elastic`  
+**RIGHT:** `engine: sch_sql`, `engine: sql`, `engine: sql`
+
+**If unsure:** Use `sch_sql` for scheduled queries with aggregation, `sql` for simple filters.
+
+### Markdown Structure (when verdict = HOLD/DROP/RECURRING_HUNT or non-GATES)
 
 Lightweight narrative report:
 ```markdown

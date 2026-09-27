@@ -17,8 +17,8 @@
    - No manual YAML writing needed
 
 3. **Output Format by Verdict:**
-   - **PROMOTE/CONDITIONAL** → YAML format (`H-XXXX_GATES.yaml`) - deployment-ready
-   - **HOLD/TIME_BOX/RECURRING_HUNT** → Markdown format (`H-XXXX_GATES.md`) - analysis/guidance
+   - **PROMOTE/CONDITIONAL/TIME_BOX** → YAML format (`H-XXXX_GATES.yaml`) - deployment-ready
+   - **HOLD/DROP/RECURRING_HUNT** → Markdown format (`H-XXXX_GATES.md`) - analysis/guidance
    - Single file per hunt, format determined by the **hunt-level** verdict
 
 ## This document is the contract
@@ -66,7 +66,7 @@ DROP            # do not build; already covered or not worth covering
 PASS | PARTIAL | FAIL
 
 # Deployment status
-EXPERIMENTAL | ACTIVE | INACTIVE
+TEST | PRODUCTION | DISABLED
 
 # Engine — the detection engines the receiving framework can execute.
 # Adding a value here is a breaking change and requires a matching change
@@ -226,7 +226,7 @@ gates_validation:
   automation_feasibility: "PASS"  # PASS | FAIL | CONDITIONAL
   automation_assessment: "SOC can act on alert without per-alert business context"
   
-  # NEW: Telemetry gaps (if Step 0.5 identified limitations)
+  # NEW: Telemetry gaps (if Step 0.6 identified limitations)
   telemetry_gaps: []
     # - gap: "EUID field unpopulated - cannot detect UID transitions"
     #   impact: "Linux LPE exploits undetectable"
@@ -309,7 +309,7 @@ detections:
     # Omit entirely for RECURRING_HUNT | HOLD | DROP.
     deployment:
       engine: sql  # sigma | sql | sch_sql | composite — closed set, see "Canonical enums"
-      status: EXPERIMENTAL  # EXPERIMENTAL | ACTIVE | INACTIVE
+      status: TEST  # TEST | PRODUCTION | DISABLED
       severity: medium
       
       # Always these two keys, for every engine. `query` is an opaque string in
@@ -353,6 +353,12 @@ detections:
           - "FP rate <5/day"
           - "Alert volume <10/day"
           - "Query performance <30s"
+        
+        # TIME_BOX-specific fields (REQUIRED for TIME_BOX verdict, omit otherwise)
+        # activation_date: "2026-09-20"  # When detection goes live
+        # expiration_date: "2026-12-19"  # When detection expires (90 days typical)
+        # review_date: "2026-12-15"      # When to assess refresh/extension
+        # refresh_cycle_days: 90         # Refresh interval for IOC updates
       
       mitre_attack:
         - T1567.002  # Exfiltration to Cloud Storage
@@ -387,7 +393,7 @@ detections:
     
     deployment:
       engine: sql
-      status: EXPERIMENTAL
+      status: TEST
       severity: high
       
       detection_logic:
@@ -454,7 +460,7 @@ detections:
     
     deployment:
       engine: sql
-      status: EXPERIMENTAL
+      status: TEST
       severity: medium
       
       detection_logic:
@@ -521,7 +527,7 @@ aggregate_insights:
   # What required tuning (agents learn conditional patterns)
   conditional_patterns:
     - pattern: "Network connection to cloud storage domains"
-      gates_scores: "Typically 3.0 (T FAIL, S PARTIAL) — the T FAIL is what makes it CONDITIONAL"
+      gates_scores: "Typically 3.5 (T FAIL, S PARTIAL) — the T FAIL is what makes it CONDITIONAL"
       reason: "High legitimate usage, requires per-user baseline"
       solution: "Build 30-day baseline, dynamic allowlist"
       example: "Browser → *.mega.nz: 23/day, needs baseline"
@@ -538,9 +544,9 @@ aggregate_insights:
   
   # Cross-hunt recommendations (agents suggest to users)
   related_detections_to_build:
-    - "Dropbox process execution (same pattern as Detection 1)"
-    - "Box Sync process execution (same pattern as Detection 1)"
-    - "OneDrive personal process execution (same pattern as Detection 1)"
+    - "Dropbox process execution (same pattern as megasync-process-execution)"
+    - "Box Sync process execution (same pattern as megasync-process-execution)"
+    - "OneDrive personal process execution (same pattern as megasync-process-execution)"
     - technique: T1567.002
       rationale: "Same exfiltration technique, same detection pattern"
   
@@ -551,7 +557,7 @@ aggregate_insights:
       # from PARTIAL to PASS. It does not license a new score token: the only gate
       # results are PASS | PARTIAL | FAIL. The lift needs a >=30-day window, not
       # just a big event count — see the T row in SKILL.md Step 2. Under 30 days,
-      # T stays PARTIAL and the candidate soaks as EXPERIMENTAL.
+      # T stays PARTIAL and the candidate soaks as TEST.
       confidence_boost: "T-gate PARTIAL → PASS when 0 suspicious over a >=30-day baseline"
       examples:
         - "0 hits over 30 days of web server account creation → 4.5, PROMOTE"
@@ -601,14 +607,14 @@ aggregate_insights:
   fp_patterns:
     service_accounts:
       pattern: "Service accounts generate high FP rates"
-      mitigation: "Requires allowlist before ACTIVE promotion"
+      mitigation: "Requires allowlist before PRODUCTION promotion"
       examples:
         - "H-0036: Active Directory Agent (67 FPs)"
         - "H-0048: IT automation tools (997/day)"
     
     dev_heavy_environments:
       pattern: "Zero-TP hunts often miss dev tool FPs"
-      mitigation: "Build tool exclusions, monitor EXPERIMENTAL"
+      mitigation: "Build tool exclusions, monitor TEST"
       examples:
         - "H-0051: Build systems (31,872 FPs, 70x baseline)"
         - "H-0045: Bazel, Claude Code, Talend (documented exclusions)"
@@ -630,19 +636,19 @@ operational_handoff:
   
   next_steps:
     immediate:
-      - "Deploy Detection 1 & 2 to EXPERIMENTAL (7-day soak)"
-      - "Customer outreach: Clarify MEGA usage policy (for Detection 3)"
+      - "Deploy megasync-process-execution & megasync-scheduled-task-persistence to TEST (7-day soak)"
+      - "Customer outreach: Clarify MEGA usage policy (for browser-connection-to-mega)"
     
     week_1:
-      - "Monitor FP rate: Target <5/day for Detection 1 & 2"
+      - "Monitor FP rate: Target <5/day for process & scheduled task detections"
       - "Run Atomic Red Team T1567.002 tests"
     
     week_2_4:
-      - "If soak successful: Promote Detection 1 & 2 to ACTIVE"
-      - "Build 30-day baseline for Detection 3 (if deployment approved)"
+      - "If soak successful: Promote megasync-process-execution & megasync-scheduled-task-persistence to PRODUCTION"
+      - "Build 30-day baseline for MEGA browser detection (if deployment approved)"
     
     conditional:
-      - "If customer sanctions MEGA: Deploy Detection 3 with baseline allowlist"
+      - "If customer sanctions MEGA: Deploy browser-connection-to-mega with baseline allowlist"
       - "If customer blocks MEGA: Consider proxy-level block + bypass alert"
   
   soc_playbook:
@@ -659,16 +665,16 @@ operational_handoff:
     detection_3_triage:
       - "Check user against MEGA baseline: New user or existing?"
       - "Compare volume: Unusually high compared to user's history?"
-      - "Correlate with Detection 1 or 2 for stronger signal"
+      - "Correlate with megasync-process-execution or megasync-scheduled-task-persistence for stronger signal"
   
   purple_team_validation:
     - technique: T1567.002
       test: "Atomic Red Team: Upload file to MEGA via MEGAsync client"
-      expected: "Detection 1 fires, Detection 2 if persistence configured"
+      expected: "megasync-process-execution fires, megasync-scheduled-task-persistence if persistence configured"
     
     - technique: T1053.005
       test: "Create scheduled task named 'MEGAsync Update'"
-      expected: "Detection 2 fires"
+      expected: "megasync-scheduled-task-persistence fires"
 
 # =============================================================================
 # METADATA FOR YAML FILE ITSELF
@@ -688,7 +694,7 @@ related_files:
 ```python
 # Agent searches hunt_metadata.techniques = T1567.002
 # Filters gates_assessment.verdict = PROMOTE
-# Returns: Detection 1 & 2 from this hunt
+# Returns: megasync-process-execution & megasync-scheduled-task-persistence from this hunt
 ```
 
 **Query 2:** "What FP rates are acceptable for process execution?"
@@ -707,14 +713,14 @@ related_files:
 
 ### Deployment Automation
 
-**Use Case:** "Deploy Detection 1 to detection repository"
+**Use Case:** "Deploy megasync-process-execution to detection repository"
 ```bash
-# Agent extracts detections[0].deployment section
+# Agent extracts first detection's deployment section
 # Feeds into detection automation tool
 # Example (generic):
 detection-tool deploy \
   --from-artifacts H-0063_GATES.yaml \
-  --detection-id 1 \
+  --detection-name "MEGAsync Process Execution Detection" \
   --repository ../detection-repo
 ```
 
@@ -751,7 +757,7 @@ Example Markdown structure (HOLD verdict):
 - High FP rate observed
 - No clear tuning strategy identified
 
-**E - Exposure Tested: ⚠️ PARTIAL**
+**E - Exposure-tested: ⚠️ PARTIAL**
 - Limited bypass scenarios tested
 
 ## Recommendations
@@ -785,10 +791,3 @@ Example Markdown structure (HOLD verdict):
    - Aggregate insights section synthesizes learnings
    - Recommends related detections to build
    - Captures reusable strategies
-
-## Implementation
-
-Would you like me to:
-1. **Update GATES skill** to generate this dual-purpose YAML?
-2. **Regenerate artifacts** for H-0060/0061/0063 in this format?
-3. **Create agent query examples** showing how to search these?

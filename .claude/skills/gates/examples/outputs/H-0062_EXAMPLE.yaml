@@ -16,7 +16,8 @@ hunt_metadata:
   hunt_outcomes:
     true_positives: 0  # Proactive hunt, no active attacks
     false_positives: 0
-    baseline_events: 1000000000  # ~1B events, 30 days
+    hunt_window_days: 30
+    events_analyzed: 1000000000  # ~1B events
     findings_count: 4
 
 gates_validation:
@@ -50,11 +51,18 @@ detections:
         exposure_tested: PASS
         sustainable: PASS
 
+      scoring_rationale:
+        g_evidence: "Behavioral pattern (remote msiexec), not IOC-based"
+        a_evidence: "Fills T1218.007 gap (no existing remote installer detection)"
+        t_evidence: "Zero FPs in 30-day baseline (1B events)"
+        e_evidence: "Hunt tested multiple remote installer patterns"
+        s_evidence: "Zero FP rate, no maintenance burden"
+
       pattern_learned: "Remote msiexec = #1 ClickFix pattern, zero baseline FPs"
 
     deployment:
       engine: sigma
-      status: EXPERIMENTAL
+      status: TEST
       severity: high
 
       detection_logic:
@@ -99,11 +107,18 @@ detections:
         exposure_tested: PARTIAL  # Run dialog covered; other launchers untested
         sustainable: PASS
 
+      scoring_rationale:
+        g_evidence: "Behavioral pattern (explorer.exe launching cmd/PowerShell), not campaign-specific"
+        a_evidence: "Fills T1059 gap for LOLBin abuse via explorer.exe"
+        t_evidence: "Zero FPs in 30-day baseline"
+        e_evidence: "Hunt tested cmd.exe and powershell.exe paths"
+        s_evidence: "Zero FP rate, no maintenance needed"
+
       pattern_learned: "explorer.exe as LOLBin parent is rare enough to alert on without an allowlist"
 
     deployment:
       engine: sigma
-      status: EXPERIMENTAL
+      status: TEST
       severity: high
 
       detection_logic:
@@ -152,11 +167,18 @@ detections:
         exposure_tested: PARTIAL  # UNC path tested; mapped-drive variant not
         sustainable: PARTIAL      # WebDAV is legitimate in some orgs; revisit at soak
 
+      scoring_rationale:
+        g_evidence: "Behavioral pattern (UNC-path script execution), not domain-specific"
+        a_evidence: "Fills T1204.002 gap for UNC-based delivery"
+        t_evidence: "Zero FPs in 30-day baseline"
+        e_evidence: "UNC path tested; mapped-drive variant not tested"
+        s_evidence: "WebDAV is legitimate in some orgs; revisit at soak"
+
       pattern_learned: "UNC-path script execution is a durable delivery signal independent of the campaign's domains"
 
     deployment:
       engine: sigma
-      status: EXPERIMENTAL
+      status: TEST
       severity: medium
 
       detection_logic:
@@ -207,6 +229,13 @@ detections:
         exposure_tested: PASS
         sustainable: PARTIAL      # Volume acceptable only once allowlisted
 
+      scoring_rationale:
+        g_evidence: "Behavioral pattern (RunMRU registry key), technique-specific"
+        a_evidence: "Fills T1204.001 gap for paste-delivered payloads"
+        t_evidence: "Requires allowlist (admins use Run dialog legitimately)"
+        e_evidence: "Hunt tested RunMRU registry tracking"
+        s_evidence: "Volume acceptable only once allowlisted"
+
       failure_mode: "T-fail: legitimate administrative Run-dialog use is indistinguishable without a baseline"
 
       conditional_requirements:
@@ -215,7 +244,7 @@ detections:
 
     deployment:
       engine: sigma
-      status: EXPERIMENTAL
+      status: TEST
       severity: medium
 
       detection_logic:

@@ -30,7 +30,7 @@ Fills T1071.001 (C2: Web Protocols) gap during active campaign. Actionable when 
 Coverage gap confirmed:
 - No behavioral detection for ClickFix clipboard abuse
 - IOC watchlist provides immediate value during campaign window
-- Complements behavioral Detection 2 (Remote msiexec)
+- Complements behavioral detection (Remote Package Installer Execution)
 
 **T - Tunable: ✅ PASS**
 
@@ -148,13 +148,13 @@ c2_domains:
 
 **TIME_BOX IOC detections complement PROMOTE behavioral detections:**
 
-### Detection 1 (TIME_BOX): ClickFix C2 Domain Watchlist
+### ClickFix C2 Domain Watchlist (TIME_BOX)
 - **Pattern:** Connection to known ClickFix C2 domains
 - **Lifespan:** 90 days (campaign-specific)
 - **Value:** Immediate hits during campaign window
 - **Maintenance:** Quarterly IOC refresh
 
-### Detection 2 (PROMOTE): Remote Package Installer Execution
+### Remote Package Installer Execution (PROMOTE)
 - **Pattern:** msiexec.exe with `/i http` (behavioral)
 - **Lifespan:** Years (repeatable TTP)
 - **Value:** Catches ClickFix + future campaigns using same TTP

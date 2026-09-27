@@ -49,9 +49,9 @@ These appeared in earlier drafts and are wrong wherever they turn up:
 - **`PROMOTE_PENDING_VALIDATION`** — unnecessary. The ADVANCED criteria are PENDING for
   *every* candidate until it has soaked, so "pending validation" is the normal state of a
   `PROMOTE`, not a separate verdict.
-- **`MERGE`, `EXPAND`, `MONITOR`, `NOT A DETECTION`, `EXPERIMENTAL`** in verdict
+- **`MERGE`, `EXPAND`, `MONITOR`, `NOT A DETECTION`, `TEST`** in verdict
   position. The first four are remediation *actions* — put them in the narrative.
-  `EXPERIMENTAL` is a deployment status, a different enum.
+  `TEST` is a deployment status, a different enum.
 
 The canonical sets are in `AGENT_MEMORY_SCHEMA.md`.
 

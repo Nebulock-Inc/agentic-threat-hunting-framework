@@ -247,7 +247,7 @@ LIMIT 100;
 
 **Promote if ANY of these conditions change:**
 
-1. **Volume drops below 50/day:**
+1. **Volume drops below 10/day:**
    - Multi-tenant automation ends
    - TenantProvisioner accounts decommissioned
    - Allowlist covers >98% of baseline
@@ -270,9 +270,9 @@ LIMIT 100;
 
 ### 1. Volume Determines Deployment Model
 
-**Low volume (<50/day):** Standing detection  
-**Medium volume (50-200/day):** Conditional (with tuning)  
-**High volume (>200/day):** Recurring hunt
+**Low volume (<10/day):** Standing detection  
+**Medium volume (10-100/day):** Conditional (with tuning)  
+**High volume (>100/day):** Recurring hunt
 
 ### 2. Allowlist Maintenance Is a Cost
 
@@ -325,7 +325,7 @@ Multi-tenant environments with high service account churn → recurring hunt is 
 4. Annual audit requirement (compliance)
 
 **Promote to standing detection if:**
-1. Volume drops <50/day
+1. Volume drops <10/day
 2. High-value account scope identified (production-only)
 3. Composite correlation becomes viable
 
