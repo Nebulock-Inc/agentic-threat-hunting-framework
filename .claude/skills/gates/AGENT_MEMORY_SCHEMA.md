@@ -177,7 +177,8 @@ hunt_metadata:
     # and then report it going dark when the wrong feed breaks.
     data_sources:
       - Windows process creation events
-      - Microsoft Defender EDR
+      - Windows scheduled task events
+      - DNS query logs
 
 # =============================================================================
 # SECTION 2: GATES VALIDATION SUMMARY (for agent learning)
@@ -429,6 +430,7 @@ detections:
       engine: sql
       status: TEST
       severity: high
+      data_source: Windows scheduled task events
       
       detection_logic:
         query: |
@@ -485,17 +487,18 @@ detections:
       
       pattern_learned: "Cloud service network detections require per-user baseline to manage legitimate usage FPs"
       failure_mode: "T-fail due to high legitimate usage (no clear filter without baseline)"
-      
-      conditional_requirements:
-        - "Customer policy clarification: Is personal MEGA use sanctioned?"
-        - "30-day per-user baseline: Identify power users of MEGA"
-        - "Dynamic allowlist: Exclude sanctioned MEGA users"
-        - "Deploy only after baseline built and allowlist configured"
-    
+
+      # Prerequisites are NOT written here. This block once carried a
+      # `conditional_requirements` list duplicating the one below, which nothing in
+      # this document declared — so a consumer reading the contract found the
+      # CONDITIONAL verdict and nothing actionable. One home:
+      # `deployment.operational_parameters.deployment_prerequisites`.
+
     deployment:
       engine: sql
       status: TEST
       severity: medium
+      data_source: DNS query logs   # not the hunt's first feed — see `data_source` above
       
       detection_logic:
         query: |
