@@ -1,0 +1,222 @@
+# Example: PROMOTE Verdict (Zero TPs, TEST Deployment)
+#
+# The teaching point is that an *unmeasured* gate is PARTIAL, not FAIL — so a hunt
+# that found nothing still reaches PROMOTE, and the soak (not the verdict) is what
+# resolves the unknowns. Compare H-0062, which reaches PROMOTE from the opposite
+# direction: a measured zero-FP baseline.
+#
+# An earlier version of this example was written as markdown while stating
+# `Verdict: PROMOTE`. PROMOTE is deployable, so the routing rule sends it to
+# `.yaml`; a consumer following the contract looked for `H-0060_GATES.yaml` and
+# found nothing. It also had no `detection_logic.query`, which the schema marks
+# REQUIRED for a deployable candidate — the whole point of a deployable verdict is
+# that something can be built from it.
+#
+# Hunt outcome counts below are illustrative, not a verbatim production result.
+
+hunt_metadata:
+  hunt_id: H-0060
+  title: "Browser Extension Installer Technique"
+  techniques: [T1176.001]
+  tactics: [persistence]
+  platforms: [windows]
+
+  hunt_outcomes:
+    true_positives: 0       # proactive hunt; zero TPs is a valid outcome, not a failure
+    # `false_positives` is deliberately ABSENT, not 0. The hunt never measured the FP
+    # rate — writing 0 would assert a measurement nobody took, and it is precisely
+    # that gap which scores T as PARTIAL below. Omit what you did not measure.
+    hunt_window_days: 7
+    events_analyzed: 2000000000  # ~2B Windows process events, order of magnitude
+    findings_count: 1
+    data_sources:
+      - Windows process creation events
+
+gates_validation:
+  verdict: PROMOTE
+  verdict_breakdown:
+    PROMOTE: 1
+  base_score_average: 4.0  # single candidate, so equal to its base_score
+
+  key_learnings:
+    - "An unmeasured gate is PARTIAL, not FAIL — and not UNKNOWN, which has no point value and silently drops the total"
+    - "Zero true positives does not imply HOLD: HOLD is for zero *prevalence* of the behavior, not zero measurement"
+    - "PROMOTE decides that the logic is sound; `status: TEST` plus a soak decides whether it is operationally viable"
+
+narrative_analysis: |
+  ## Summary
+
+  The hunt validated the detection logic by emulation but found 0 true positives
+  across a multi-billion-event Windows sample over 7 days. Volume and FP rate are
+  unmeasured. No gate FAILED → score 4.0 → PROMOTE. Deploys to TEST rather than
+  PRODUCTION for a 30-day soak that measures the operational assumptions.
+
+  ## BASE Criteria Scoring
+
+  **G - Generalizable: PASS**
+
+  Behavioral pattern (browser extension abuse via headless Chrome), not IOC-based.
+  Repeatable across adversaries using browser-as-platform techniques.
+
+  - Technique: T1176.001 (Browser Extensions)
+  - Pattern: headless Chrome plus extension-loading flags
+  - Five detection angles documented, all behavioral, zero IOCs embedded
+
+  **A - Additive: PASS**
+
+  Fills the T1176.001 gap. No existing coverage for browser extension abuse. Zero TPs
+  is valid here — this is proactive coverage for a technique documented in public
+  campaign reporting.
+
+  **T - Tunable: PARTIAL**
+
+  FP rate unvalidated. Tuning is clearly possible (specific flags, parent process),
+  but it is unmeasured, so PARTIAL.
+
+  > A missing measurement is **PARTIAL**. It is not `UNKNOWN` — that value is not in
+  > the criteria enum, has no point value, and silently drops the total.
+
+  **E - Exposure-tested: PASS**
+
+  Five angles covered: headless Chrome flags, browser→script chain, `--user-data-dir`
+  manipulation, extension artifacts on disk, and C2 domains. Emulation validated
+  against a synthetic chain.
+
+  **S - Sustainable: PARTIAL**
+
+  Volume unmeasured (projected 10-50/day). Allowlist burden unknown; the TEST soak
+  is what establishes it.
+
+  ## Verdict Rationale
+
+  No gate FAILED, so the score band decides: 4.0 → PROMOTE. It deploys to TEST
+  rather than PRODUCTION because T and S are PARTIAL — the logic is sound, the
+  operational cost is not yet known.
+
+  This is the distinction the two tiers exist for. The BASE tier asserts detection
+  *quality* and produces the verdict. The ADVANCED tier demonstrates operational
+  *viability* and governs the TEST → PRODUCTION graduation. Conflating them produces
+  either a HOLD for a good rule that hasn't been measured, or a PRODUCTION deployment
+  of a rule whose volume nobody knows.
+
+  ## Deployment Plan
+
+  **Phase 1 (TEST, 30 days).** Deploy angle 1 (headless Chrome plus extension flags),
+  measure alert volume, and build the allowlist from observed legitimate use —
+  Puppeteer, Playwright and Selenium all launch Chrome this way. Target: under 10/day
+  after filtering.
+
+  **Phase 2 (PRODUCTION).** If the soak reduces FPs by more than 90%, deploy angles
+  2-4. The IOC angle deploys separately, as a TIME_BOX, when threat intel is
+  available — see H-0065 for that shape.
+
+  ## Key Lesson
+
+  Zero TPs plus unmeasured volume is a PROMOTE to TEST, not a HOLD. The verdict
+  describes the logic; the deployment status describes the confidence.
+
+detections:
+  - candidate_id: headless-browser-extension-load
+    name: "Headless Browser Launched With Extension Loading Flags"
+
+    gates_assessment:
+      # No gate FAILed, so the score band decides: 4.0 → PROMOTE.
+      verdict: PROMOTE
+      base_score: 4.0        # PASS x3 + PARTIAL x2
+      criteria:
+        generalizable: PASS
+        additive: PASS
+        tunable: PARTIAL         # tunable in principle, FP rate unmeasured
+        exposure_tested: PASS
+        sustainable: PARTIAL     # volume projected, not measured
+
+      scoring_rationale:
+        g_evidence: "Behavioral: headless browser plus extension-loading flags. No IOCs embedded, so it survives infrastructure rotation."
+        a_evidence: "No existing T1176.001 coverage. Proactive value even at zero observed prevalence."
+        t_evidence: "Tunable via flag combination and parent process, but the FP rate was never measured — PARTIAL, not PASS."
+        e_evidence: "Five angles tested, emulation-validated against a synthetic chain."
+        s_evidence: "Volume projected at 10-50/day and unmeasured; developer-tooling allowlist burden unknown."
+
+      pattern_learned: "Unmeasured is PARTIAL: it lowers the score without failing the gate, which is what lets a sound-but-unmeasured rule reach TEST instead of being held"
+
+    deployment:
+      engine: sigma
+      status: TEST     # not PRODUCTION: T and S are PARTIAL until the soak measures them
+      severity: medium
+
+      detection_logic:
+        query: |
+          selection_browser:
+            process.file.name:
+              - 'chrome.exe'
+              - 'msedge.exe'
+              - 'brave.exe'
+          selection_flags:
+            process.command_line|contains:
+              - '--load-extension'
+              - '--disable-extensions-except'
+          selection_unattended:
+            process.command_line|contains:
+              - '--headless'
+              - '--user-data-dir'
+          filter_dev_tooling:
+            # Populate from YOUR 30-day soak. Automated browser testing launches
+            # Chrome exactly this way, so without this filter the rule alerts on
+            # every CI run. Placeholders — do not ship another environment's list.
+            parent.process.file.name:
+              - '<test-runner-process>'
+              - '<ci-agent-process>'
+          condition: selection_browser and selection_flags and selection_unattended
+                     and not filter_dev_tooling
+        description: |
+          Detects a Chromium-family browser launched unattended with extension-loading
+          flags — the mechanism behind malicious browser extension persistence
+          (T1176.001). Requires an allowlist of sanctioned automated-browser tooling
+          (Puppeteer, Playwright, Selenium), which legitimately uses the same flags;
+          build it during the TEST soak.
+
+      entities:
+        - name: endpoint.uid
+          type: endpoint
+        - name: actor.user.name
+          type: user
+
+      alert_configuration:
+        baseline_required: true
+
+      operational_parameters:
+        expected_volume: "Projected 10-50/day before allowlisting; unmeasured"
+        fp_rate: "Unmeasured. Automated browser tooling is the expected source."
+        tuning_required: true
+        allowlist_needed: true
+        deployment_priority: 2
+        soak_period_days: 30
+        soak_validation_criteria:
+          - "Post-filter volume <10/day"
+          - "FP reduction >90% after the developer-tooling allowlist is applied"
+          - "Allowlist stable for 14 consecutive days"
+
+      mitre_attack:
+        - T1176.001  # Browser Extensions
+
+aggregate_insights:
+  successful_patterns:
+    - pattern: "Flag-combination detection on a legitimate binary"
+      example: "Chromium plus --load-extension plus --headless: the binary is benign, the combination is not"
+      confidence: "Deploy to TEST with a 30-day soak to build the automation allowlist"
+
+  tuning_patterns:
+    - pattern: "Developer tooling as the dominant FP source"
+      example: "Puppeteer, Playwright and Selenium launch Chrome with the same flags an attacker uses"
+      confidence: "Allowlist by parent process rather than by command line — the parent is harder to spoof than a flag"
+
+operational_handoff:
+  deployment_order:
+    - headless-browser-extension-load
+
+  soak_period: "30 days in TEST, because the FP rate is unmeasured rather than known-low"
+
+  promotion_criteria:
+    - "Post-allowlist volume <10/day"
+    - "FP reduction >90% versus the unfiltered baseline"
+    - "Allowlist documented and owned before PRODUCTION"

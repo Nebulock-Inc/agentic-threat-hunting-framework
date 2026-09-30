@@ -10,10 +10,12 @@ hunt_metadata:
 
   hunt_outcomes:
     true_positives: 0  # Proactive hunt
-    false_positives: 18  # Benign Azure NetApp Files SPNs
+    false_positives: 18  # Benign managed-file-service SPNs
     hunt_window_days: 7
     events_analyzed: 213
     findings_count: 1
+    data_sources:
+      - Windows Kerberos authentication events
 
 gates_validation:
   verdict: CONDITIONAL
@@ -25,11 +27,27 @@ gates_validation:
     CONDITIONAL: 1
   base_score_average: 3.5  # single candidate, so equal to its base_score
 
+  # Hunt-level roll-up, in the declared `{type, requirement, blocker, effort}` shape.
+  # Earlier drafts wrote bare strings here, which no consumer could sort by blocker.
+  # This is the hunt's view; the deployable form a consumer acts on is
+  # `detections[].deployment.operational_parameters.deployment_prerequisites`.
   prerequisites:
-    - "Build SPN allowlist from 30-day baseline (Azure NetApp Files, Azure Files, on-prem SPNs)"
-    - "Customer validation: Verify each unrecognized SPN is legitimate"
-    - "Quarterly allowlist review schedule as infrastructure changes"
-    - "Emulation testing: Kerberoasting attack in test environment"
+    - type: "baseline"
+      requirement: "Build SPN allowlist from 30-day baseline (managed file services, on-prem SPNs)"
+      blocker: true
+      effort: "30 days (elapsed, not effort)"
+    - type: "customer_validation"
+      requirement: "Verify each unrecognized SPN is legitimate"
+      blocker: true
+      effort: "2 days"
+    - type: "process"
+      requirement: "Quarterly allowlist review schedule as infrastructure changes"
+      blocker: false
+      effort: "ongoing"
+    - type: "emulation"
+      requirement: "Kerberoasting attack in a test environment"
+      blocker: false
+      effort: "1 day"
 
   key_learnings:
     - "SPN allowlist required before deployment"
@@ -103,7 +121,18 @@ detections:
       operational_parameters:
         expected_volume: "30/day without allowlist, ~5/day after allowlist"
         fp_rate: "100% without allowlist, <5% after allowlist"
+        tuning_required: true
+        allowlist_needed: true
         deployment_priority: 3  # After allowlist built
+
+        # REQUIRED for CONDITIONAL. This is what the query's "See prerequisites
+        # below" comment points at, and the only place a consumer can read them:
+        # the hunt-level roll-up is not per candidate, so a multi-candidate hunt
+        # gives it no way to tell which prerequisites block which detection.
+        deployment_prerequisites:
+          - "Build the SPN allowlist from a 30-day baseline of this environment"
+          - "Customer validation: confirm each unrecognized SPN is legitimate"
+          - "Replace the `<...>` placeholders in `filter_legitimate` with real SPNs"
 
 aggregate_insights:
   tuning_patterns:

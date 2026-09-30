@@ -355,8 +355,10 @@ record of *why*, and a candidate with no `base_score` can't be compared against 
 one that looks like it. Output is a `.md` assessment, and activation is contingent on
 threat intel showing the campaign in scope.
 
-Contrast `H-0065_EXAMPLE.md`: also an IOC watchlist, also a `G` FAIL, but the campaign
-*is* present — so it is `TIME_BOX`, not `HOLD`. Prevalence is the whole difference.
+Contrast `H-0065_EXAMPLE.yaml`: also an IOC watchlist, also a `G` FAIL, but the campaign
+*is* present — so it is `TIME_BOX`, not `HOLD`. Prevalence is the whole difference. Note
+the extension too: `TIME_BOX` is deployable, so it emits `.yaml`; the `HOLD` case above
+emits `.md`.
 
 ---
 
@@ -586,6 +588,7 @@ See `AGENT_MEMORY_SCHEMA.md` for complete schema. Key sections:
    - `gates_assessment` - Scoring rationale, patterns learned
    - `deployment` - Engine, query, entities, operational params (ready to deploy)
      - For **TIME_BOX** verdicts: add `activation_date`, `expiration_date`, `review_date`, `refresh_cycle_days` to `operational_parameters`
+     - For **CONDITIONAL** verdicts: add `deployment_prerequisites` — a list of strings — to `operational_parameters`. **Required.** CONDITIONAL means "cleared to deploy once these are met", so a CONDITIONAL candidate without them hands the consumer a blocked detection and no way to unblock it. Write them per candidate: prerequisites differ between candidates in the same hunt, and the hunt-level `gates_validation.prerequisites` is a roll-up, not a substitute.
 5. **aggregate_insights** - Successful patterns, tuning strategies (cross-hunt learning)
 6. **operational_handoff** - SOC playbook, next steps, purple team validation
 

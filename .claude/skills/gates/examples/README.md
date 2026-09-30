@@ -12,8 +12,8 @@ The **hunt-level** verdict picks the format — not the candidate verdicts insid
 
 | Hunt verdict | File | Contains |
 |--------------|------|----------|
-| `PROMOTE` / `CONDITIONAL` | `H-XXXX_GATES.yaml` | Agent-queryable metadata + deployment templates |
-| `HOLD` / `TIME_BOX` / `RECURRING_HUNT` / `DROP` | `H-XXXX_GATES.md` | Reasoning, strategy, activation triggers |
+| `PROMOTE` / `CONDITIONAL` / `TIME_BOX` | `H-XXXX_GATES.yaml` | Agent-queryable metadata + deployment templates |
+| `HOLD` / `DROP` / `RECURRING_HUNT` | `H-XXXX_GATES.md` | Reasoning, strategy, activation triggers |
 | Risk assessment (non-GATES) | `H-XXXX_ASSESSMENT.md` | Advisory and remediation guidance |
 | Planning phase (not yet executed) | `H-XXXX_PLANNING_ASSESSMENT.md` | Pre-execution guidance |
 
@@ -25,19 +25,31 @@ validation output.
 | File | Verdict | Deciding factor | What it demonstrates |
 |------|---------|-----------------|----------------------|
 | `outputs/H-0062_EXAMPLE.yaml` | `PROMOTE` | score band, no FAIL | Four candidates, two verdicts, `verdict_breakdown`, stable `candidate_id` slugs. **The reference for conformant YAML output.** |
-| `outputs/H-0061_EXAMPLE.yaml` | `CONDITIONAL` | score 3.5 | Prerequisites as structured data; single-candidate hunt where `base_score_average` coincides with `base_score` |
-| `outputs/H-0060_EXAMPLE.md` | `HOLD` | `S` FAIL at zero prevalence | The zero-prevalence rule: a quarterly re-run doesn't help when the hunt found nothing. Scores 3.0 — *outside* HOLD's band, by design |
-| `outputs/H-0065_EXAMPLE.md` | `TIME_BOX` | `G` FAIL, behavior present | IOC watchlist with an expiry and refresh cycle. Pair it with H-0060: same rule, opposite side — prevalence is what separates `TIME_BOX` from `HOLD`. Scores 2.0 with three FAILs; `G` wins the precedence |
-| `outputs/H-0064_EXAMPLE.md` | `RECURRING_HUNT` | `S` FAIL at high volume | Row 4's other branch: real signal, unsustainable as a standing rule |
+| `outputs/H-0061_EXAMPLE.yaml` | `CONDITIONAL` | score 3.5 | `deployment_prerequisites` — the field that makes a CONDITIONAL actionable — plus the hunt-level roll-up in its declared `{type, requirement, blocker, effort}` shape. Single-candidate hunt, so `base_score_average` coincides with `base_score` |
+| `outputs/H-0060_EXAMPLE.yaml` | `PROMOTE` | score band, no FAIL | PROMOTE from the opposite direction to H-0062: nothing was measured rather than measured-clean. An unmeasured gate is `PARTIAL`, so the hunt still reaches 4.0 and deploys at `status: TEST` with the soak resolving the unknowns. Also shows an *omitted* `false_positives` — writing `0` would assert a measurement nobody took |
+| `outputs/H-0065_EXAMPLE.yaml` | `TIME_BOX` | `G` FAIL, behavior present | The TIME_BOX `operational_parameters` (`activation_date` / `expiration_date` / `review_date` / `refresh_cycle_days`), `narrative_analysis`, and the only non-`sigma` engine in the set. Scores 2.0 with three FAILs; `G` wins the precedence |
+| `outputs/H-0064_EXAMPLE.md` | `RECURRING_HUNT` | `S` FAIL at high volume | Real signal, unsustainable as a standing rule — the other branch of an `S` FAIL |
 | `outputs/H-0066_EXAMPLE.md` | — (non-GATES) | n/a | A hunt that correctly produces no detections. Also carries a hypothetical showing `S` (row 4) outranking `T` (row 5) |
 
-`DROP` has no worked example yet. It comes from an `A` FAIL — coverage already exists —
-and the verdict exists so a rejected idea is recorded rather than re-proposed next
-quarter.
+`HOLD` and `DROP` have no worked example yet.
 
-Three of the five verdicts above are decided by a gate FAIL rather than by the score
-band, and two examples score outside the band their verdict implies. That is the FAIL
-precedence in `SKILL.md` Step 4 working as intended, not an error in the examples.
+- `HOLD` comes from zero *prevalence* — the behavior was never observed, so no amount of
+  re-running helps. Do not confuse it with zero true positives: H-0060 has zero TPs and
+  is a PROMOTE, because the logic is sound and the absence is a measurement gap, not an
+  absence of the behavior. `TIME_BOX` is the neighbouring case where the behavior *is*
+  present but the logic expires (H-0065).
+- `DROP` comes from an `A` FAIL — coverage already exists — and the verdict exists so a
+  rejected idea is recorded rather than re-proposed next quarter.
+
+Two of the four verdicts above are decided by a gate FAIL rather than by the score band,
+and H-0065 scores outside the band its verdict implies. That is the FAIL precedence in
+`SKILL.md` Step 4 working as intended, not an error in the examples.
+
+`tests/test_gates_examples.py` enforces the rules this directory is supposed to
+demonstrate: the extension matches the hunt-level verdict, every `base_score` is the
+exact sum of its criteria, deployable candidates carry their required fields, and
+prerequisites are written only where the schema declares them. Each of those checks
+exists because a shipped example had already drifted.
 
 ## Values that are not in the enum
 
