@@ -18,6 +18,7 @@ closed sets and required-field rules, applied to what the repo actually ships.
 """
 
 import pathlib
+import re
 
 import pytest
 import yaml
@@ -44,6 +45,24 @@ def _yaml_examples():
     return paths
 
 
+def _stated_verdicts(text):
+    """Yield the verdict each ``Verdict:`` line in a markdown narrative states.
+
+    The verdict is the first enum token after the colon, so the emphasis and status
+    emoji the examples wrap it in (``**Verdict:** ❌ RECURRING_HUNT``) don't hide it —
+    matching a literal ``**Verdict:** PROMOTE`` missed exactly that spelling. Only the
+    first token counts: a line reading "RECURRING_HUNT (not PROMOTE — G FAILed)"
+    states one verdict and mentions another.
+    """
+    for line in text.splitlines():
+        if "verdict:" not in line.lower():
+            continue
+        tail = line.split(":", 1)[1]
+        stated = next((t for t in re.findall(r"[A-Z][A-Z_]{2,}", tail) if t in VERDICTS), None)
+        if stated:
+            yield stated
+
+
 def _candidates(doc):
     """Yield ``(candidate_id, candidate)`` for every candidate in a document."""
     for cand in doc.get("detections") or []:
@@ -67,14 +86,13 @@ def test_extension_matches_the_hunt_level_verdict():
         )
 
     # The converse: a `.md` example must not be a deployable hunt. Markdown examples
-    # have no parseable verdict, so read the one line that states it.
+    # have no parseable verdict, so read the line that states it.
     for path in sorted(EXAMPLES.glob("*_EXAMPLE.md")):
-        text = path.read_text(encoding="utf-8")
-        stated = [v for v in DEPLOYABLE if f"**Verdict:** {v}" in text]
-        assert not stated, (
-            f"{path.name} is markdown but states verdict {stated[0]}, which is "
-            f"deployable — a deployable hunt emits `.yaml`."
-        )
+        for stated in _stated_verdicts(path.read_text(encoding="utf-8")):
+            assert stated not in DEPLOYABLE, (
+                f"{path.name} is markdown but states verdict {stated}, which is "
+                f"deployable — a deployable hunt emits `.yaml`."
+            )
 
 
 @pytest.mark.parametrize("path", _yaml_examples(), ids=lambda p: p.name)
