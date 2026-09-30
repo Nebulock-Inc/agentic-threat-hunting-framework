@@ -113,7 +113,7 @@ def test_extension_matches_the_hunt_level_verdict():
     for path in _yaml_examples():
         verdict = yaml.safe_load(path.read_text(encoding="utf-8"))["gates_validation"]["verdict"]
         assert verdict in DEPLOYABLE, (
-            f"{label} is YAML but its hunt-level verdict is {verdict}, which is "
+            f"{path.name} is YAML but its hunt-level verdict is {verdict}, which is "
             f"archival — an archival hunt emits `.md`."
         )
 
@@ -122,7 +122,7 @@ def test_extension_matches_the_hunt_level_verdict():
     for path in sorted(EXAMPLES.glob("*_EXAMPLE.md")):
         for stated in _stated_verdicts(path.read_text(encoding="utf-8")):
             assert stated not in DEPLOYABLE, (
-                f"{label} is markdown but states verdict {stated}, which is "
+                f"{path.name} is markdown but states verdict {stated}, which is "
                 f"deployable — a deployable hunt emits `.yaml`."
             )
 

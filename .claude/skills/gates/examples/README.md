@@ -33,11 +33,16 @@ validation output.
 
 `HOLD` and `DROP` have no worked example yet.
 
-- `HOLD` comes from zero *prevalence* — the behavior was never observed, so no amount of
-  re-running helps. Do not confuse it with zero true positives: H-0060 has zero TPs and
-  is a PROMOTE, because the logic is sound and the absence is a measurement gap, not an
-  absence of the behavior. `TIME_BOX` is the neighbouring case where the behavior *is*
-  present but the logic expires (H-0065).
+- `HOLD` is reached three ways (`SKILL.md` Step 4): an `E` FAIL, which is an epistemic
+  block — too few angles were tested to *judge* the candidate — and applies whether or
+  not the behavior was observed; a score below 3.0 with no FAIL to decide it; and the
+  zero-prevalence downgrade, where a verdict that would otherwise deploy is held because
+  the behavior was never seen, so no amount of re-running helps. Only the third is about
+  prevalence, and it is the one that gets mistaken for the definition. Do not confuse it
+  with zero true positives either: H-0060 has zero TPs and is a PROMOTE, because the
+  logic is sound and the absence is a measurement gap, not an absence of the behavior.
+  `TIME_BOX` is the neighbouring case where the behavior *is* present but the logic
+  expires (H-0065).
 - `DROP` comes from an `A` FAIL — coverage already exists — and the verdict exists so a
   rejected idea is recorded rather than re-proposed next quarter.
 
