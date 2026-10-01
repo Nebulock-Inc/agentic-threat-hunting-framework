@@ -4,11 +4,15 @@
 **Verdict:** RECURRING_HUNT (quarterly execution, not 24/7 standing detection)  
 **BASE Score:** 3.0  *(G 1.0 + A 1.0 + T 0.0 + E 1.0 + S 0.0)*
 
+> Volumes, account counts and table/principal names below are **illustrative** and rounded
+> to order of magnitude — not a verbatim production result. The lesson is the ratio
+> between alert volume and investigation capacity, which holds at any scale.
+
 ---
 
 ## Summary
 
-Hunt identified ~17,800 EC2 encryption disable events in 7 days (~2,500/day). 99.9% are legitimate multi-tenant automation (TenantProvisioner service accounts). Detection pattern is sound but **volume is unsustainable** for standing detection. Better suited as **quarterly threat-driven hunt**.
+Hunt identified ~14,000 EC2 encryption disable events in 7 days (~2,000/day). Nearly all are legitimate multi-tenant automation (provisioning-service accounts). Detection pattern is sound but **volume is unsustainable** for standing detection. Better suited as **quarterly threat-driven hunt**.
 
 ---
 
@@ -29,15 +33,15 @@ Fills T1562.001 gap (adversaries disable encryption before data exfiltration or 
 
 **T - Tunable: ❌ FAIL**
 
-**Baseline:** ~2,500 events/day = ~17,800/week = ~76K/month
+**Baseline:** ~2,000 events/day = ~14,000/week = ~60K/month
 
 **Attack frequency:** ~0-1 malicious events/year (industry average)
 
-**Signal-to-noise ratio:** 1 attack buried in 76,000 legitimate events = **0.0013% TP rate**
+**Signal-to-noise ratio:** 1 attack buried in ~60,000 legitimate events = **~0.002% TP rate**
 
-**Investigation capacity:** Cannot investigate ~2,500 events/day (would require 317 analyst hours/day at 7.5 min per event)
+**Investigation capacity:** Cannot investigate ~2,000 events/day (would require ~250 analyst hours/day at 7.5 min per event)
 
-**Root Cause:** Multi-tenant AWS automation - TenantProvisioner service accounts disable encryption during tenant provisioning (some tenants opt-out for cost).
+**Root Cause:** Multi-tenant AWS automation - provisioning-service accounts disable encryption during tenant provisioning (some tenants opt-out for cost).
 
 **Conclusion:** Cannot distinguish attack from automation noise.
 
@@ -47,11 +51,11 @@ Fills T1562.001 gap (adversaries disable encryption before data exfiltration or 
 
 **S - Sustainable: ❌ FAIL**
 
-**Alert volume:** ~2,500 alerts/day = unsustainable
+**Alert volume:** ~2,000 alerts/day = unsustainable
 
-**Allowlist maintenance:** Even with allowlists, TenantProvisioner service account IDs change frequently (new tenants). High churn rate.
+**Allowlist maintenance:** Even with allowlists, provisioning-service account IDs change frequently (new tenants). High churn rate.
 
-**SOC impact:** 140-210 alerts/week even with 95% allowlist coverage.
+**SOC impact:** still hundreds of alerts/week even at 95% allowlist coverage.
 
 ---
 
@@ -59,7 +63,7 @@ Fills T1562.001 gap (adversaries disable encryption before data exfiltration or 
 
 **RECURRING_HUNT (not PROMOTE or HOLD) because:**
 1. ✅ Detection logic is sound (validated by baseline)
-2. ❌ Volume is unsustainable (~2,500 events/day)
+2. ❌ Volume is unsustainable (~2,000 events/day)
 3. ❌ Allowlist maintenance burden is high (tenant churn)
 4. ✅ Pattern has security value (adversaries DO disable encryption)
 5. ✅ Better suited for threat-driven quarterly execution
@@ -82,13 +86,13 @@ Fills T1562.001 gap (adversaries disable encryption before data exfiltration or 
 
 **Q1 Hunt (January):**
 - Query: Last 90 days of `DisableEbsEncryptionByDefault` events
-- Baseline: Expected TenantProvisioner volume (~230K events)
-- Hunt: Anomalous patterns (non-TenantProvisioner principals, production accounts, off-hours)
+- Baseline: Expected provisioning-service volume (~180K events)
+- Hunt: Anomalous patterns (non-provisioning-service principals, production accounts, off-hours)
 - Time investment: 4-8 hours (bounded, manageable)
 
 **Q2 Hunt (April):**
 - Query: Last 90 days (refresh baseline)
-- Compare: Q1 baseline vs Q2 baseline (new TenantProvisioner accounts?)
+- Compare: Q1 baseline vs Q2 baseline (new provisioning-service accounts?)
 - Hunt: Deviations from established baseline
 
 **Q3 Hunt (July):**
@@ -108,12 +112,12 @@ Fills T1562.001 gap (adversaries disable encryption before data exfiltration or 
 ```sql
 -- Measure total volume
 SELECT COUNT(*) as encryption_disable_count
-FROM unified_events
+FROM cloud_events
 WHERE event.provider = 'cloudtrail'
   AND event.type = 'DisableEbsEncryptionByDefault'
   AND time >= now() - INTERVAL 90 DAY;
 
--- Expected: ~230K events (~2,500/day × 90 days)
+-- Expected: ~180K events (~2,000/day × 90 days)
 ```
 
 ### Phase 2: Principal Analysis (1 hour)
@@ -124,7 +128,7 @@ SELECT
   `actor.user.name` as principal,
   COUNT(*) as event_count,
   COUNT(DISTINCT `cloud.account.uid`) as unique_accounts
-FROM unified_events
+FROM cloud_events
 WHERE event.provider = 'cloudtrail'
   AND event.type = 'DisableEbsEncryptionByDefault'
   AND time >= now() - INTERVAL 90 DAY
@@ -134,7 +138,7 @@ LIMIT 20;
 ```
 
 **Hunt for:**
-- Non-TenantProvisioner principals (unusual)
+- Non-provisioning-service principals (unusual)
 - New service accounts not seen in previous quarters
 - Human user accounts (unexpected)
 
@@ -148,7 +152,7 @@ SELECT
   COUNT(*) as event_count,
   MIN(time) as first_seen,
   MAX(time) as last_seen
-FROM unified_events
+FROM cloud_events
 WHERE event.provider = 'cloudtrail'
   AND event.type = 'DisableEbsEncryptionByDefault'
   AND `cloud.account.uid` IN (
@@ -173,10 +177,10 @@ ORDER BY event_count DESC;
 SELECT 
   toHour(time) as hour,
   COUNT(*) as event_count
-FROM unified_events
+FROM cloud_events
 WHERE event.provider = 'cloudtrail'
   AND event.type = 'DisableEbsEncryptionByDefault'
-  AND `actor.user.name` NOT LIKE 'TenantProvisioner-%'
+  AND `actor.user.name` NOT LIKE 'provisioning-service-%'
   AND time >= now() - INTERVAL 90 DAY
 GROUP BY hour
 ORDER BY hour;
@@ -196,10 +200,10 @@ WITH encryption_disables AS (
     `cloud.account.uid` as account,
     `actor.user.name` as principal,
     time as disable_time
-  FROM unified_events
+  FROM cloud_events
   WHERE event.provider = 'cloudtrail'
     AND event.type = 'DisableEbsEncryptionByDefault'
-    AND `actor.user.name` NOT LIKE 'TenantProvisioner-%'
+    AND `actor.user.name` NOT LIKE 'provisioning-service-%'
     AND time >= now() - INTERVAL 90 DAY
 )
 SELECT 
@@ -209,7 +213,7 @@ SELECT
   COUNT(*) as data_access_events,
   GROUP_CONCAT(DISTINCT `event.type`) as access_types
 FROM encryption_disables ed
-JOIN unified_events data
+JOIN cloud_events data
   ON ed.account = data.`cloud.account.uid`
   AND data.time BETWEEN ed.disable_time AND ed.disable_time + INTERVAL 24 HOUR
   AND data.`event.type` IN ('GetObject', 'CopyObject', 'DownloadDBSnapshot')
@@ -232,10 +236,10 @@ LIMIT 100;
 
 | Criterion | Standing Detection | Quarterly Hunt |
 |-----------|-------------------|----------------|
-| **Alert Volume** | ~2,500/day (unsustainable) | 0 (no alerts, hunt-driven) |
-| **Investigation Burden** | 317 analyst-hours/day | 4-8 hours/quarter |
+| **Alert Volume** | ~2,000/day (unsustainable) | 0 (no alerts, hunt-driven) |
+| **Investigation Burden** | ~250 analyst-hours/day | 4-8 hours/quarter |
 | **Allowlist Maintenance** | Continuous (tenant churn) | None (baseline refresh) |
-| **Signal-to-Noise** | 0.0013% TP rate | Focused (anomaly-only) |
+| **Signal-to-Noise** | ~0.002% TP rate | Focused (anomaly-only) |
 | **SOC Impact** | Alert fatigue (buried signals) | Bounded work (manageable) |
 | **Coverage** | 100% (all events) | 90% (quarterly snapshots) |
 
@@ -249,7 +253,7 @@ LIMIT 100;
 
 1. **Volume drops below 10/day:**
    - Multi-tenant automation ends
-   - TenantProvisioner accounts decommissioned
+   - provisioning-service accounts decommissioned
    - Allowlist covers >98% of baseline
 
 2. **High-value accounts identified:**
@@ -301,13 +305,13 @@ Multi-tenant environments with high service account churn → recurring hunt is 
 **Recurring hunts complement standing detections:**
 
 ### Standing Detection: Encryption Disable (Production Accounts Only)
-- **Scope:** Production accounts (3 accounts)
+- **Scope:** Production accounts (a small fixed set)
 - **Volume:** 0-5 events/day
 - **Value:** Real-time production protection
 - **Maintenance:** None (production accounts stable)
 
 ### Recurring Hunt: Encryption Disable (Multi-Tenant Estate)
-- **Scope:** All accounts (273 tenant accounts)
+- **Scope:** All tenant accounts
 - **Volume:** Quarterly execution (not 24/7)
 - **Value:** Catches anomalies in tenant accounts
 - **Maintenance:** 4-8 hours/quarter
@@ -343,4 +347,4 @@ Multi-tenant environments with high service account churn → recurring hunt is 
 
 **H-0905 is Category 3:** High volume makes it unsuitable for 24/7 automation, but quarterly execution provides 90% coverage with 1% SOC effort.
 
-**Key Metric:** ~2,500 alerts/day (standing detection) → 0 alerts + 8 hours/quarter (recurring hunt) = 99.6% efficiency gain.
+**Key Metric:** ~2,000 alerts/day (standing detection) → 0 alerts + 8 hours/quarter (recurring hunt) = 99.6% efficiency gain.

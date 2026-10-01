@@ -524,7 +524,7 @@ detections:
         baseline_query: |
           -- 30-day per-user baseline
           SELECT `actor.user.name`, COUNT(*) as connection_count
-          FROM unified_events
+          FROM network_events
           WHERE `dns.query.name` ILIKE '%.mega.nz'
           AND time >= now() - INTERVAL 30 DAY
           GROUP BY `actor.user.name`
