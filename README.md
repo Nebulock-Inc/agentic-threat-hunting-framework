@@ -115,10 +115,10 @@ H-XXXX_GATES.yaml  ────────────→  FORGE (F-O-R-G-E)
 1. In the ATHF workspace, validate the hunt — assistant input, not a shell command:
 
    ```text
-   /gates --hunt H-0062
+   /gates --hunt H-0903
    ```
 
-   → writes `hunt-promotion-analysis/H-0062_GATES.yaml` (one file per hunt, N
+   → writes `hunt-promotion-analysis/H-0903_GATES.yaml` (one file per hunt, N
    candidates inside). A hunt whose verdict is archival (`HOLD`, `DROP`, `TIME_BOX`,
    `RECURRING_HUNT`) emits a `.md` narrative instead — there is no rule to build, so
    step 2 applies to `.yaml` output only.
@@ -126,7 +126,7 @@ H-XXXX_GATES.yaml  ────────────→  FORGE (F-O-R-G-E)
 2. Import that document into ADEF:
 
    ```bash
-   adef hunt-promote --gates ~/athf-workspace/hunt-promotion-analysis/H-0062_GATES.yaml
+   adef hunt-promote --gates ~/athf-workspace/hunt-promotion-analysis/H-0903_GATES.yaml
    # --dry-run first to preview what it would mint
    ```
 

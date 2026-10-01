@@ -400,8 +400,8 @@ detections:
         - T1036.005  # Masquerading: Match Legitimate Name or Location
       
       references:
-        - "Hunt H-0063: MEGAsync as Exfiltration Channel"
-        - "GATES validation: hunt-promotion-analysis/H-0063_GATES.yaml"
+        - "Hunt H-0904: MEGAsync as Exfiltration Channel"
+        - "GATES validation: hunt-promotion-analysis/H-0904_GATES.yaml"
   
   # Detection 2
   - candidate_id: megasync-scheduled-task-persistence
@@ -720,7 +720,7 @@ schema_version: "2.0"
 generated_by: "GATES skill v2.0"
 last_updated: 2026-09-22
 related_files:
-  hunt_file: "hunts/production/2026/Q3/H-0063.md"
+  hunt_file: "hunts/production/2026/Q3/H-0904.md"
 ```
 
 ## How Agents Use This
@@ -756,7 +756,7 @@ related_files:
 # Feeds into detection automation tool
 # Example (generic):
 detection-tool deploy \
-  --from-artifacts H-0063_GATES.yaml \
+  --from-artifacts H-0904_GATES.yaml \
   --detection-name "MEGAsync Process Execution Detection" \
   --repository ../detection-repo
 ```
@@ -781,7 +781,7 @@ picks the extension; candidate verdicts inside the file do not.
 Example Markdown structure (HOLD verdict):
 
 ```markdown
-# GATES Validation: H-0063
+# GATES Validation: H-0904
 
 ## Verdict: ❌ HOLD
 

@@ -1,6 +1,6 @@
 # Example: Risk Assessment (Non-GATES Workflow)
 
-**Hunt:** H-0066 - IP Camera/NVR/VMS Infrastructure Security Assessment  
+**Hunt:** H-0907 - IP Camera/NVR/VMS Infrastructure Security Assessment  
 **Classification:** Risk Assessment (not behavioral detection hunt)  
 **Output Type:** Advisory (non-GATES)
 

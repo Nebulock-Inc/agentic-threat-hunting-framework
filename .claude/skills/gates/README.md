@@ -16,7 +16,7 @@ The `/gates` skill validates hunt-derived detections using the GATES method:
 Type this to your assistant — it is a skill invocation, not a shell command:
 
 ```text
-/gates --hunt H-0064
+/gates --hunt H-0905
 ```
 
 ## What It Produces
@@ -91,13 +91,13 @@ The detection artifacts output feeds into ADEF's **F - FIND** phase for producti
 ## Example Output
 
 ```
- GATES Validation Complete: H-0064
+ GATES Validation Complete: H-0905
 
 BASE Score: 5.0
 Verdict: ✅ PROMOTE
 
 File generated:
-- hunt-promotion-analysis/H-0064_GATES.yaml
+- hunt-promotion-analysis/H-0905_GATES.yaml
 
 Next: Deploy to detection repository for TEST soak period
 ```
@@ -124,15 +124,15 @@ pip install agentic-detection-engineering-framework
 **Step 1 — in the ATHF workspace,** run GATES. Assistant input, not a shell command:
 
 ```text
-/gates --hunt H-0064
+/gates --hunt H-0905
 ```
 
-→ writes `hunt-promotion-analysis/H-0064_GATES.yaml`
+→ writes `hunt-promotion-analysis/H-0905_GATES.yaml`
 
 **Step 2 — import the document into ADEF.** One file in, N detections out:
 
 ```bash
-adef hunt-promote --gates ~/athf-workspace/hunt-promotion-analysis/H-0064_GATES.yaml
+adef hunt-promote --gates ~/athf-workspace/hunt-promotion-analysis/H-0905_GATES.yaml
 # add --dry-run first to see what it would mint without writing anything
 ```
 

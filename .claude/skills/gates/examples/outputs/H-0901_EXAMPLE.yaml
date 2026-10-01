@@ -2,12 +2,12 @@
 #
 # The teaching point is that an *unmeasured* gate is PARTIAL, not FAIL — so a hunt
 # that found nothing still reaches PROMOTE, and the soak (not the verdict) is what
-# resolves the unknowns. Compare H-0062, which reaches PROMOTE from the opposite
+# resolves the unknowns. Compare H-0903, which reaches PROMOTE from the opposite
 # direction: a measured zero-FP baseline.
 #
 # An earlier version of this example was written as markdown while stating
 # `Verdict: PROMOTE`. PROMOTE is deployable, so the routing rule sends it to
-# `.yaml`; a consumer following the contract looked for `H-0060_GATES.yaml` and
+# `.yaml`; a consumer following the contract looked for `H-0901_GATES.yaml` and
 # found nothing. It also had no `detection_logic.query`, which the schema marks
 # REQUIRED for a deployable candidate — the whole point of a deployable verdict is
 # that something can be built from it.
@@ -15,7 +15,7 @@
 # Hunt outcome counts below are illustrative, not a verbatim production result.
 
 hunt_metadata:
-  hunt_id: H-0060
+  hunt_id: H-0901
   title: "Browser Extension Installer Technique"
   techniques: [T1176.001]
   tactics: [persistence]
@@ -108,7 +108,7 @@ narrative_analysis: |
 
   **Phase 2 (PRODUCTION).** If the soak reduces FPs by more than 90%, deploy angles
   2-4. The IOC angle deploys separately, as a TIME_BOX, when threat intel is
-  available — see H-0065 for that shape.
+  available — see H-0906 for that shape.
 
   ## Key Lesson
 

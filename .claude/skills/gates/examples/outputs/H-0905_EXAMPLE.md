@@ -1,6 +1,6 @@
 # Example: RECURRING_HUNT Verdict (High Volume, Quarterly Execution)
 
-**Hunt:** H-0064 - EC2 Encryption Disable Detection  
+**Hunt:** H-0905 - EC2 Encryption Disable Detection  
 **Verdict:** RECURRING_HUNT (quarterly execution, not 24/7 standing detection)  
 **BASE Score:** 3.0  *(G 1.0 + A 1.0 + T 0.0 + E 1.0 + S 0.0)*
 
@@ -341,6 +341,6 @@ Multi-tenant environments with high service account churn → recurring hunt is 
 3. **Recurring hunts (RECURRING_HUNT):** High volume, bounded execution, analyst-driven
 4. **Preserved logic (HOLD):** Zero TPs, preserve for future activation
 
-**H-0064 is Category 3:** High volume makes it unsuitable for 24/7 automation, but quarterly execution provides 90% coverage with 1% SOC effort.
+**H-0905 is Category 3:** High volume makes it unsuitable for 24/7 automation, but quarterly execution provides 90% coverage with 1% SOC effort.
 
 **Key Metric:** ~2,500 alerts/day (standing detection) → 0 alerts + 8 hours/quarter (recurring hunt) = 99.6% efficiency gain.

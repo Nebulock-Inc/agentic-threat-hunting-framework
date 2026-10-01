@@ -3,7 +3,7 @@
 # TIME_BOX is a *deployable* verdict, so the hunt-level verdict routes this to
 # `.yaml`, not `.md`. An earlier version of this example was written as markdown,
 # which contradicted the routing rule it was supposed to illustrate — a consumer
-# following the contract looked for `H-0065_GATES.yaml` and found nothing.
+# following the contract looked for `H-0906_GATES.yaml` and found nothing.
 #
 # It is also the only example populating the TIME_BOX `operational_parameters`
 # fields (`activation_date`, `expiration_date`, `review_date`,
@@ -12,7 +12,7 @@
 # Hunt outcome counts below are illustrative, not a verbatim production result.
 
 hunt_metadata:
-  hunt_id: H-0065
+  hunt_id: H-0906
   title: "ClickFix C2 Infrastructure Detection"
   techniques: [T1071.001]
   tactics: [command-and-control]
@@ -64,7 +64,7 @@ narrative_analysis: |
 
   - No behavioral detection for the clipboard-abuse delivery chain
   - IOC watchlist provides immediate value inside the campaign window
-  - Complements the behavioral detection (Remote Package Installer Execution, H-0062)
+  - Complements the behavioral detection (Remote Package Installer Execution, H-0903)
 
   **T - Tunable: PASS**
 
@@ -93,7 +93,7 @@ narrative_analysis: |
 
   **TIME_BOX, not HOLD:** the behavior was observed (3 TPs). Had the same watchlist
   matched nothing at all, the zero-prevalence fast path in SKILL.md Step 2 would make
-  it `HOLD` instead. Zero *true positives* is not zero prevalence: H-0060 has zero TPs
+  it `HOLD` instead. Zero *true positives* is not zero prevalence: H-0901 has zero TPs
   and is a PROMOTE, because the absence there is an unmeasured baseline rather than an
   absent behavior.
 
@@ -138,7 +138,7 @@ detections:
 
       scoring_rationale:
         g_evidence: "Domain watchlist, not behavior. Actors rotate infrastructure monthly, so the logic expires with the campaign."
-        a_evidence: "No behavioral coverage for this delivery chain; complements H-0062's msiexec detection."
+        a_evidence: "No behavioral coverage for this delivery chain; complements H-0903's msiexec detection."
         t_evidence: "Known-malicious domains, not CDNs — zero FPs expected without an allowlist."
         e_evidence: "Single-dimensional. Domain rotation, DNS tunneling and IP-direct C2 all bypass it."
         s_evidence: "Quarterly threat-intel refresh required; no value once the campaign ends."

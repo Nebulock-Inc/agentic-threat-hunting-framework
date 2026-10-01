@@ -7,7 +7,7 @@
 # Step 4. If you change one, change the others to match.
 
 hunt_metadata:
-  hunt_id: H-0062
+  hunt_id: H-0903
   title: "ClickFix Clipboard Abuse - Run Dialog Attack Chain"
   techniques: [T1204.001, T1059.001, T1176.001]
   tactics: [execution, initial-access]

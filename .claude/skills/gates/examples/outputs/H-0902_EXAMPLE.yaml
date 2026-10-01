@@ -2,7 +2,7 @@
 # Detection needs SPN allowlist before deployment
 
 hunt_metadata:
-  hunt_id: H-0061
+  hunt_id: H-0902
   title: "Kerberos RC4 Cipher Detection"
   techniques: [T1558.003]
   tactics: [credential-access]

@@ -4,10 +4,10 @@ The examples are reference material an authoring agent copies from, so a defect 
 one propagates into every document written afterwards. Three of these checks exist
 because an example actually drifted from the contract:
 
-* `H-0065_EXAMPLE` was markdown while its hunt-level verdict was TIME_BOX — a
+* `H-0906_EXAMPLE` was markdown while its hunt-level verdict was TIME_BOX — a
   deployable verdict, which the routing rule sends to `.yaml`. A consumer following
   the contract looked for a `.yaml` and found nothing.
-* `H-0062_EXAMPLE`, labelled "the reference for conformant YAML output", recorded a
+* `H-0903_EXAMPLE`, labelled "the reference for conformant YAML output", recorded a
   CONDITIONAL candidate's prerequisites under `gates_assessment.conditional_requirements`
   — a field the schema never declared. Downstream read the declared path, found
   nothing, and surfaced a blocked detection with no way to unblock it.
