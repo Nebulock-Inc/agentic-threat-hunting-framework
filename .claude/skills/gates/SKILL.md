@@ -24,10 +24,10 @@ GATES adapts to different hunt outcomes:
 
 | Hunt Type | Output | GATES Action | Example |
 |-----------|--------|--------------|---------|
-| **Behavioral detection hunt** | Explicit detection rules proposed | Score those rules | H-0062 (ClickFix), H-0063 (MEGAsync) |
-| **Exploration hunt** | Queries + observations, no rules | Extract detection candidates from patterns | H-0061 (Zeek inspection) |
-| **Negative hunt** | 0 TPs, behavioral pattern tested | Evaluate for proactive deployment or HOLD | H-0060 (browser extension installer) |
-| **Risk assessment hunt** | Configuration findings, no behaviors | Document as non-GATES (advisory output) | H-0066 (Camera infrastructure) |
+| **Behavioral detection hunt** | Explicit detection rules proposed | Score those rules | H-0903 (ClickFix), H-0904 (MEGAsync) |
+| **Exploration hunt** | Queries + observations, no rules | Extract detection candidates from patterns | H-0902 (Zeek inspection) |
+| **Negative hunt** | 0 TPs, behavioral pattern tested | Evaluate for proactive deployment or HOLD | H-0901 (browser extension installer) |
+| **Risk assessment hunt** | Configuration findings, no behaviors | Document as non-GATES (advisory output) | H-0907 (Camera infrastructure) |
 | **Multi-step investigation** | Requires analyst correlation | Classify as RECURRING_HUNT playbook | Asset correlation hunts |
 | **Baseline/inventory hunt** | Environmental understanding | Document as knowledge capture (no detection) | Asset inventory, normal behavior mapping |
 
@@ -180,7 +180,23 @@ Ask these questions:
 attack from benign at a workable rate — that is a `T` FAIL, not a telemetry gap. Score it
 and let Step 4 return `CONDITIONAL`: the data is there, the baseline isn't.
 
-**If NO to Question 1 or 2:**
+**Answer per behavior, not per hunt.** A hunt's hypothesis is usually broader than any
+one detectable behavior in it, so Q1 and Q2 are frequently PARTIAL at the hypothesis
+level and PASS for some narrower behavior inside it. Example: the remote-control session
+of a KVM-over-IP device is served off-box and invisible (Q2 PARTIAL for "detect misuse
+of the device"), while the device *connecting* — `T1200`, a USB enumeration event — is
+fully observable. That hunt is scoreable.
+
+So before classifying a hunt as a telemetry gap, ask whether **any** scoped behavior in
+it is fully observable:
+
+- **Yes** → scope the candidate to that behavior and proceed to BASE scoring. The
+  unobservable part is not a blocker; it is a stated limit on what the detection claims,
+  plus a telemetry recommendation in the narrative. Do not inflate the candidate's scope
+  back to the hypothesis — that is the `T` scope-drift failure below.
+- **No** → the hunt is a telemetry gap, as follows.
+
+**If NO to Question 1 or 2 for every candidate behavior:**
 - **Classification:** non-GATES (telemetry gap hunt) — a classification, not a verdict;
   the hunt never reaches the verdict enum because there is nothing scoreable yet
 - **Output:** `.md` assessment documenting visibility limitations
@@ -339,6 +355,26 @@ If hunt KEEP phase references external detection artifacts (commit hash, PR, fil
 
 **Example:** Hunt references "detection repo commit abc1234" → Agent must read commit, extract detection rules, document logic (selection criteria, conditions, filters), then score each rule independently.
 
+**When the reference is unreadable and it *is* the deployable candidate.** "Don't score
+placeholder references" and "`detection_logic.query` is REQUIRED for a deployable
+candidate" collide exactly here: the hunt cites rule files that don't exist yet (local
+uncommitted work, a private repo, a dead link) and that citation is the only statement of
+the logic. Resolve it this way:
+
+1. **Score what the hunt itself documents** — the CHECK queries, the observed behavior,
+   the FP sources named in KEEP. That is evidence; the unreadable file is not.
+2. **Write `detection_logic.query` from that evidence**, not from the reference. A query
+   you derived from a documented hunt query is a real query. Never emit a placeholder,
+   a `TODO`, or the reference string itself as the query — a deployable candidate whose
+   query can't be run is the fictional coverage this assessment exists to prevent.
+3. **Name the unreadable reference in the narrative as an unverified premise**, with what
+   you could not read (e.g. the exact allowlist entries). An unread detail that would
+   change tuning or volume caps `T` and `S` at PARTIAL — you have the behavior but not
+   the baseline it was tuned against.
+4. **If the hunt documents nothing beyond the reference**, there is no candidate to
+   score. Say so and recommend re-running GATES once the artifact is reachable; do not
+   mint a candidate out of a file path.
+
 **Output:** List of 1-N detection candidates OR determination that hunt produces no detection artifacts (risk assessment, baseline study, inventory)
 
 ### Step 2: BASE Criteria Evaluation
@@ -355,7 +391,7 @@ record of *why*, and a candidate with no `base_score` can't be compared against 
 one that looks like it. Output is a `.md` assessment, and activation is contingent on
 threat intel showing the campaign in scope.
 
-Contrast `H-0065_EXAMPLE.yaml`: also an IOC watchlist, also a `G` FAIL, but the campaign
+Contrast `H-0906_EXAMPLE.yaml`: also an IOC watchlist, also a `G` FAIL, but the campaign
 *is* present — so it is `TIME_BOX`, not `HOLD`. Prevalence is the whole difference. Note
 the extension too: `TIME_BOX` is deployable, so it emits `.yaml`; the `HOLD` case above
 emits `.md`.
@@ -434,7 +470,7 @@ When hunt doesn't provide explicit TP/FP counts or detection logic:
 | **No exclusion filters** | Assess from "normal" behavior descriptions | T-score: PARTIAL if tuning possible, FAIL if no clear filters |
 | **Hunt found 0 TPs** | Valid outcome, doesn't fail GATES | G/A/E can still PASS; T/S may be PARTIAL (unvalidated). Step 4's zero-prevalence rule decides: with a `G` or `S` FAIL it is `HOLD`; with no FAIL and a clean baseline it is a proactive `PROMOTE` |
 | **Multi-step correlation** | `S` = FAIL (automation check) | Score all five gates; Step 4 resolves the `S` FAIL to `RECURRING_HUNT` |
-| **Risk assessment hunt** | No detection artifacts | Document as non-GATES workflow (like H-0066) |
+| **Risk assessment hunt** | No detection artifacts | Document as non-GATES workflow (like H-0907) |
 
 **Key principle:** missing data means **PARTIAL**, not an automatic FAIL. It does not
 imply a verdict — the verdict is still Step 4's. Note that PARTIALs do not accumulate
@@ -783,6 +819,17 @@ commitment rather than a one-time build, so it costs `S` as well as `T`.
 authorized?" is an allowlist lookup and automatable. "Does policy permit this tool?"
 is business judgment and is not. If every alert needs the latter, `S` FAILs.
 
+The check reads volume-independent but isn't: what `S` actually measures is **triage
+load**, which is per-alert context *times* alert volume. With a zero or near-zero
+baseline there is nothing to triage, so the identical unautomatable question can be
+`S` PASS. Two candidates in one hunt asking the same judgment question may therefore
+score differently — PASS on the one that fires rarely, FAIL on the one that fires a
+few times a day — and that is correct, not an inconsistency. State the volume you
+scored against whenever the automation check decides the gate, so the reader can tell
+a judgment call from an arithmetic one. A zero-baseline PASS is only as durable as its
+window: if the baseline came from a hunt-length sample, deploy `TEST` and say that the
+gate re-scores if volume appears.
+
 ### T - Tunable: scope drift check
 
 **Problem:** a detection scoped wider than what the hunt actually tested carries
@@ -805,7 +852,7 @@ before deployment, after which `T` can be re-scored.
 
 ## Worked example
 
-`examples/outputs/H-0062_EXAMPLE.yaml` is a complete conformant output: four candidates,
+`examples/outputs/H-0903_EXAMPLE.yaml` is a complete conformant output: four candidates,
 two verdicts, per-gate criteria that sum to the stated `base_score`, and a hunt-level
 verdict that is deliberately not an aggregate of the candidate ones.
 
@@ -824,7 +871,7 @@ ATHF LOCK (Hunt) → GATES (Validate) → ADEF FORGE (Engineer)
 ```
 
 ```bash
-adef hunt-promote --gates ~/athf-workspace/hunt-promotion-analysis/H-0062_GATES.yaml
+adef hunt-promote --gates ~/athf-workspace/hunt-promotion-analysis/H-0903_GATES.yaml
 # --dry-run first to see what it would mint
 ```
 
