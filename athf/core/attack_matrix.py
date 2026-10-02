@@ -277,9 +277,11 @@ class StixProvider(AttackDataProvider):
             if not shortname:
                 continue
 
-            # Count techniques for this tactic
+            # Count techniques for this tactic. get_techniques_by_tactic filters
+            # on kill_chain_phases.phase_name, which is the tactic shortname;
+            # passing the STIX UUID here would never match (always 0).
             techniques = self._attack_data.get_techniques_by_tactic(
-                stix_tactic["id"], "enterprise-attack", remove_revoked_deprecated=True
+                shortname, "enterprise-attack", remove_revoked_deprecated=True
             )
 
             tactics[shortname] = TacticInfo(

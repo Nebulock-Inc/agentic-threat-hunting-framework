@@ -39,6 +39,8 @@ from athf.core.verdicts import (
     tally_frontmatter_verdicts,
 )
 
+from athf.core.hunt_types import UNCATEGORIZED_LABEL, normalize_hunt_type
+
 # ---------------------------------------------------------------------------
 # Schema
 # ---------------------------------------------------------------------------
@@ -468,6 +470,11 @@ class Aggregator:
             if frontmatter.get(key):
                 out[key] = frontmatter[key]
 
+        # Controlled vocabulary: normalize so the rollup doesn't split on
+        # casing/typos; unknown values fall to "uncategorized".
+        if frontmatter:
+            out["hunt_type"] = normalize_hunt_type(frontmatter.get("hunt_type")) or UNCATEGORIZED_LABEL
+
         for field_name in _NUMERIC_FRONTMATTER_FIELDS:
             if field_name in frontmatter:
                 value = _coerce_number(frontmatter[field_name])
@@ -651,6 +658,7 @@ def _aggregate_rollups(per_hunt: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[st
         "by_tactic": {},
         "by_technique": {},
         "by_data_source": {},
+        "by_hunt_type": {},
     }
     for bucket in per_hunt.values():
         for label_field, key in (
@@ -658,6 +666,7 @@ def _aggregate_rollups(per_hunt: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[st
             ("tactics", "by_tactic"),
             ("techniques", "by_technique"),
             ("data_sources", "by_data_source"),
+            ("hunt_type", "by_hunt_type"),
         ):
             value = bucket.get(label_field)
             if not value:
