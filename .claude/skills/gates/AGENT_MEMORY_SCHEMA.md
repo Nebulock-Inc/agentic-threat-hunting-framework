@@ -165,9 +165,20 @@ hunt_metadata:
     findings_count: 3
     hunt_window_days: 30
     events_analyzed: 70000000000  # round order-of-magnitude, not a verbatim production count
+    # Which feeds the candidates read. REQUIRED when any candidate is deployable,
+    # for the same reason as `platforms`: a detection cannot be deployed without
+    # knowing which feed it queries, and it is what tells the receiving side that
+    # twelve detections all ride one source that can go dark together. Omit it and
+    # the consumer records "no log source" for every candidate in the hunt.
+    # List the most specific first — a consumer that needs a single value takes it.
+    # If the candidates do not all read the same feed, also set
+    # `deployment.data_source` per candidate: a consumer taking the first entry here
+    # would otherwise attribute process-creation telemetry to a registry detection,
+    # and then report it going dark when the wrong feed breaks.
     data_sources:
-      - ClickHouse unified_events
-      - Microsoft Defender EDR
+      - Windows process creation events
+      - Windows scheduled task events
+      - DNS query logs
 
 # =============================================================================
 # SECTION 2: GATES VALIDATION SUMMARY (for agent learning)
@@ -270,7 +281,23 @@ gates_validation:
       typical_fp_rate: high
 
 # =============================================================================
-# SECTION 3: DETECTION DEFINITIONS (for deployment automation)
+# SECTION 3: NARRATIVE ANALYSIS (human-readable reasoning)
+# =============================================================================
+# A single markdown string. OPTIONAL, but this is the only place the BASE
+# reasoning survives when the verdict is deployable: a deployable hunt emits
+# `.yaml` and no `.md`, so without this the evidence behind each gate is lost
+# and only the compact `scoring_rationale` remains. Write it as a block scalar.
+narrative_analysis: |
+  ## BASE Criteria Scoring
+
+  **G - Generalizable: PASS**
+  Tool signature (MEGAsync.exe), not IOC-based. ...
+
+  (Full per-gate evidence, verdict rationale, deployment guidance — whatever the
+  `.md` would have carried for a non-deployable hunt.)
+
+# =============================================================================
+# SECTION 4: DETECTION DEFINITIONS (for deployment automation)
 # =============================================================================
 detections:
   
@@ -311,6 +338,14 @@ detections:
       engine: sql  # sigma | sql | sch_sql | composite — closed set, see "Canonical enums"
       status: TEST  # TEST | PRODUCTION | DISABLED
       severity: medium
+
+      # The one feed THIS candidate reads — a single value, not a list. Optional
+      # when every candidate in the hunt reads the same thing (the consumer falls
+      # back to the first `hunt_outcomes.data_sources` entry); REQUIRED when they
+      # differ, because that fallback would otherwise file a registry detection
+      # under process-creation telemetry and take it down with the wrong outage.
+      data_source: Windows process creation events
+
       
       # Always these two keys, for every engine. `query` is an opaque string in
       # whatever language `engine` names — consumers store it verbatim and must not
@@ -365,8 +400,8 @@ detections:
         - T1036.005  # Masquerading: Match Legitimate Name or Location
       
       references:
-        - "Hunt H-0063: MEGAsync as Exfiltration Channel"
-        - "GATES validation: hunt-promotion-analysis/H-0063_GATES.yaml"
+        - "Hunt H-0904: MEGAsync as Exfiltration Channel"
+        - "GATES validation: hunt-promotion-analysis/H-0904_GATES.yaml"
   
   # Detection 2
   - candidate_id: megasync-scheduled-task-persistence
@@ -395,6 +430,7 @@ detections:
       engine: sql
       status: TEST
       severity: high
+      data_source: Windows scheduled task events
       
       detection_logic:
         query: |
@@ -451,17 +487,18 @@ detections:
       
       pattern_learned: "Cloud service network detections require per-user baseline to manage legitimate usage FPs"
       failure_mode: "T-fail due to high legitimate usage (no clear filter without baseline)"
-      
-      conditional_requirements:
-        - "Customer policy clarification: Is personal MEGA use sanctioned?"
-        - "30-day per-user baseline: Identify power users of MEGA"
-        - "Dynamic allowlist: Exclude sanctioned MEGA users"
-        - "Deploy only after baseline built and allowlist configured"
-    
+
+      # Prerequisites are NOT written here. This block once carried a
+      # `conditional_requirements` list duplicating the one below, which nothing in
+      # this document declared — so a consumer reading the contract found the
+      # CONDITIONAL verdict and nothing actionable. One home:
+      # `deployment.operational_parameters.deployment_prerequisites`.
+
     deployment:
       engine: sql
       status: TEST
       severity: medium
+      data_source: DNS query logs   # not the hunt's first feed — see `data_source` above
       
       detection_logic:
         query: |
@@ -487,7 +524,7 @@ detections:
         baseline_query: |
           -- 30-day per-user baseline
           SELECT `actor.user.name`, COUNT(*) as connection_count
-          FROM unified_events
+          FROM network_events
           WHERE `dns.query.name` ILIKE '%.mega.nz'
           AND time >= now() - INTERVAL 30 DAY
           GROUP BY `actor.user.name`
@@ -510,7 +547,7 @@ detections:
         - T1567.002  # Exfiltration to Cloud Storage
 
 # =============================================================================
-# SECTION 4: AGGREGATE INSIGHTS (for agent learning)
+# SECTION 5: AGGREGATE INSIGHTS (for agent learning)
 # =============================================================================
 aggregate_insights:
   
@@ -630,7 +667,7 @@ aggregate_insights:
       action: "Document gap, recommend infrastructure improvement, skip BASE scoring"
 
 # =============================================================================
-# SECTION 5: OPERATIONAL HANDOFF (for SOC/engineering)
+# SECTION 6: OPERATIONAL HANDOFF (for SOC/engineering)
 # =============================================================================
 operational_handoff:
   
@@ -683,7 +720,7 @@ schema_version: "2.0"
 generated_by: "GATES skill v2.0"
 last_updated: 2026-09-22
 related_files:
-  hunt_file: "hunts/production/2026/Q3/H-0063.md"
+  hunt_file: "hunts/production/2026/Q3/H-0904.md"
 ```
 
 ## How Agents Use This
@@ -719,7 +756,7 @@ related_files:
 # Feeds into detection automation tool
 # Example (generic):
 detection-tool deploy \
-  --from-artifacts H-0063_GATES.yaml \
+  --from-artifacts H-0904_GATES.yaml \
   --detection-name "MEGAsync Process Execution Detection" \
   --repository ../detection-repo
 ```
@@ -728,12 +765,15 @@ detection-tool deploy \
 
 ## Output Format by Verdict Type
 
-**PROMOTE/CONDITIONAL Verdicts:** YAML file (this schema)
+This restates the routing at the top of this document. The **hunt-level** verdict
+picks the extension; candidate verdicts inside the file do not.
+
+**PROMOTE/CONDITIONAL/TIME_BOX Verdicts:** YAML file (this schema)
 - File: `hunt-promotion-analysis/H-XXXX_GATES.yaml`
 - Contains: Deployment templates, agent learning artifacts, operational parameters
 - Purpose: Machine-readable, deployment-ready detection rules
 
-**HOLD/TIME_BOX/RECURRING_HUNT Verdicts:** Markdown file
+**HOLD/DROP/RECURRING_HUNT Verdicts:** Markdown file
 - File: `hunt-promotion-analysis/H-XXXX_GATES.md`
 - Contains: Analysis, rationale, activation triggers, strategy documentation
 - Purpose: Human-readable guidance and preservation of reasoning
@@ -741,7 +781,7 @@ detection-tool deploy \
 Example Markdown structure (HOLD verdict):
 
 ```markdown
-# GATES Validation: H-0063
+# GATES Validation: H-0904
 
 ## Verdict: ❌ HOLD
 

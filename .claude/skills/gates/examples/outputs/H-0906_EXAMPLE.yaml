@@ -1,0 +1,227 @@
+# Example: TIME_BOX Verdict (Campaign-Specific IOC Detection)
+#
+# TIME_BOX is a *deployable* verdict, so the hunt-level verdict routes this to
+# `.yaml`, not `.md`.
+#
+# This example populates the TIME_BOX `operational_parameters` fields
+# (`activation_date`, `expiration_date`, `review_date`, `refresh_cycle_days`),
+# which the schema marks REQUIRED for this verdict.
+#
+# Hunt outcome counts below are illustrative, not a verbatim production result.
+
+hunt_metadata:
+  hunt_id: H-0906
+  title: "ClickFix C2 Infrastructure Detection"
+  techniques: [T1071.001]
+  tactics: [command-and-control]
+  platforms: [network]
+
+  hunt_outcomes:
+    true_positives: 3       # non-zero is what separates TIME_BOX from HOLD
+    false_positives: 0
+    hunt_window_days: 30
+    events_analyzed: 400000000  # ~400M DNS/proxy events, order of magnitude
+    findings_count: 1
+    data_sources:
+      - DNS query logs
+      - Network proxy logs
+
+gates_validation:
+  # Hunt-level verdict: TIME_BOX is deployable, so this hunt emits `.yaml`.
+  verdict: TIME_BOX
+  verdict_breakdown:
+    TIME_BOX: 1
+  base_score_average: 2.0  # single candidate, so equal to its base_score
+
+  key_learnings:
+    - "IOC watchlists are deployable but expire; TIME_BOX records the expiry instead of pretending the rule is permanent"
+    - "Non-zero TPs is what separates TIME_BOX from HOLD — the behavior is present, the *logic* is what has a shelf life"
+    - "A defanged IOC list deployed as-written matches nothing, and silence looks identical to 'no activity'"
+
+narrative_analysis: |
+  ## Summary
+
+  Hunt identified ClickFix campaign C2 domains from threat intelligence. Detection
+  logic is IOC-based (domain watchlist), not behavioral. Appropriate for
+  **time-boxed campaign tracking** with a 90-day refresh cycle.
+
+  ## BASE Criteria Scoring
+
+  **G - Generalizable: FAIL**
+
+  IOC-based detection (domain watchlist), not a behavioral pattern. Expires when the
+  campaign ends or the adversary rotates infrastructure (typically 30-90 days).
+
+  - Detection: `destination.domain` IN (list of C2 domains)
+  - IOC type: domains (bottom of the Pyramid of Pain)
+  - Lifespan: campaign-specific (these actors rotate domains monthly)
+
+  **A - Additive: PASS**
+
+  Fills the T1071.001 (C2: Web Protocols) gap during an active campaign.
+
+  - No behavioral detection for the clipboard-abuse delivery chain
+  - IOC watchlist provides immediate value inside the campaign window
+  - Complements the behavioral detection (Remote Package Installer Execution, H-0903)
+
+  **T - Tunable: PASS**
+
+  Zero FPs expected — these are malicious C2 domains, not CDNs. Volume depends on
+  campaign targeting.
+
+  **E - Exposure-tested: FAIL**
+
+  Single-dimensional (domain match only). Bypassed by:
+
+  - Domain rotation (new domains not in the watchlist)
+  - Alternative C2 channels (DNS tunneling, HTTPS to an IP)
+  - IP-based C2 (no domain resolution at all)
+
+  **S - Sustainable: FAIL**
+
+  High maintenance burden: IOCs expire in 30-90 days, a quarterly threat-intel
+  refresh is required, and there is no long-term value once the campaign ends.
+
+  ## Verdict Rationale
+
+  **TIME_BOX, not PROMOTE:** IOC-based logic is not generalizable, it is
+  single-dimensional so evasion is cheap, and it needs a quarterly refresh. Against
+  that: it catches campaign activity while the IOCs are fresh, and it deploys in
+  hours rather than weeks.
+
+  **TIME_BOX, not HOLD:** the behavior was observed (3 TPs). Had the same watchlist
+  matched nothing at all, the zero-prevalence fast path in SKILL.md Step 2 would make
+  it `HOLD` instead. Zero *true positives* is not zero prevalence: H-0901 has zero TPs
+  and is a PROMOTE, because the absence there is an unmeasured baseline rather than an
+  absent behavior.
+
+  ## IOC Refresh Cycle
+
+  - **Week 0-4 — active deployment.** Watchlist live, alert on any match, daily
+    threat-intel monitoring for new domains.
+  - **Week 5-8 — campaign monitoring.** Update the watchlist as the campaign
+    evolves, track hit rate, coordinate with threat intel.
+  - **Week 9-12 — review and deactivate.** Campaign still active → extend 90 days
+    and refresh the IOCs. Campaign over → deactivate and archive.
+
+  ## Deactivation Triggers
+
+  1. 90 days elapse (mandatory review)
+  2. Campaign ends (IOCs sinkholed or dead)
+  3. Zero hits for 30 days (IOCs expired)
+  4. A behavioral detection ships that replaces the watchlist
+
+  ## Key Lesson
+
+  IOC detections have value but a limited lifespan — they are campaign-specific
+  tools, not standing detections. TIME_BOX records that honestly: deploy for 90
+  days, review, extend or deactivate. The alternative is a PROMOTE that quietly
+  becomes dead weight nobody dares delete.
+
+detections:
+  - candidate_id: clickfix-c2-domain-watchlist
+    name: "ClickFix C2 Domain Watchlist"
+
+    gates_assessment:
+      # G FAILed, and G outranks the score band: 2.0 would also land outside
+      # PROMOTE, but it is the gate that decides. See SKILL.md Step 4.
+      verdict: TIME_BOX
+      base_score: 2.0        # PASS x2 + FAIL x3
+      criteria:
+        generalizable: FAIL      # IOC list, not a behavioral pattern
+        additive: PASS           # fills T1071.001 during the campaign
+        tunable: PASS            # malicious domains, no allowlist needed
+        exposure_tested: FAIL    # domain match only; rotation defeats it
+        sustainable: FAIL        # IOCs expire in 30-90 days
+
+      scoring_rationale:
+        g_evidence: "Domain watchlist, not behavior. Actors rotate infrastructure monthly, so the logic expires with the campaign."
+        a_evidence: "No behavioral coverage for this delivery chain; complements H-0903's msiexec detection."
+        t_evidence: "Known-malicious domains, not CDNs — zero FPs expected without an allowlist."
+        e_evidence: "Single-dimensional. Domain rotation, DNS tunneling and IP-direct C2 all bypass it."
+        s_evidence: "Quarterly threat-intel refresh required; no value once the campaign ends."
+
+      failure_mode: "G-fail: the logic names this campaign's infrastructure, so it dies with the campaign rather than generalizing to the TTP"
+
+      pattern_learned: "IOC watchlists are deployable with an expiry, not promotable — record the expiration date rather than shipping a rule that silently rots"
+
+    deployment:
+      engine: sql
+      status: TEST
+      severity: high
+
+      detection_logic:
+        # The domains below are illustrative placeholders, written DEFANGED
+        # (`[.]`, `.invalid` TLD). Do not deploy this query as written: a defanged
+        # string matches nothing, so the rule never fires, and that is
+        # indistinguishable from "no campaign activity". Substitute the real
+        # domains from your threat intel, convert `[.]` → `.`, and confirm the rule
+        # fires against a known-good test event before trusting its silence.
+        query: |
+          SELECT time, endpoint_uid, user_name, domain
+          FROM network_events
+          WHERE domain IN (
+            -- placeholders; substitute real IOCs, un-defanged, before deploying
+            'example-lure-cdn[.]invalid',
+            'example-fake-update[.]invalid',
+            'example-patch-portal[.]invalid',
+            'example-auth-verify[.]invalid'
+          )
+          AND time >= now() - INTERVAL 1 DAY
+        description: |
+          Detects network connections to known campaign C2 domains (T1071.001) as a
+          time-boxed watchlist. The domain list expires: it names this campaign's
+          infrastructure, not a durable behavior. Pair it with a behavioral detection
+          for the same delivery chain, which outlives the domains.
+
+          The shipped list is DEFANGED placeholders and matches nothing. Replace it
+          with real IOCs before deploying, and verify the rule fires — an unreplaced
+          watchlist is silently dead.
+
+      entities:
+        - name: endpoint_uid
+          type: endpoint
+        - name: user_name
+          type: user
+
+      observables:
+        - name: domain
+          type: domain
+
+      operational_parameters:
+        expected_volume: "Campaign-dependent; 3 events observed over the 30-day hunt window"
+        fp_rate: "Very low (known-malicious domains, not shared CDN infrastructure)"
+        tuning_required: false
+        allowlist_needed: false
+        soak_period_days: 0  # IOC watchlist: deploy live, the expiry is the control
+
+        # REQUIRED for TIME_BOX. Without them the expiry is prose in a narrative
+        # nobody re-reads, and the rule outlives its own IOCs.
+        activation_date: "2026-09-20"     # campaign reported
+        expiration_date: "2026-12-19"     # 90 days
+        review_date: "2026-12-15"         # assess campaign status before expiry
+        refresh_cycle_days: 90
+
+      mitre_attack:
+        - T1071.001  # Application Layer Protocol: Web Protocols
+
+aggregate_insights:
+  successful_patterns:
+    - pattern: "IOC watchlist with a recorded expiry"
+      example: "Campaign C2 domains: deployable for 90 days, then reviewed or retired"
+      confidence: "Deploy immediately, no soak — the expiration date is the control, not the soak"
+
+  tuning_patterns:
+    - pattern: "Defanged IOCs in a shipped example"
+      example: "`example-lure-cdn[.]invalid` matches nothing; the rule's silence reads as 'no activity'"
+      confidence: "Always verify an IOC rule fires against a test event before trusting a quiet dashboard"
+
+operational_handoff:
+  deployment_order:
+    - clickfix-c2-domain-watchlist
+
+  soak_period: "None. An IOC watchlist has no baseline to learn; the expiry and the 90-day review replace the soak."
+
+  promotion_criteria:
+    - "Not applicable — TIME_BOX does not promote. At review_date, extend 90 days with refreshed IOCs or deactivate."
+    - "Replace with a behavioral detection for the same TTP if one ships; that one can promote."

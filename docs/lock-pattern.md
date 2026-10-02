@@ -182,7 +182,7 @@ Document your hunt through Learn → Observe → Check → Keep
 
 → writes one file per hunt, holding every candidate that hunt produced. The extension
 depends on the hunt-level verdict: `H-XXXX_GATES.yaml` when something is deployable
-(PROMOTE / CONDITIONAL), `H-XXXX_GATES.md` when nothing is (HOLD, DROP, TIME_BOX,
+(PROMOTE / CONDITIONAL / TIME_BOX), `H-XXXX_GATES.md` when nothing is (HOLD, DROP,
 RECURRING_HUNT) — so look for the `.md` if the `.yaml` isn't there.
 
 GATES evaluates your findings using 5 BASE criteria:

@@ -8,7 +8,15 @@ Thumbs.db
 *~
 .vscode/
 .idea/
-.claude/
+
+# Local Claude Code state, EXCEPT the skills this repo ships. `.claude/` as a blanket
+# ignore meant every new file in the GATES skill needed `git add -f` to land — an
+# added example silently stayed local, which is how the skill and its examples drifted
+# apart. A contributor's own scratch skills under `.claude/skills/` are still ignored.
+.claude/*
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/gates/
 
 # Sensitive data
 *.env

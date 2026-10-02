@@ -7,7 +7,7 @@
 # Step 4. If you change one, change the others to match.
 
 hunt_metadata:
-  hunt_id: H-0062
+  hunt_id: H-0903
   title: "ClickFix Clipboard Abuse - Run Dialog Attack Chain"
   techniques: [T1204.001, T1059.001, T1176.001]
   tactics: [execution, initial-access]
@@ -19,6 +19,9 @@ hunt_metadata:
     hunt_window_days: 30
     events_analyzed: 1000000000  # ~1B events
     findings_count: 4
+    data_sources:
+      - Windows process creation events
+      - Windows registry modification events
 
 gates_validation:
   # Hunt-level verdict: picks the file type (.yaml). It is NOT an aggregate of the
@@ -64,6 +67,7 @@ detections:
       engine: sigma
       status: TEST
       severity: high
+      data_source: Windows process creation events
 
       detection_logic:
         query: |
@@ -120,6 +124,7 @@ detections:
       engine: sigma
       status: TEST
       severity: high
+      data_source: Windows process creation events
 
       detection_logic:
         query: |
@@ -180,6 +185,7 @@ detections:
       engine: sigma
       status: TEST
       severity: medium
+      data_source: Windows process creation events
 
       detection_logic:
         query: |
@@ -238,14 +244,22 @@ detections:
 
       failure_mode: "T-fail: legitimate administrative Run-dialog use is indistinguishable without a baseline"
 
-      conditional_requirements:
-        - "Build RunMRU allowlist (7 baseline patterns observed in hunt)"
-        - "Deploy only after the allowlist is configured"
+      # Prerequisites are NOT recorded here. Earlier drafts of this file used a
+      # `conditional_requirements` key in this block, which the schema never
+      # declared — so a consumer reading the contract found nothing, and this
+      # candidate reached ADEF flagged CONDITIONAL with nothing actionable
+      # attached. The one declared home is
+      # `deployment.operational_parameters.deployment_prerequisites`, below.
 
     deployment:
       engine: sigma
       status: TEST
       severity: medium
+
+      # REQUIRED here: this hunt spans two feeds, and this is the only candidate
+      # reading the registry one. Without it a consumer takes the first
+      # hunt-level entry and files this detection under process creation.
+      data_source: Windows registry modification events
 
       detection_logic:
         query: |
@@ -278,6 +292,12 @@ detections:
         allowlist_needed: true
         deployment_priority: 4
         soak_period_days: 30  # Longer soak to build the allowlist
+
+        # REQUIRED for CONDITIONAL — the verdict says "deploy once these are met",
+        # so without them the consumer has a blocked detection and no way to unblock it.
+        deployment_prerequisites:
+          - "Build the RunMRU allowlist (7 baseline patterns observed in the hunt)"
+          - "Deploy only after the allowlist is configured"
 
       mitre_attack:
         - T1204.001  # User Execution: Malicious Link
