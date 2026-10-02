@@ -2,22 +2,206 @@
 
 import re
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 
 import yaml
 
 from athf.core.hunt_types import HUNT_TYPES, normalize_hunt_type
+from athf.core.verdicts import (
+    ATTEMPTED_NOT_VULNERABLE,
+    CIRCULAR_CONFIRMATION,
+    CONFIRMED,
+    CORPUS_ONLY_METHOD,
+    DEFERRED_CONFIRMATION,
+    INVALID_VERDICT,
+    LEGACY_VERDICT,
+    METHOD_EXCEEDS_CAPABILITY,
+    MISROUTED,
+    MISSING_PROVENANCE,
+    MISSING_VERDICT,
+    SELF_ATTESTED,
+    SELF_DECLARED_CAPABILITY,
+    UNATTESTED,
+    UNKNOWN_PRODUCER,
+    UNNAMED_CONTROL,
+    UNSUPPORTED_CONFIRMATION,
+    VERDICTS,
+    gate_failures,
+)
+
+LADDER_KEYS = ("findings", "ruled_out")
+
+
+def _msg_missing_verdict(where: str, detail: Any) -> str:
+    return f"{where} is missing required field: verdict"
+
+
+def _msg_invalid_verdict(where: str, detail: Any) -> str:
+    return f"{where}: {detail}"
+
+
+def _msg_legacy_verdict(where: str, detail: Any) -> str:
+    return (
+        f"{where} uses the legacy verdict '{detail}', which has no "
+        f"place on the ladder; assign one of {', '.join(VERDICTS)} or keep the count "
+        "in the legacy true_positives / false_positives keys"
+    )
+
+
+def _msg_misrouted(where: str, detail: Any) -> str:
+    verdict, expected = detail
+    return f"{where} has verdict '{verdict}', which belongs in {expected}"
+
+
+def _msg_unsupported_confirmation(where: str, detail: Any) -> str:
+    return (
+        f"{where} claims verdict '{CONFIRMED}' but has no usable "
+        f"{' or '.join(detail)}; confirmed requires telemetry evidence plus a "
+        "description of the independent confirmation performed outside the log "
+        "corpus (controlled reproduction, host forensics, or configuration review)"
+    )
+
+
+def _msg_circular_confirmation(where: str, detail: Any) -> str:
+    return (
+        f"{where} confirms verdict '{CONFIRMED}' by pointing back "
+        "at the log corpus; the corpus cannot confirm itself. Describe what you did "
+        "outside it — reproduced the behavior, imaged the host, reviewed the config"
+    )
+
+
+def _msg_deferred_confirmation(where: str, detail: Any) -> str:
+    return (
+        f"{where} claims verdict '{CONFIRMED}' but its confirmation "
+        "says the work has not happened yet; that is a 'suspected' finding until it "
+        "does. Downgrade the verdict and keep the note — flagging what confirmation "
+        "would take is the right answer, not a lesser one"
+    )
+
+
+def _msg_unnamed_control(where: str, detail: Any) -> str:
+    return (
+        f"{where} has verdict '{ATTEMPTED_NOT_VULNERABLE}' but does "
+        "not name the control that held; set 'control' to the specific control and how "
+        "you verified it held"
+    )
+
+
+def _msg_missing_provenance(where: str, detail: Any) -> str:
+    return (
+        f"{where} claims verdict '{CONFIRMED}' without provenance. "
+        "Confirmation must be a mapping with 'method', 'produced_by', 'attested_by' "
+        "and 'detail' — reading a confirmation cannot establish that the work behind "
+        "it happened, so who produced it is what the gate checks"
+    )
+
+
+def _msg_unknown_producer(where: str, detail: Any) -> str:
+    return (
+        f"{where} names producer '{detail}', which is not declared in "
+        ".athfconfig.yaml under provenance.producers. Declare it with the capabilities "
+        "it can actually reach; an undeclared producer cannot reach 'confirmed'"
+    )
+
+
+def _msg_method_exceeds_capability(where: str, detail: Any) -> str:
+    producer, method = detail
+    return (
+        f"{where} claims confirmation method '{method}', which "
+        f"'{producer}' has not declared in .athfconfig.yaml. A producer cannot confirm "
+        "by a means it has no access to — either declare the capability or downgrade "
+        "the verdict to 'suspected'"
+    )
+
+
+def _msg_corpus_only_method(where: str, detail: Any) -> str:
+    return (
+        f"{where} offers '{detail}' as its confirmation method, but "
+        "that only reads the log corpus, and the corpus cannot corroborate itself. "
+        "Querying is real work and still caps at 'suspected'"
+    )
+
+
+def _msg_self_declared_capability(where: str, detail: Any) -> str:
+    return (
+        f"{where} declares its own capabilities in "
+        f"{', '.join(detail)}. Capabilities are declared in .athfconfig.yaml, never in "
+        "the finding — a claim and the licence to make it cannot travel together"
+    )
+
+
+def _msg_unattested(where: str, detail: Any) -> str:
+    return (
+        f"{where} claims verdict '{CONFIRMED}' but 'attested_by' does "
+        f"not name a person ({detail!r}). Out-of-corpus work needs someone answerable "
+        "for it; a role, a team, or the automation itself cannot vouch for it"
+    )
+
+
+def _msg_self_attested(where: str, detail: Any) -> str:
+    producer, attestor = detail
+    return (
+        f"{where} names '{attestor}' in 'attested_by', which is a "
+        f"declared producer, not a person (produced_by is '{producer}'). An "
+        "attestation is a second party vouching for the work; set 'attested_by' to "
+        "the person who can be asked what they saw"
+    )
+
+
+def _unmapped_gate_message(where: str, detail: Any) -> str:
+    # Validity is derived from this list, so a code added to gate_failures
+    # without a message here would make an offending file report clean while
+    # aggregation refuses to count it — the validate/aggregate divergence, again.
+    return (
+        f"{where} fails the verdict gate; see "
+        "FORMAT_GUIDELINES.md → The Verdict Ladder"
+    )
+
+
+_GATE_MESSAGES: Dict[str, Any] = {
+    MISSING_VERDICT: _msg_missing_verdict,
+    INVALID_VERDICT: _msg_invalid_verdict,
+    LEGACY_VERDICT: _msg_legacy_verdict,
+    MISROUTED: _msg_misrouted,
+    UNSUPPORTED_CONFIRMATION: _msg_unsupported_confirmation,
+    CIRCULAR_CONFIRMATION: _msg_circular_confirmation,
+    DEFERRED_CONFIRMATION: _msg_deferred_confirmation,
+    UNNAMED_CONTROL: _msg_unnamed_control,
+    MISSING_PROVENANCE: _msg_missing_provenance,
+    UNKNOWN_PRODUCER: _msg_unknown_producer,
+    METHOD_EXCEEDS_CAPABILITY: _msg_method_exceeds_capability,
+    CORPUS_ONLY_METHOD: _msg_corpus_only_method,
+    SELF_DECLARED_CAPABILITY: _msg_self_declared_capability,
+    UNATTESTED: _msg_unattested,
+    SELF_ATTESTED: _msg_self_attested,
+}
 
 
 class HuntParser:
     """Parser for ATHF hunt files."""
 
-    def __init__(self, file_path: Path):
-        """Initialize parser with hunt file path."""
+    def __init__(self, file_path: Path, registry: Any = None, workspace_root: Any = None):
+        """Initialize parser with hunt file path.
+
+        ``registry`` supplies declared producer capabilities. Left unset it is
+        loaded from workspace config on first use, so every caller gets the same
+        answer as the aggregation path without having to know it exists.
+
+        ``workspace_root`` is the trusted workspace root — the parent of the
+        workspace ``hunts/`` directory, the same anchor ``HuntManager`` uses.
+        Callers that know it must pass it: without it the root is derived from
+        the file path, and a nested ``hunts/`` directory beside a hunt file would
+        otherwise let that file's own ``.athfconfig.yaml`` authorize a producer
+        that workspace aggregation does not trust.
+        """
         self.file_path = Path(file_path)
+        self._registry = registry
+        self._workspace_root = Path(workspace_root) if workspace_root is not None else None
         self.frontmatter: Dict = {}
         self.content = ""
         self.lock_sections: Dict = {}
+        self.findings: List = []
+        self.ruled_out: List = []
 
     def parse(self) -> Dict:
         """Parse hunt file and return structured data.
@@ -40,13 +224,27 @@ class HuntParser:
         # Parse LOCK sections
         self.lock_sections = self._parse_lock_sections(self.content)
 
+        # Verdict ladder. Malformed values surface as validation errors, so
+        # parsing keeps them out of the exposed lists rather than raising here.
+        self.findings = self._ladder_entries("findings")
+        self.ruled_out = self._ladder_entries("ruled_out")
+
         return {
             "file_path": str(self.file_path),
             "hunt_id": self.frontmatter.get("hunt_id"),
             "frontmatter": self.frontmatter,
             "content": self.content,
             "lock_sections": self.lock_sections,
+            "findings": self.findings,
+            "ruled_out": self.ruled_out,
         }
+
+    def _ladder_entries(self, key: str) -> List:
+        """Return the well-formed entries under ``key``, tolerating junk."""
+        raw = self.frontmatter.get(key)
+        if not isinstance(raw, list):
+            return []
+        return [entry for entry in raw if isinstance(entry, dict)]
 
     def _parse_frontmatter(self, content: str) -> Dict:
         """Extract and parse YAML frontmatter.
@@ -141,7 +339,70 @@ class HuntParser:
             if section not in self.lock_sections:
                 errors.append(f"Missing LOCK section: {section.upper()}")
 
+        errors.extend(self._validate_verdicts())
+
         return (len(errors) == 0, errors)
+
+    def _validate_verdicts(self) -> List[str]:
+        """Check the verdict ladder in ``findings`` and ``ruled_out``.
+
+        Absent keys and empty lists are valid: hunts predating the ladder, and
+        hunts that found nothing, must both validate clean.
+        """
+        errors: List[str] = []
+
+        for key in LADDER_KEYS:
+            raw = self.frontmatter.get(key)
+            if raw is None:
+                continue
+            if not isinstance(raw, list):
+                errors.append(f"{key} must be a list of verdict entries; got {type(raw).__name__}")
+                continue
+
+            for index, entry in enumerate(raw):
+                if not isinstance(entry, dict):
+                    errors.append(f"{key}[{index}] must be a mapping; got {type(entry).__name__}")
+                    continue
+                errors.extend(self._validate_entry(key, index, entry))
+
+        return errors
+
+    def _validate_entry(self, key: str, index: int, entry: Dict) -> List[str]:
+        """Render :func:`gate_failures` as hunter-facing messages.
+
+        The rules themselves live in ``athf.core.verdicts`` so that validation
+        and aggregation cannot disagree about what earns a verdict. The
+        code-to-message rendering lives in ``_GATE_MESSAGES`` so this stays a
+        thin loop; an unmapped code falls back to ``_unmapped_gate_message`` so
+        a code added to ``gate_failures`` without a message here can never make
+        an offending file report clean while aggregation refuses to count it.
+        """
+        subject = entry.get("subject") or f"{key}[{index}]"
+        where = f"{key}[{index}] ({subject})"
+
+        if self._registry is None:
+            from athf.core.provenance import load_registry
+
+            # Prefer the trusted workspace root the caller passed — the same
+            # anchor ``HuntManager`` uses — so validation and aggregation load
+            # the identical registry. Without it, a nested ``hunts/`` beside a
+            # hunt file (``.../hunts/production/hunts/H-0042.md``) can shrink the
+            # derived root to that nested parent, letting a hunt-local
+            # ``.athfconfig.yaml`` authorize a ``confirmed`` producer the real
+            # root never trusted. Every production caller passes the root; this
+            # file-path derivation is a best-effort fallback for direct use.
+            root = self._workspace_root
+            if root is None:
+                root = next(
+                    (a.parent for a in self.file_path.parents if a.name == "hunts"),
+                    None,
+                )
+            self._registry = load_registry(self.file_path.parent, root=root)
+
+        return [
+            _GATE_MESSAGES.get(code, _unmapped_gate_message)(where, detail)
+            for code, detail in gate_failures(key, entry, self._registry)
+        ]
 
     def warnings(self) -> List[str]:
         """Non-fatal advisories about the hunt file.
@@ -187,28 +448,32 @@ def parse_hunt_file(file_path: Path) -> Dict:
     return parser.parse()
 
 
-def validate_hunt_file(file_path: Path) -> Tuple[bool, List[str]]:
+def validate_hunt_file(file_path: Path, workspace_root: Any = None) -> Tuple[bool, List[str]]:
     """Convenience function to validate a hunt file.
 
     Args:
         file_path: Path to hunt file
+        workspace_root: Trusted workspace root for provenance resolution. Pass
+            the same anchor ``HuntManager`` uses (the parent of the workspace
+            ``hunts/`` directory) so verdict validation credits exactly the
+            producers workspace aggregation trusts.
 
     Returns:
         Tuple of (is_valid, list of error messages)
     """
-    parser = HuntParser(file_path)
+    parser = HuntParser(file_path, workspace_root=workspace_root)
     parser.parse()
     return parser.validate()
 
 
-def hunt_file_warnings(file_path: Path) -> List[str]:
+def hunt_file_warnings(file_path: Path, workspace_root: Any = None) -> List[str]:
     """Convenience function returning non-fatal warnings for a hunt file.
 
     Best-effort: a file that cannot be parsed yields no warnings — the
     corresponding errors come from :func:`validate_hunt_file`.
     """
     try:
-        parser = HuntParser(file_path)
+        parser = HuntParser(file_path, workspace_root=workspace_root)
         parser.parse()
         return parser.warnings()
     except Exception:

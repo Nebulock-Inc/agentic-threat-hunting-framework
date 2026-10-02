@@ -290,7 +290,7 @@ def info() -> None:  # noqa: C901
             text=True,
         )
         package_count = len(result.stdout.strip().split("\n"))
-    except subprocess.CalledProcessError:
+    except (subprocess.CalledProcessError, FileNotFoundError):
         package_count = "Unknown"
 
     # Check for athf installation
@@ -302,7 +302,7 @@ def info() -> None:  # noqa: C901
             text=True,
         )
         athf_installed = "✅ Installed" if result.returncode == 0 else "❌ Not installed"
-    except subprocess.CalledProcessError:
+    except (subprocess.CalledProcessError, FileNotFoundError):
         athf_installed = "❌ Not installed"
 
     # Check for scikit-learn
@@ -314,7 +314,7 @@ def info() -> None:  # noqa: C901
             text=True,
         )
         sklearn_installed = "✅ Installed" if result.returncode == 0 else "❌ Not installed"
-    except subprocess.CalledProcessError:
+    except (subprocess.CalledProcessError, FileNotFoundError):
         sklearn_installed = "❌ Not installed"
 
     # Display info
