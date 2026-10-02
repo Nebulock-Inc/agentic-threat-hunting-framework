@@ -1,13 +1,11 @@
 # Example: TIME_BOX Verdict (Campaign-Specific IOC Detection)
 #
 # TIME_BOX is a *deployable* verdict, so the hunt-level verdict routes this to
-# `.yaml`, not `.md`. An earlier version of this example was written as markdown,
-# which contradicted the routing rule it was supposed to illustrate — a consumer
-# following the contract looked for `H-0906_GATES.yaml` and found nothing.
+# `.yaml`, not `.md`.
 #
-# It is also the only example populating the TIME_BOX `operational_parameters`
-# fields (`activation_date`, `expiration_date`, `review_date`,
-# `refresh_cycle_days`), which the schema marks REQUIRED for this verdict.
+# This example populates the TIME_BOX `operational_parameters` fields
+# (`activation_date`, `expiration_date`, `review_date`, `refresh_cycle_days`),
+# which the schema marks REQUIRED for this verdict.
 #
 # Hunt outcome counts below are illustrative, not a verbatim production result.
 

@@ -5,13 +5,6 @@
 # resolves the unknowns. Compare H-0903, which reaches PROMOTE from the opposite
 # direction: a measured zero-FP baseline.
 #
-# An earlier version of this example was written as markdown while stating
-# `Verdict: PROMOTE`. PROMOTE is deployable, so the routing rule sends it to
-# `.yaml`; a consumer following the contract looked for `H-0901_GATES.yaml` and
-# found nothing. It also had no `detection_logic.query`, which the schema marks
-# REQUIRED for a deployable candidate — the whole point of a deployable verdict is
-# that something can be built from it.
-#
 # Hunt outcome counts below are illustrative, not a verbatim production result.
 
 hunt_metadata:
