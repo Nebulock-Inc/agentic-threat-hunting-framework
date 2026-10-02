@@ -5,6 +5,18 @@ All notable changes to the Agentic Threat Hunting Framework (ATHF) will be docum
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.23.0] - 2026-10-02
+
+### Added
+- **Five-verdict ladder with evidence & provenance gate** — [#57](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/pull/57). Hunt `findings` / `ruled_out` entries now carry an explicit `verdict` from a controlled vocabulary: `confirmed`, `suspected`, `attempted_not_vulnerable`, `benign`, `inconclusive`.
+  - **Evidence gate:** `verdict: confirmed` requires a `confirmation` mapping with a supported `method`, a `produced_by` producer declared in the workspace-root `.athfconfig.yaml` whose capabilities include that method and reach beyond query-only access, an `attested_by` naming a person distinct from the producer, and a non-empty `detail`. Telemetry in `evidence` alone — or a query-only producer — caps an entry at `suspected`.
+  - **Routing rule:** `attempted_not_vulnerable`, `benign`, and `inconclusive` must live in `ruled_out`, never in `findings`; `attempted_not_vulnerable` entries must name the control that held.
+  - Validation reads the producer registry from the **workspace root** (threaded via a new `workspace_root` parameter on `validate_hunt_file()` / `hunt_file_warnings()` / `HuntParser`), closing a validation/aggregation divergence where a nested `hunts/` directory could self-authorize a `confirmed` producer that workspace aggregation never credited.
+  - `athf hunt stats` and `athf metrics` surface verdict tallies and precision pairs; MCP `athf_hunt_validate` returns warnings alongside errors.
+
+### Fixed
+- **GATES skill routing, prerequisites, and de-identified examples** — [#67](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/pull/67).
+
 ## [0.21.0] - 2026-09-24
 
 ### Added
