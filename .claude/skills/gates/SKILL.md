@@ -43,7 +43,7 @@ ADVANCED than in BASE. The table below is the canonical naming — no other expa
 GATES is current. In particular **"Accuracy", "Telemetry" and "Executability" are not
 GATES gates**; if you see them, they're stale.
 
-| Gate | BASE — assert (the word) | ADVANCED — demonstrate (the word) |
+| Gate | BASE — assert  | ADVANCED — demonstrate |
 |------|--------------------------|-----------------------------------|
 | **G** | **Generalizable** — repeatable behavior, or a one-off? | **Generalizable** — cross-fleet + companion rules that generalize the technique? |
 | **A** | **Additive** — does it fill a coverage gap? | **Actionable** — is there a validated or automated playbook? |
