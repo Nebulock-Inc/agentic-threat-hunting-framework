@@ -64,11 +64,27 @@ Record findings and lessons learned.
 
 **What to include:**
 
-- Results (found/not found)
-- True positives and false positives
+- A verdict for every result (see below)
 - Lessons learned
 - Next steps or follow-up actions
 - Links to related hunts
+
+**Verdicts:** "found / not found" throws away the interesting middle. ATHF records one of five verdicts per result:
+
+| Verdict | Meaning | Where it goes |
+|---------|---------|---------------|
+| `confirmed` | Malicious activity established — telemetry **plus** independent confirmation | `findings` |
+| `suspected` | Telemetry evidence only, nothing independent | `findings` |
+| `attempted_not_vulnerable` | The behavior happened; the named control held | `ruled_out` |
+| `benign` | Explained as legitimate activity | `ruled_out` |
+| `inconclusive` | Not enough telemetry to decide | `ruled_out` |
+
+Two rules carry the weight:
+
+1. **Telemetry alone never reaches `confirmed`.** A query showing the behavior is what surfaced it, not proof of what happened. Getting to `confirmed` takes something outside the log corpus — a controlled reproduction in an attack range, host-level forensic artifacts, or a configuration review. Otherwise the verdict is `suspected`, and that's a complete answer.
+2. **`attempted_not_vulnerable` and `benign` belong in `ruled_out`, never `findings`.** A hunt that proves three controls held has produced real output. The old TP/FP vocabulary erased that distinction by filing "we watched an attack get blocked" under the same label as "nothing was there."
+
+Full field reference: [FORMAT_GUIDELINES.md](../hunts/FORMAT_GUIDELINES.md) → The Verdict Ladder.
 
 ## Example Hunt Using LOCK
 
@@ -97,8 +113,8 @@ Detected two accounts showing lateral movement patterns:
 - `svc_backup` executed PowerShell sessions on five hosts in under ten minutes
 - `itadmin-temp` invoked wmiprvse.exe from a workstation instead of a jump server
 
-Confirmed `svc_backup` activity as legitimate backup automation.
-Marked `itadmin-temp` as suspicious; account disabled pending review.
+`svc_backup` → `benign` (ruled_out): legitimate Veeam backup automation, matched the nightly change window.
+`itadmin-temp` → `suspected` (findings): PowerShell remoting from a workstation instead of the jump server. Telemetry only — no host triage yet, so not `confirmed`. Account disabled pending review.
 
 Next iteration: expand to include remote registry and PSExec telemetry for broader coverage.
 ```
@@ -131,7 +147,8 @@ Next iteration: expand to include remote registry and PSExec telemetry for broad
 
 **For Keep:**
 
-- Be honest about false positives
+- Assign a verdict to every result, and don't reach for `confirmed` without confirmation outside the logs
+- Record what your controls stopped — `attempted_not_vulnerable` is a finding-grade result
 - Document what worked and what didn't
 - Include next steps for iteration
 - Link to related hunts

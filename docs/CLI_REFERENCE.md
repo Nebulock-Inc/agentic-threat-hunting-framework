@@ -594,7 +594,7 @@ Creates a new hunt file with proper YAML frontmatter and LOCK structure. Automat
 | `--tactics` | String | - | Comma-separated tactics (e.g., credential-access,defense-evasion) |
 | `--platforms` | String | - | Comma-separated platforms (e.g., windows,linux,macos) |
 | `--data-sources` | String | - | Comma-separated data sources |
-| `--hunter` | String | AI Assistant | Your name or handle |
+| `--hunter` | String | config `hunter`, else unfilled | Your name or handle. Set `hunter:` in `.athfconfig.yaml` to stop repeating it |
 | `--hunt-type` | Choice | hypothesis | Hunt category: `hypothesis`, `baseline`, `model-assisted`. Written to `hunt_type:` frontmatter and counted by `athf hunt stats --by hunt_type` |
 | `--severity` | Choice | medium | Severity: `low`, `medium`, `high`, `critical` |
 
@@ -733,8 +733,8 @@ data_sources:
   - edr-telemetry
 severity: high
 tags: []
-true_positives: 0
-false_positives: 0
+findings: []
+ruled_out: []
 ---
 
 ## LEARN
@@ -955,6 +955,14 @@ Summary: 3 valid, 1 invalid
 
 **Status values**:
 - Must be one of: `in-progress`, `completed`, `paused`, `archived`
+
+**Verdicts** (when `findings` / `ruled_out` are present):
+- Every entry must carry a `verdict` from: `confirmed`, `suspected`, `attempted_not_vulnerable`, `benign`, `inconclusive`
+- **Evidence gate:** `verdict: confirmed` requires `confirmation` to be a mapping — not a scalar — carrying a supported `method`, a `produced_by` declared in the workspace-root `.athfconfig.yaml` whose declared capabilities include that `method` and reach beyond query-only access, an `attested_by` naming a person distinct from the producer, and a non-empty `detail`. Telemetry in `evidence` alone — or a producer that can only read the corpus — caps the entry at `suspected`
+- **Routing rule:** `attempted_not_vulnerable`, `benign`, and `inconclusive` must appear in `ruled_out`, never in `findings`
+- `attempted_not_vulnerable` entries must name the control that held
+
+See [FORMAT_GUIDELINES.md](../hunts/FORMAT_GUIDELINES.md) → The Verdict Ladder for entry shapes.
 
 **Hunt type** (warning only, never an error):
 - `hunt_type` should be one of: `hypothesis`, `baseline`, `model-assisted`
