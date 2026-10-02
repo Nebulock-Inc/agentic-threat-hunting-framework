@@ -105,7 +105,7 @@ def register_hunt_tools(mcp: "FastMCP") -> None:  # type: ignore[name-defined]  
         if hunt_file is None:
             return _json_result({"valid": False, "error": f"Hunt not found: {hunt_id}"})
 
-        is_valid, errors = validate_hunt_file(hunt_file)
+        is_valid, errors = validate_hunt_file(hunt_file, workspace_root=workspace)
         return _json_result({"valid": is_valid, "hunt_id": hunt_id, "errors": errors})
 
     @mcp.tool(

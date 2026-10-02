@@ -506,7 +506,7 @@ def validate(hunt_id: str) -> None:
             console.print("[red]Error: Invalid hunt file path[/red]")
             raise click.Abort() from None
 
-        _validate_single_hunt(hunt_file)
+        _validate_single_hunt(hunt_file, workspace_root=hunts_dir.resolve().parent)
     else:
         # Validate all hunts
         console.print("\n[bold]🔍 Validating all hunts...[/bold]\n")
@@ -525,8 +525,9 @@ def validate(hunt_id: str) -> None:
         valid_count = 0
         invalid_count = 0
 
+        workspace_root = hunts_dir.resolve().parent
         for hunt_file in hunt_files:
-            is_valid, errors = validate_hunt_file(hunt_file)
+            is_valid, errors = validate_hunt_file(hunt_file, workspace_root=workspace_root)
 
             if is_valid:
                 valid_count += 1
@@ -543,11 +544,11 @@ def validate(hunt_id: str) -> None:
             raise click.Abort()
 
 
-def _validate_single_hunt(hunt_file: Path) -> None:
+def _validate_single_hunt(hunt_file: Path, workspace_root: Optional[Path] = None) -> None:
     """Validate a single hunt file, aborting when it fails."""
     console.print(f"\n[bold]🔍 Validating {hunt_file.name}...[/bold]\n")
 
-    is_valid, errors = validate_hunt_file(hunt_file)
+    is_valid, errors = validate_hunt_file(hunt_file, workspace_root=workspace_root)
 
     if is_valid:
         console.print("[green]✅ Hunt is valid![/green]")

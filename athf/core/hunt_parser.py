@@ -179,15 +179,23 @@ _GATE_MESSAGES: Dict[str, Any] = {
 class HuntParser:
     """Parser for ATHF hunt files."""
 
-    def __init__(self, file_path: Path, registry: Any = None):
+    def __init__(self, file_path: Path, registry: Any = None, workspace_root: Any = None):
         """Initialize parser with hunt file path.
 
         ``registry`` supplies declared producer capabilities. Left unset it is
         loaded from workspace config on first use, so every caller gets the same
         answer as the aggregation path without having to know it exists.
+
+        ``workspace_root`` is the trusted workspace root — the parent of the
+        workspace ``hunts/`` directory, the same anchor ``HuntManager`` uses.
+        Callers that know it must pass it: without it the root is derived from
+        the file path, and a nested ``hunts/`` directory beside a hunt file would
+        otherwise let that file's own ``.athfconfig.yaml`` authorize a producer
+        that workspace aggregation does not trust.
         """
         self.file_path = Path(file_path)
         self._registry = registry
+        self._workspace_root = Path(workspace_root) if workspace_root is not None else None
         self.frontmatter: Dict = {}
         self.content = ""
         self.lock_sections: Dict = {}
@@ -374,15 +382,20 @@ class HuntParser:
         if self._registry is None:
             from athf.core.provenance import load_registry
 
-            # The workspace root is the parent of the hunt file's own ``hunts/``
-            # directory. Anchoring the registry walk there stops an unrelated
-            # ancestor named ``hunts`` (e.g. a workspace under ``/srv/hunts/``)
-            # from being mistaken for the workspace hunt tree and skipping the
-            # real root config.
-            root = next(
-                (a.parent for a in self.file_path.parents if a.name == "hunts"),
-                None,
-            )
+            # Prefer the trusted workspace root the caller passed — the same
+            # anchor ``HuntManager`` uses — so validation and aggregation load
+            # the identical registry. Without it, a nested ``hunts/`` beside a
+            # hunt file (``.../hunts/production/hunts/H-0042.md``) can shrink the
+            # derived root to that nested parent, letting a hunt-local
+            # ``.athfconfig.yaml`` authorize a ``confirmed`` producer the real
+            # root never trusted. Every production caller passes the root; this
+            # file-path derivation is a best-effort fallback for direct use.
+            root = self._workspace_root
+            if root is None:
+                root = next(
+                    (a.parent for a in self.file_path.parents if a.name == "hunts"),
+                    None,
+                )
             self._registry = load_registry(self.file_path.parent, root=root)
 
         return [
@@ -404,15 +417,19 @@ def parse_hunt_file(file_path: Path) -> Dict:
     return parser.parse()
 
 
-def validate_hunt_file(file_path: Path) -> Tuple[bool, List[str]]:
+def validate_hunt_file(file_path: Path, workspace_root: Any = None) -> Tuple[bool, List[str]]:
     """Convenience function to validate a hunt file.
 
     Args:
         file_path: Path to hunt file
+        workspace_root: Trusted workspace root for provenance resolution. Pass
+            the same anchor ``HuntManager`` uses (the parent of the workspace
+            ``hunts/`` directory) so verdict validation credits exactly the
+            producers workspace aggregation trusts.
 
     Returns:
         Tuple of (is_valid, list of error messages)
     """
-    parser = HuntParser(file_path)
+    parser = HuntParser(file_path, workspace_root=workspace_root)
     parser.parse()
     return parser.validate()

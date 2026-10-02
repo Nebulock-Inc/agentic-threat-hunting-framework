@@ -721,3 +721,108 @@ class TestWorkspaceUnderAnAncestorNamedHunts:
         assert is_valid and counted == 1, (
             f"validate valid={is_valid}, tally counted {counted}"
         )
+
+
+class TestNestedHuntsDirectoryUnderWorkspace:
+    """A nested ``hunts/`` inside the hunt tree must not relocate the root.
+
+    For ``/workspace/hunts/production/hunts/H-0042.md`` the parser derives its
+    workspace root by walking up to the first ancestor named ``hunts`` — which
+    is the *nested* one, giving ``/workspace/hunts/production``. ``load_registry``
+    would then read a hunt-local ``.athfconfig.yaml`` from that directory and
+    authorize a producer for a ``confirmed`` finding, while ``HuntManager``
+    anchors on ``/workspace`` and never credits it. That is the
+    validation/aggregation divergence the gate exists to prevent. The file-path
+    derivation cannot distinguish this from a legitimate workspace that itself
+    lives under an ancestor named ``hunts``, so the real fix is that every
+    production caller passes the trusted ``workspace_root`` ``HuntManager`` uses;
+    these tests pin that propagated-root behavior.
+    """
+
+    CONFIRMED_ENTRY = (
+        "findings:\n"
+        "  - subject: host dev-20\n"
+        "    verdict: confirmed\n"
+        "    evidence: process_activity rows show crontab spawned by curl\n"
+        "    confirmation:\n"
+        "      method: host_forensics\n"
+        "      produced_by: baseline-agent\n"
+        "      attested_by: Sydney Marrone\n"
+        "      detail: recovered the dropped binary from the imaged disk\n"
+    )
+
+    LOCK = "\n## LEARN\nx\n\n## OBSERVE\nx\n\n## CHECK\nx\n\n## KEEP\nx\n"
+
+    CONFIG = (
+        "provenance:\n"
+        "  producers:\n"
+        "    baseline-agent:\n"
+        "      capabilities: [clickhouse_query, host_forensics]\n"
+    )
+
+    def _workspace(self, tmp_path):
+        """Hunt file lives below a second, nested ``hunts/`` directory."""
+        deep = tmp_path / "hunts" / "production" / "hunts" / "2026" / "Q2"
+        deep.mkdir(parents=True)
+        hunt = deep / "H-0042.md"
+        hunt.write_text(
+            "---\nhunt_id: H-0042\ntitle: Nested\nstatus: completed\n"
+            f"date: 2026-08-26\n{self.CONFIRMED_ENTRY}---\n{self.LOCK}",
+            encoding="utf-8",
+        )
+        return tmp_path, hunt
+
+    def test_shadow_config_at_inner_root_is_ignored_with_trusted_root(self, tmp_path):
+        """The attack: a config beside the nested ``hunts/`` must not license.
+
+        With the trusted root passed — as ``HuntManager``, the CLI and the MCP
+        tool all do — the walk anchors on ``/workspace`` and the inner config is
+        inside the hunt tree, so it cannot declare a producer.
+        """
+        from athf.core.hunt_parser import HuntParser
+
+        workspace, hunt = self._workspace(tmp_path)
+        # Config beside the inner ``hunts/`` — the directory the file-path
+        # derivation would mistake for the workspace root.
+        (workspace / "hunts" / "production" / ".athfconfig.yaml").write_text(
+            self.CONFIG, encoding="utf-8"
+        )
+
+        parser = HuntParser(hunt, workspace_root=workspace)
+        parser.parse()
+        _, errors = parser.validate()
+        assert any("baseline-agent" in e for e in errors), (
+            "a config inside the hunt tree must not declare a producer; "
+            f"got errors={errors!r}"
+        )
+
+    def test_root_config_licenses_confirmed_with_trusted_root(self, tmp_path):
+        """Inverse: the real root config still licenses the finding."""
+        from athf.core.hunt_parser import HuntParser
+
+        workspace, hunt = self._workspace(tmp_path)
+        (workspace / ".athfconfig.yaml").write_text(self.CONFIG, encoding="utf-8")
+
+        parser = HuntParser(hunt, workspace_root=workspace)
+        parser.parse()
+        is_valid, errors = parser.validate()
+        assert is_valid, errors
+
+    def test_validation_and_aggregation_agree(self, tmp_path):
+        """The two surfaces resolve the same registry once the root is passed."""
+        from athf.core.hunt_manager import HuntManager
+        from athf.core.hunt_parser import validate_hunt_file
+
+        workspace, hunt = self._workspace(tmp_path)
+        # Legitimate root config, plus a shadow config at the nested parent.
+        (workspace / ".athfconfig.yaml").write_text(self.CONFIG, encoding="utf-8")
+        (workspace / "hunts" / "production" / ".athfconfig.yaml").write_text(
+            self.CONFIG, encoding="utf-8"
+        )
+        manager = HuntManager(workspace / "hunts")
+
+        is_valid, _ = validate_hunt_file(hunt, workspace_root=workspace)
+        counted = sum(h.get("confirmed", 0) for h in manager.list_hunts())
+        assert is_valid and counted == 1, (
+            f"validate valid={is_valid}, tally counted {counted}"
+        )
