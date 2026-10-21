@@ -5,6 +5,11 @@ All notable changes to the Agentic Threat Hunting Framework (ATHF) will be docum
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.24.0] - 2026-10-21
+
+### Security
+- **Cap `litellm` below the compromised 1.107.0 release.** All three `litellm` extras (`litellm`, `llm`, `all`) are now pinned `>=1.30.0,<1.107.0`. LiteLLM 1.107.0 (PyPI and Docker) shipped malware that steals cloud credentials, AI provider keys, and SSH/GPG keys on any Python startup, plus a persistent RCE backdoor. The previous unbounded floors could resolve the compromised release on a fresh install. Ceiling follows the existing bounded-range convention used for `mcp[cli]`.
+
 ## [0.23.0] - 2026-10-02
 
 ### Added
