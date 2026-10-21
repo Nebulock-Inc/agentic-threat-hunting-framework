@@ -74,8 +74,10 @@ splunk = [
     "requests>=2.25.0",
 ]
 # LLM providers (choose one or use litellm for all)
+# Ceiling <1.107.0 excludes the compromised release (credential-stealer + RCE
+# backdoor on any Python startup; see Socket advisory 2025). Never widen past it.
 litellm = [
-    "litellm>=1.30.0",
+    "litellm>=1.30.0,<1.107.0",
 ]
 openai = [
     "openai>=1.0.0",
@@ -93,8 +95,9 @@ attack = [
     "mitreattack-python>=5.0.0",
 ]
 # Convenience: all LLM providers via LiteLLM
+# Ceiling <1.107.0: compromised release, see litellm extra above.
 llm = [
-    "litellm>=1.30.0",
+    "litellm>=1.30.0,<1.107.0",
 ]
 # MCP server
 # Bound the mcp pin on both ends:
@@ -106,7 +109,7 @@ mcp = [
     "mcp[cli]>=1.9.4,<2.0.0",
 ]
 all = [
-    "litellm>=1.30.0",
+    "litellm>=1.30.0,<1.107.0",  # ceiling excludes compromised 1.107.0
     "scikit-learn>=1.0.0",
     "requests>=2.25.0",
     "tavily-python>=0.3.0",
