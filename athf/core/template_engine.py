@@ -12,10 +12,10 @@ from athf.core.verdicts import UNFILLED_HUNTER
 # Default bundled template - used when no custom template exists
 HUNT_TEMPLATE = """---
 hunt_id: {{ hunt_id }}
-title: {{ title }}
+title: {{ title | tojson }}
 status: {{ status }}
 date: {{ date }}
-hunter: {{ hunter }}
+hunter: {{ hunter | tojson }}
 {% if hunt_type %}hunt_type: {{ hunt_type }}
 {% endif %}platform: {{ platform }}
 tactics: {{ tactics }}
