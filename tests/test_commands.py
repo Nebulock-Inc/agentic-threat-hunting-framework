@@ -3,6 +3,7 @@ Tests for ATHF CLI commands using actual implementation.
 """
 
 import os
+import json
 import re
 
 import pytest
@@ -158,7 +159,10 @@ def _written_hunter(workspace):
     """
     hunt_files = sorted((workspace / "hunts").rglob("H-*.md"), key=lambda p: p.stem)
     content = hunt_files[-1].read_text(encoding="utf-8")
-    return re.search(r"^hunter:\s*(.*)$", content, re.MULTILINE).group(1).strip()
+    raw = re.search(r"^hunter:\s*(.*)$", content, re.MULTILINE).group(1).strip()
+    # title/hunter are emitted as quoted YAML scalars so a value containing a
+    # colon cannot corrupt the frontmatter; unwrap for comparison.
+    return json.loads(raw) if raw.startswith('"') else raw
 
 
 class TestHuntNewCommand:
@@ -457,7 +461,7 @@ class TestHuntNewCommand:
 
         # Verify YAML frontmatter
         assert f"hunt_id: {hunt_id}" in content
-        assert "hunter: Test Hunter" in content
+        assert 'hunter: "Test Hunter"' in content
 
         # Verify hypothesis is populated
         assert "Adversaries dump LSASS memory to extract credentials" in content

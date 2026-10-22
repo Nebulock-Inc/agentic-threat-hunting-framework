@@ -63,5 +63,25 @@ class TestRenderHuntTemplate:
         )
 
         assert "hunt_id: H-0001" in content
-        assert "title: Basic Hunt" in content
+        assert 'title: "Basic Hunt"' in content
         assert "status: planning" in content
+
+    def test_title_with_colon_yields_parseable_frontmatter(self):
+        """A title containing a colon must not corrupt the YAML frontmatter.
+
+        Regression: the template emitted `title: {{ title }}` unquoted, so any
+        title with a colon -- which `athf hunt new --title` accepts without
+        complaint -- produced a hunt file whose frontmatter could not be parsed.
+        The file looked fine and failed later, in `athf hunt validate`.
+        """
+        import yaml
+
+        title = 'Endpoint Suppression: Defender Abuse and "macOS" Stripping'
+        content = render_hunt_template(hunt_id="H-0100", title=title, hunter="a: b")
+
+        frontmatter = content.split("---")[1]
+        parsed = yaml.safe_load(frontmatter)
+
+        assert parsed["title"] == title
+        assert parsed["hunter"] == "a: b"
+        assert parsed["hunt_id"] == "H-0100"
