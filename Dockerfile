@@ -46,7 +46,7 @@ RUN ARCH=$(uname -m) && \
 # See DOCKER.md for instructions
 
 # Copy requirements first for better caching
-COPY requirements.txt pyproject.toml ./
+COPY pyproject.toml README.md ./
 
 # Copy source code
 COPY athf/ ./athf/
