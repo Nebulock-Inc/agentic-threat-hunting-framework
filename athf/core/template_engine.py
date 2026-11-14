@@ -1,9 +1,10 @@
 """Render hunt templates with metadata."""
 
+import json
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Iterable, Optional
 
 from jinja2 import Template
 
@@ -185,6 +186,42 @@ customer-facing report.
 """
 
 
+def yaml_str(value: object) -> str:
+    """Return ``value`` as a double-quoted YAML scalar.
+
+    A JSON string literal is also a valid YAML double-quoted scalar, so this
+    covers colons, commas, brackets, quotes and newlines in one move. Unlike
+    Jinja's ``tojson`` it does not HTML-escape or ``\\u``-escape: hunt files are
+    markdown people read, diff and grep, so ``café`` and ``AT&T`` stay as typed.
+    """
+    return json.dumps(str(value), ensure_ascii=False)
+
+
+def yaml_flow_seq(values: Optional[Iterable[object]]) -> str:
+    """Render ``values`` as a YAML flow sequence with every element quoted.
+
+    Unquoted elements fail silently: ``[EDR - Fields: process.name, CloudTrail, S3]``
+    parses as a mapping and two strings, not three strings, and nothing raises.
+    """
+    if not values:
+        return "[]"
+    return "[" + ", ".join(yaml_str(v) for v in values) + "]"
+
+
+class _FlowSeqList(list):
+    """A list that prints itself as valid YAML.
+
+    The template uses ``techniques`` both as a list in the body
+    (``techniques[0]``) and as text in the frontmatter (``{{ techniques }}``).
+    A plain list prints via Python ``repr``, which YAML misreads for values
+    with backslashes or quotes. This prints via ``yaml_flow_seq`` instead, so
+    every template, including older workspace copies, writes valid YAML.
+    """
+
+    def __str__(self) -> str:
+        return yaml_flow_seq(self)
+
+
 def _load_hunt_template() -> str:
     """Load hunt template, preferring workspace custom template over bundled default.
 
@@ -234,6 +271,35 @@ def _ensure_frontmatter_field(rendered: str, key: str, value: str) -> str:
     return rendered[:insert_at] + f"\n{key}: {value}" + rendered[insert_at:]
 
 
+def _quote_frontmatter_scalar(rendered: str, key: str, value: str) -> str:
+    """Quote ``key``'s value in rendered frontmatter when it was emitted bare.
+
+    Same snapshot problem as :func:`_ensure_frontmatter_field`, different
+    symptom: a snapshot taken while the template wrote ``title: {{ title }}``
+    keeps writing it bare after the bundled template is fixed, so a colon in
+    the title still breaks the document for every workspace that ran ``init``.
+
+    Fixing the rendered output rather than the template covers every snapshot,
+    old or new, without an upgrade step. The repair is exact: it only fires
+    when the line holds ``value`` verbatim and unquoted — which is what the
+    old template produced — and leaves alone anything a custom template
+    already quoted or reshaped.
+    """
+    match = _FRONTMATTER_RE.match(rendered)
+    if not match:
+        return rendered
+    block = match.group(1)
+    line = re.search(rf"^{re.escape(key)}:[ \t]*", block, re.M)
+    if not line:
+        return rendered
+    start = line.end()
+    end = start + len(value)
+    if block[start:end] != value or block[end : end + 1] not in ("", "\n", "\r"):
+        return rendered
+    offset = match.start(1)
+    return rendered[: offset + start] + yaml_str(value) + rendered[offset + end :]
+
+
 def render_hunt_template(
     hunt_id: str,
     title: str,
@@ -275,13 +341,18 @@ def render_hunt_template(
     Returns:
         Rendered hunt markdown content
     """
-    # Build techniques list
-    techniques_list = [technique] if technique else []
+    # Build techniques list. _FlowSeqList is still a list (the body indexes and
+    # joins it), but its __str__ prints valid YAML for the frontmatter.
+    techniques_list = _FlowSeqList([technique] if technique else [])
 
-    # Format lists as YAML arrays
-    tactics_str = f"[{', '.join(tactics)}]" if tactics else "[]"
-    platform_str = f"[{', '.join(platform)}]" if platform else "[]"
-    data_sources_str = f"[{', '.join(data_sources)}]" if data_sources else "[]"
+    # Format lists as YAML flow sequences. Elements are quoted because they are
+    # free text: a data source like "EDR - Fields: process.name" or a platform
+    # like "CloudTrail, S3" would otherwise change the shape of the parsed list
+    # without an error. Pre-formatting here (rather than in the template) means
+    # workspace snapshots of older templates get the fix too.
+    tactics_str = yaml_flow_seq(tactics)
+    platform_str = yaml_flow_seq(platform)
+    data_sources_str = yaml_flow_seq(data_sources)
     tags_str = "[]"
 
     template = Template(_load_hunt_template())
@@ -310,5 +381,11 @@ def render_hunt_template(
 
     if hunt_type:
         rendered = _ensure_frontmatter_field(rendered, "hunt_type", hunt_type)
+
+    # Prose fields. A colon in a title is ordinary ("Technique: Variant") and
+    # breaks the document when written bare; the default hunter placeholder
+    # "[Your Name]" written bare is a one-element list, not a string.
+    rendered = _quote_frontmatter_scalar(rendered, "title", title)
+    rendered = _quote_frontmatter_scalar(rendered, "hunter", hunter)
 
     return rendered

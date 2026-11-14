@@ -159,10 +159,10 @@ def _written_hunter(workspace):
     """
     hunt_files = sorted((workspace / "hunts").rglob("H-*.md"), key=lambda p: p.stem)
     content = hunt_files[-1].read_text(encoding="utf-8")
-    raw = re.search(r"^hunter:\s*(.*)$", content, re.MULTILINE).group(1).strip()
-    # title/hunter are emitted as quoted YAML scalars so a value containing a
-    # colon cannot corrupt the frontmatter; unwrap for comparison.
-    return json.loads(raw) if raw.startswith('"') else raw
+    # Parse rather than scrape: the value is a quoted YAML scalar, and the
+    # tests care about what a reader of the file gets back, not the quoting.
+    frontmatter = yaml.safe_load(content.split("\n---", 1)[0][4:])
+    return frontmatter["hunter"]
 
 
 class TestHuntNewCommand:
@@ -342,6 +342,7 @@ class TestHuntNewCommand:
         )
         # Make sure we did NOT regress to the legacy hardcoded default.
         assert "tactics: [collection]" not in content
+        assert 'tactics: ["collection"]' not in content
         assert "tactics:\n- collection" not in content
 
     def test_hunt_new_falls_back_when_technique_unknown(self, runner, temp_workspace, monkeypatch):
@@ -373,7 +374,7 @@ class TestHuntNewCommand:
         assert match
         hunt_id = match.group(1)
         content = next((temp_workspace / "hunts").rglob(f"{hunt_id}.md")).read_text()
-        assert "tactics: [collection]" in content or "tactics:\n- collection" in content
+        assert 'tactics: ["collection"]' in content or "tactics:\n- collection" in content
 
     def test_hunt_new_with_multiple_tactics(self, runner, temp_workspace):
         """Test creating hunt with multiple tactics."""
