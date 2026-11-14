@@ -123,6 +123,30 @@ class TestFrontmatterRoundTrip:
         assert fm["platform"] == platform
         assert fm["tactics"] == tactics
 
+    @pytest.mark.parametrize(
+        "technique",
+        [
+            "T1562.001",
+            "C:\\temp",  # repr doubles the backslash; YAML single quotes keep both
+            'say "hi" it\'s',  # repr escapes the ' as \' -> YAML parse error
+            "T1059 – café & <x>",  # non-ASCII (en dash, é) and HTML-special chars
+        ],
+    )
+    def test_techniques_survive_backslashes_quotes_and_non_ascii(self, technique):
+        content = render_hunt_template(hunt_id="H-0105", title="Techniques", technique=technique)
+
+        fm = _frontmatter(content)
+        assert fm["techniques"] == [technique]
+        # The body still treats techniques as a list, not its YAML rendering.
+        assert f"- **MITRE ATT&CK:** {technique}\n" in content
+        assert f"- **MITRE ATT&CK Techniques:** {technique}\n" in content
+
+    def test_no_technique_renders_empty_list_and_body_placeholder(self):
+        content = render_hunt_template(hunt_id="H-0106", title="No technique")
+
+        assert _frontmatter(content)["techniques"] == []
+        assert "[Primary Technique]" in content
+
     def test_title_and_hunter_survive_colons_quotes_and_non_ascii(self):
         title = 'Endpoint Suppression: Defender Abuse and "macOS" Stripping (AT&T, café)'
         hunter = "José Marrone: on call"
@@ -178,12 +202,14 @@ class TestFrontmatterRoundTrip:
             title=title,
             hunter="A: B",
             data_sources=["EDR - Fields: process.name"],
+            technique="C:\\temp",
         )
 
         fm = _frontmatter(content)
         assert fm["title"] == title
         assert fm["hunter"] == "A: B"
         assert fm["data_sources"] == ["EDR - Fields: process.name"]
+        assert fm["techniques"] == ["C:\\temp"]
 
     def test_custom_template_that_already_quotes_is_left_alone(self, tmp_path, monkeypatch):
         """A workspace that fixed its own snapshot must not end up double-quoted."""

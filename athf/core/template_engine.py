@@ -208,6 +208,20 @@ def yaml_flow_seq(values: Optional[Iterable[object]]) -> str:
     return "[" + ", ".join(yaml_str(v) for v in values) + "]"
 
 
+class _FlowSeqList(list):
+    """A list that prints itself as valid YAML.
+
+    The template uses ``techniques`` both as a list in the body
+    (``techniques[0]``) and as text in the frontmatter (``{{ techniques }}``).
+    A plain list prints via Python ``repr``, which YAML misreads for values
+    with backslashes or quotes. This prints via ``yaml_flow_seq`` instead, so
+    every template, including older workspace copies, writes valid YAML.
+    """
+
+    def __str__(self) -> str:
+        return yaml_flow_seq(self)
+
+
 def _load_hunt_template() -> str:
     """Load hunt template, preferring workspace custom template over bundled default.
 
@@ -327,8 +341,9 @@ def render_hunt_template(
     Returns:
         Rendered hunt markdown content
     """
-    # Build techniques list
-    techniques_list = [technique] if technique else []
+    # Build techniques list. _FlowSeqList is still a list (the body indexes and
+    # joins it), but its __str__ prints valid YAML for the frontmatter.
+    techniques_list = _FlowSeqList([technique] if technique else [])
 
     # Format lists as YAML flow sequences. Elements are quoted because they are
     # free text: a data source like "EDR - Fields: process.name" or a platform
