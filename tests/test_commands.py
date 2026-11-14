@@ -3,6 +3,7 @@ Tests for ATHF CLI commands using actual implementation.
 """
 
 import os
+import json
 import re
 
 import pytest
