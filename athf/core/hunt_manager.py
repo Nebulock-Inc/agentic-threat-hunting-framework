@@ -207,6 +207,8 @@ class HuntManager:
                     "platform": frontmatter.get("platform", []),
                     "tactics": frontmatter.get("tactics", []),
                     "techniques": frontmatter.get("techniques", []),
+                    "atlas_techniques": frontmatter.get("atlas_techniques") or [],
+                    "atlas_tactics": frontmatter.get("atlas_tactics") or [],
                     "findings_count": frontmatter.get("findings_count", 0),
                     # A hand-typed legacy count always wins: it may record work
                     # done before the ladder existed, and nothing here should

@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Tuple
 
 import yaml
 
+from athf.core.atlas_fields import atlas_field_errors, atlas_field_warnings
 from athf.core.hunt_types import HUNT_TYPES, normalize_hunt_type
 from athf.core.verdicts import (
     ATTEMPTED_NOT_VULNERABLE,
@@ -340,6 +341,7 @@ class HuntParser:
                 errors.append(f"Missing LOCK section: {section.upper()}")
 
         errors.extend(self._validate_verdicts())
+        errors.extend(atlas_field_errors(self.frontmatter))
 
         return (len(errors) == 0, errors)
 
@@ -432,6 +434,7 @@ class HuntParser:
             elif raw != canonical:
                 warnings.append(f"Non-canonical hunt_type: {raw!r} — use {canonical!r}")
 
+        warnings.extend(atlas_field_warnings(self.frontmatter))
         return warnings
 
 

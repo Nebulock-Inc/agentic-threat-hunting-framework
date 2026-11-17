@@ -25,6 +25,7 @@ Complete reference for all `athf` command-line interface commands.
 | [`athf attack status`](#athf-attack-status) | ATT&CK Data | Show provider type, version, and cache info |
 | [`athf attack lookup`](#athf-attack-lookup) | ATT&CK Data | Look up technique metadata by ID |
 | [`athf attack techniques`](#athf-attack-techniques) | ATT&CK Data | List all techniques for a tactic |
+| [`athf atlas update`](#athf-atlas-update) | ATLAS Data | Download/refresh MITRE ATLAS v6 data |
 | [`athf hunt execute`](#athf-hunt-execute) | Hunt Management | Execute hunt workflow with agent orchestration |
 | [`athf investigate new`](#athf-investigate-new) | Investigation | Create new investigation file for exploratory work |
 | [`athf investigate list`](#athf-investigate-list) | Investigation | List all investigations with optional filtering |
@@ -590,6 +591,8 @@ Creates a new hunt file with proper YAML frontmatter and LOCK structure. Automat
 |--------|------|---------|-------------|
 | `--non-interactive` | Flag | False | Skip interactive prompts |
 | `--technique` | String | Required* | MITRE ATT&CK technique (e.g., T1003.001) |
+| `--atlas-technique` | String | - | MITRE ATLAS technique (e.g., AML.T0051); repeatable |
+| `--atlas-tactic` | String | - | MITRE ATLAS tactic ID (e.g., AML.TA0005); repeatable |
 | `--title` | String | Required* | Hunt title |
 | `--tactics` | String | - | Comma-separated tactics (e.g., credential-access,defense-evasion) |
 | `--platforms` | String | - | Comma-separated platforms (e.g., windows,linux,macos) |
@@ -2407,6 +2410,21 @@ Credential Access (17 techniques)
 ### Exit Codes
 
 - `0`: Success (or no techniques found with message)
+
+---
+
+### `athf atlas update`
+
+Download or refresh MITRE ATLAS (Adversarial Threat Landscape for AI Systems) data. It fetches the newest v6 release listed in `mitre-atlas/atlas-data`'s manifest. Cache: `$ATHF_ATLAS_CACHE`, else `<workspace>/.athf/atlas-data/`, else `~/.athf/atlas-data/`.
+
+```bash
+athf atlas update          # skip if cached
+athf atlas update --force  # re-download
+```
+
+ATLAS complements ATT&CK. A hunt keeps conventional kill-chain steps in `techniques:` (ATT&CK only) and AI-specific steps in `atlas_techniques:` / `atlas_tactics:`. **Scope rule:** tag ATLAS only for attacks *on* AI systems. A hunt that uses an LLM as its analysis method is not an ATLAS hunt.
+
+`athf hunt validate` treats a malformed ATLAS ID (or an ATT&CK ID in `atlas_techniques`) as an error. A well-formed ID missing from the cached data is a warning.
 
 ---
 

@@ -21,7 +21,9 @@ hunter: {{ hunter }}
 {% endif %}platform: {{ platform }}
 tactics: {{ tactics }}
 techniques: {{ techniques }}
-data_sources: {{ data_sources }}
+{% if atlas_techniques %}atlas_techniques: {{ atlas_techniques }}
+{% endif %}{% if atlas_tactics %}atlas_tactics: {{ atlas_tactics }}
+{% endif %}data_sources: {{ data_sources }}
 related_hunts: []
 {% if spawned_from %}spawned_from: {{ spawned_from }}
 {% endif %}{% if hypothesis_duration_minutes %}hypothesis_duration_minutes: {{ hypothesis_duration_minutes }}
@@ -317,6 +319,8 @@ def render_hunt_template(
     spawned_from: Optional[str] = None,
     hypothesis_duration_minutes: Optional[float] = None,
     hunt_type: Optional[str] = None,
+    atlas_techniques: Optional[list] = None,
+    atlas_tactics: Optional[list] = None,
 ) -> str:
     """Render a hunt template with provided metadata.
 
@@ -337,6 +341,8 @@ def render_hunt_template(
         spawned_from: Research document ID (e.g., R-0001) that this hunt is based on
         hypothesis_duration_minutes: Time spent generating hypothesis (from athf agent run)
         hunt_type: Hunt category (hypothesis | baseline | model-assisted); omitted if None
+        atlas_techniques: MITRE ATLAS technique IDs (AML.T....); omitted if empty
+        atlas_tactics: MITRE ATLAS tactic IDs (AML.TA....); omitted if empty
 
     Returns:
         Rendered hunt markdown content
@@ -354,6 +360,10 @@ def render_hunt_template(
     platform_str = yaml_flow_seq(platform)
     data_sources_str = yaml_flow_seq(data_sources)
     tags_str = "[]"
+
+    # Empty string (not "[]") so the template's {% if %} omits the line entirely.
+    atlas_techniques_str = yaml_flow_seq(atlas_techniques) if atlas_techniques else ""
+    atlas_tactics_str = yaml_flow_seq(atlas_tactics) if atlas_tactics else ""
 
     template = Template(_load_hunt_template())
 
@@ -377,10 +387,17 @@ def render_hunt_template(
         spawned_from=spawned_from,
         hypothesis_duration_minutes=hypothesis_duration_minutes,
         hunt_type=hunt_type,
+        atlas_techniques=atlas_techniques_str,
+        atlas_tactics=atlas_tactics_str,
     ))
 
     if hunt_type:
         rendered = _ensure_frontmatter_field(rendered, "hunt_type", hunt_type)
+
+    if atlas_tactics_str:
+        rendered = _ensure_frontmatter_field(rendered, "atlas_tactics", atlas_tactics_str)
+    if atlas_techniques_str:
+        rendered = _ensure_frontmatter_field(rendered, "atlas_techniques", atlas_techniques_str)
 
     # Prose fields. A colon in a title is ordinary ("Technique: Variant") and
     # breaks the document when written bare; the default hunter placeholder

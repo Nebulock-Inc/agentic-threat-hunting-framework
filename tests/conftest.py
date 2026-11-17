@@ -169,3 +169,48 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "unit: mark test as a unit test (fast, isolated)")
     config.addinivalue_line("markers", "integration: mark test as an integration test (slower, multiple components)")
     config.addinivalue_line("markers", "slow: mark test as slow (skipped in quick test runs)")
+
+
+@pytest.fixture
+def atlas_fixture_path() -> Path:
+    """Path to the minimal synthetic ATLAS v6 file."""
+    return Path(__file__).parent / "data" / "atlas_v6_min.yaml"
+
+
+@pytest.fixture
+def atlas_provider(atlas_fixture_path):
+    """Install a provider backed by the fixture; restore the previous one afterwards."""
+    from athf.core import atlas_matrix
+
+    previous = atlas_matrix._provider
+    provider = atlas_matrix.AtlasYamlProvider(atlas_fixture_path)
+    atlas_matrix.reset_atlas_provider(provider)
+    try:
+        yield provider
+    finally:
+        atlas_matrix.reset_atlas_provider(previous)
+
+
+@pytest.fixture(autouse=True)
+def _isolate_atlas_cache(tmp_path):
+    """No test may read or write a real ~/.athf/atlas-data cache.
+
+    Deliberately avoids ``monkeypatch``: requesting it from an autouse
+    fixture instantiates it before the test's own fixtures, so its undo
+    (including any ``monkeypatch.chdir``) runs *after* their teardown. A
+    ``temp_dir`` fixture then deletes the directory the process is still
+    chdir'd into, which Windows refuses (WinError 32).
+    """
+    from athf.core import atlas_matrix
+
+    previous = os.environ.get("ATHF_ATLAS_CACHE")
+    os.environ["ATHF_ATLAS_CACHE"] = str(tmp_path / "atlas-cache")
+    atlas_matrix.reset_atlas_provider(None)
+    try:
+        yield
+    finally:
+        atlas_matrix.reset_atlas_provider(None)
+        if previous is None:
+            os.environ.pop("ATHF_ATLAS_CACHE", None)
+        else:
+            os.environ["ATHF_ATLAS_CACHE"] = previous
