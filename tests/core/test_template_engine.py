@@ -233,3 +233,34 @@ class TestFrontmatterRoundTrip:
         assert fm["title"] == "Plain title"
         assert fm["hunter"] == "Plain Hunter"
         assert '""' not in content.split("\n---", 1)[0]
+
+
+@pytest.mark.unit
+class TestAtlasRendering:
+    def test_omitted_when_not_given(self):
+        content = render_hunt_template(hunt_id="H-0001", title="t", technique="T1567")
+        assert "atlas" not in content
+
+    def test_rendered_and_round_trips(self):
+        content = render_hunt_template(
+            hunt_id="H-0001",
+            title="t",
+            technique="T1567",
+            atlas_techniques=["AML.T0051", "AML.T0057"],
+            atlas_tactics=["AML.TA0005"],
+        )
+        fm = _frontmatter(content)
+        assert fm["techniques"] == ["T1567"]  # ATT&CK untouched
+        assert fm["atlas_techniques"] == ["AML.T0051", "AML.T0057"]
+        assert fm["atlas_tactics"] == ["AML.TA0005"]
+
+    def test_legacy_snapshot_template_still_gets_fields(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "templates").mkdir()
+        (tmp_path / "templates" / "HUNT_TEMPLATE.j2").write_text(
+            "---\nhunt_id: {{ hunt_id }}\ntitle: {{ title }}\nhunter: {{ hunter }}\n"
+            "techniques: {{ techniques }}\n---\n\n# {{ hunt_id }}\n",
+            encoding="utf-8",
+        )
+        content = render_hunt_template(hunt_id="H-0001", title="t", atlas_techniques=["AML.T0051"])
+        assert _frontmatter(content)["atlas_techniques"] == ["AML.T0051"]
