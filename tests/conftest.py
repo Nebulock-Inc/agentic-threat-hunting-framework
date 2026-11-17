@@ -192,10 +192,25 @@ def atlas_provider(atlas_fixture_path):
 
 
 @pytest.fixture(autouse=True)
-def _isolate_atlas_cache(tmp_path, monkeypatch):
-    """No test may read or write a real ~/.athf/atlas-data cache."""
+def _isolate_atlas_cache(tmp_path):
+    """No test may read or write a real ~/.athf/atlas-data cache.
+
+    Deliberately avoids ``monkeypatch``: requesting it from an autouse
+    fixture instantiates it before the test's own fixtures, so its undo
+    (including any ``monkeypatch.chdir``) runs *after* their teardown. A
+    ``temp_dir`` fixture then deletes the directory the process is still
+    chdir'd into, which Windows refuses (WinError 32).
+    """
     from athf.core import atlas_matrix
+
+    previous = os.environ.get("ATHF_ATLAS_CACHE")
+    os.environ["ATHF_ATLAS_CACHE"] = str(tmp_path / "atlas-cache")
     atlas_matrix.reset_atlas_provider(None)
-    monkeypatch.setenv("ATHF_ATLAS_CACHE", str(tmp_path / "atlas-cache"))
-    yield
-    atlas_matrix.reset_atlas_provider(None)
+    try:
+        yield
+    finally:
+        atlas_matrix.reset_atlas_provider(None)
+        if previous is None:
+            os.environ.pop("ATHF_ATLAS_CACHE", None)
+        else:
+            os.environ["ATHF_ATLAS_CACHE"] = previous
