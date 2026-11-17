@@ -2,9 +2,10 @@
 
 import json
 import random
+import re
 from datetime import date, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import click
 import yaml
@@ -13,6 +14,7 @@ from rich.console import Console
 from rich.prompt import Prompt
 from rich.table import Table
 
+from athf.core.atlas_matrix import ATLAS_TACTIC_RE, ATLAS_TECHNIQUE_RE
 from athf.core.attack_matrix import get_technique
 from athf.core.hunt_manager import HuntManager
 from athf.core.hunt_parser import hunt_file_warnings, validate_hunt_file
@@ -128,8 +130,33 @@ def hunt() -> None:
     """
 
 
+def _atlas_ids(pattern: "re.Pattern[str]", expected: str) -> Callable[..., Tuple[str, ...]]:
+    """click callback: reject malformed ATLAS IDs (exit 2), dedupe preserving order."""
+
+    def _callback(ctx: click.Context, param: click.Parameter, value: Tuple[str, ...]) -> Tuple[str, ...]:
+        bad = [v for v in value if not pattern.match(v)]
+        if bad:
+            raise click.BadParameter(f"{', '.join(bad)} (expected {expected})")
+        return tuple(dict.fromkeys(value))
+
+    return _callback
+
+
 @hunt.command()
 @click.option("--technique", help="MITRE ATT&CK technique (e.g., T1003.001)")
+@click.option(
+    "--atlas-technique",
+    multiple=True,
+    callback=_atlas_ids(ATLAS_TECHNIQUE_RE, "AML.T0000 or AML.T0000.000"),
+    help="MITRE ATLAS technique (e.g., AML.T0051); repeatable. Only for attacks ON AI systems, "
+    "not hunts that merely use AI.",
+)
+@click.option(
+    "--atlas-tactic",
+    multiple=True,
+    callback=_atlas_ids(ATLAS_TACTIC_RE, "AML.TA0000"),
+    help="MITRE ATLAS tactic ID (e.g., AML.TA0005); repeatable",
+)
 @click.option("--title", help="Hunt title")
 @click.option("--tactic", multiple=True, help="MITRE tactics (can specify multiple)")
 @click.option("--platform", multiple=True, help="Target platforms (can specify multiple)")
@@ -158,6 +185,8 @@ def hunt() -> None:
 )
 def new(
     technique: Optional[str],
+    atlas_technique: Tuple[str, ...],
+    atlas_tactic: Tuple[str, ...],
     title: Optional[str],
     tactic: Tuple[str, ...],
     platform: Tuple[str, ...],
@@ -200,6 +229,11 @@ def new(
     With research document:
       Link a pre-hunt research document to the hunt.
       Example: athf hunt new --research R-0001 --title "Hunt Title" --non-interactive
+
+    \b
+    AI-system attacks (MITRE ATLAS, alongside ATT&CK):
+      Example: athf hunt new --technique T1567 --atlas-technique AML.T0051 \
+               --title "Prompt injection exfil" --non-interactive
 
     \b
     After creation:
@@ -327,6 +361,8 @@ def new(
         spawned_from=research,
         hypothesis_duration_minutes=hypothesis_duration,
         hunt_type=hunt_type,
+        atlas_techniques=list(atlas_technique) or None,
+        atlas_tactics=list(atlas_tactic) or None,
     )
 
     # Write hunt file using hierarchical directory structure
