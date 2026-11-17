@@ -22,7 +22,7 @@ class TestIdGrammar:
         assert ATLAS_TECHNIQUE_RE.match(value)
 
     @pytest.mark.parametrize(
-        "value", ["aml.t0051", "AML.T051", "AML.T0051.1", "AML.TA0005", "T1003", "AML.T0051 ", ""]
+        "value", ["aml.t0051", "AML.T051", "AML.T0051.1", "AML.TA0005", "T1003", "AML.T0051 ", "", "AML.T0051\n"]
     )
     def test_invalid_technique_ids(self, value):
         assert not ATLAS_TECHNIQUE_RE.match(value)
@@ -31,6 +31,7 @@ class TestIdGrammar:
         assert ATLAS_TACTIC_RE.match("AML.TA0005")
         assert not ATLAS_TACTIC_RE.match("AML.T0005")
         assert not ATLAS_TACTIC_RE.match("execution")
+        assert not ATLAS_TACTIC_RE.match("AML.TA0005\n")
 
 
 @pytest.mark.unit
@@ -152,7 +153,7 @@ class TestCacheAndSingleton:
         # Must not raise UnicodeDecodeError: a bad cache cannot break `hunt validate`.
         assert isinstance(get_atlas_provider(), AtlasFallbackProvider)
 
-    def test_malformed_relationships_degrades_to_fallback(self):
+    def test_malformed_relationships_tolerated_by_live_provider(self):
         """Cache with list-valued relationships entry must not raise (issue #75)."""
         target = get_atlas_file_path()
         target.parent.mkdir(parents=True)
@@ -178,3 +179,12 @@ collection:
         tech = provider.get_technique_by_id("AML.T0051")
         assert tech is not None
         assert tech["tactics"] == []
+
+    def test_path_resolution_errors_degrade_to_fallback(self, monkeypatch):
+        """Exceptions during path resolution or provider construction must not raise."""
+        def raise_fnf():
+            raise FileNotFoundError("cwd deleted")
+        monkeypatch.setattr("athf.core.atlas_matrix.get_atlas_file_path", raise_fnf)
+        # Must not raise: any exception in provider resolution should yield fallback
+        provider = get_atlas_provider()
+        assert isinstance(provider, AtlasFallbackProvider)

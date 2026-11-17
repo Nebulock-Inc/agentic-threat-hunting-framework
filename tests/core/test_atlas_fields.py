@@ -47,6 +47,12 @@ class TestAtlasFieldErrors:
     def test_non_mapping_frontmatter(self):
         assert atlas_field_errors(None) == []  # type: ignore[arg-type]
 
+    def test_trailing_newline_rejected(self):
+        """YAML block scalars with | produce strings ending in \\n."""
+        errors = atlas_field_errors({"atlas_techniques": ["AML.T0051\n"]})
+        assert len(errors) == 1
+        assert "AML.T0000" in errors[0]
+
 
 @pytest.mark.unit
 class TestAtlasFieldWarnings:

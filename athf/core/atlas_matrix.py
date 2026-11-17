@@ -20,8 +20,8 @@ import yaml
 
 logger = logging.getLogger(__name__)
 
-ATLAS_TECHNIQUE_RE = re.compile(r"^AML\.T\d{4}(?:\.\d{3})?$")
-ATLAS_TACTIC_RE = re.compile(r"^AML\.TA\d{4}$")
+ATLAS_TECHNIQUE_RE = re.compile(r"^AML\.T\d{4}(?:\.\d{3})?\Z")
+ATLAS_TACTIC_RE = re.compile(r"^AML\.TA\d{4}\Z")
 SUPPORTED_FORMAT_MAJOR = "6"
 
 
@@ -251,16 +251,16 @@ def get_atlas_provider() -> AtlasDataProvider:
     global _provider
     if _provider is not None:
         return _provider
-    path = get_atlas_file_path()
-    if path.exists():
-        candidate = AtlasYamlProvider(path)
-        try:
+    try:
+        path = get_atlas_file_path()
+        if path.exists():
+            candidate = AtlasYamlProvider(path)
             candidate.get_tactics()
             _provider = candidate
-        except Exception as exc:
-            logger.warning("Ignoring unusable ATLAS cache at %s: %s", path, exc)
+        else:
             _provider = AtlasFallbackProvider()
-    else:
+    except Exception as exc:
+        logger.warning("Ignoring unusable ATLAS cache: %s", exc)
         _provider = AtlasFallbackProvider()
     return _provider
 

@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional
 
 from athf.core.atlas_matrix import ATLAS_TACTIC_RE, ATLAS_TECHNIQUE_RE, AtlasDataProvider, get_atlas_provider
 
-ATTACK_TECHNIQUE_RE = re.compile(r"^T\d{4}(?:\.\d{3})?$")
+ATTACK_TECHNIQUE_RE = re.compile(r"^T\d{4}(?:\.\d{3})?\Z")
 
 TECHNIQUES_KEY = "atlas_techniques"
 TACTICS_KEY = "atlas_tactics"

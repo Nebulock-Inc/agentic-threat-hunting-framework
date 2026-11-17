@@ -66,6 +66,7 @@ class TestHuntNewAtlas:
         ("--atlas-technique", "T1059"),
         ("--atlas-technique", "aml.t0051"),
         ("--atlas-tactic", "execution"),
+        ("--atlas-technique", "AML.T0051\n"),
     ])
     def test_malformed_ids_rejected_before_writing(self, workspace, flag, bad):
         result = _new(workspace, flag, bad)
