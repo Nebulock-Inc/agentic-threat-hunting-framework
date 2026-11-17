@@ -1336,6 +1336,8 @@ def _build_export_dict(
         "platform": frontmatter.get("platform", []),
         "tactics": frontmatter.get("tactics", []),
         "techniques": frontmatter.get("techniques", []),
+        "atlas_techniques": frontmatter.get("atlas_techniques") or [],
+        "atlas_tactics": frontmatter.get("atlas_tactics") or [],
         "data_sources": frontmatter.get("data_sources", []),
         "related_hunts": frontmatter.get("related_hunts", []),
         "spawned_from": frontmatter.get("spawned_from"),

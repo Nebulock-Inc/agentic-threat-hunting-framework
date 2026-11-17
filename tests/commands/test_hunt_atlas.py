@@ -78,3 +78,27 @@ class TestHuntNewAtlas:
         _new(workspace, "--atlas-technique", "AML.T0051")
         result = workspace.invoke(hunt, ["validate", "H-0001"])
         assert result.exit_code == 0, result.output
+
+
+@pytest.mark.unit
+class TestAtlasPassThrough:
+    def test_list_hunts_exposes_fields(self, workspace):
+        from athf.core.hunt_manager import HuntManager
+
+        _new(workspace, "--atlas-technique", "AML.T0051", "--atlas-tactic", "AML.TA0005")
+        _new(workspace)  # hunt without ATLAS
+        by_id = {h["hunt_id"]: h for h in HuntManager().list_hunts()}
+        assert by_id["H-0001"]["atlas_techniques"] == ["AML.T0051"]
+        assert by_id["H-0001"]["atlas_tactics"] == ["AML.TA0005"]
+        assert by_id["H-0002"]["atlas_techniques"] == []
+        assert by_id["H-0002"]["atlas_tactics"] == []
+
+    def test_export_exposes_fields(self, workspace):
+        from athf.commands.hunt import _build_export_dict
+        from athf.core.hunt_parser import parse_hunt_file
+
+        _new(workspace, "--atlas-technique", "AML.T0051")
+        data = parse_hunt_file(next(Path("hunts").rglob("H-0001.md")))
+        export = _build_export_dict(data, Path("sessions"), include_content=False, no_sessions=True)
+        assert export["atlas_techniques"] == ["AML.T0051"]
+        assert export["atlas_tactics"] == []
