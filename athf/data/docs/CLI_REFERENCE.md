@@ -33,6 +33,7 @@ Complete reference for all `athf` command-line interface commands.
 | [`athf metrics summary`](#athf-metrics) | Metrics | Show workspace-wide totals + rollups |
 | [`athf metrics extract`](#athf-metrics) | Metrics | Rebuild `metrics/aggregates.json` |
 | [`athf metrics record`](#athf-metrics) | Metrics | Append a manual event to `metrics/events.jsonl` |
+| [`athf atlas update`](#athf-atlas-update) | ATLAS Data | Download/refresh MITRE ATLAS v6 data |
 
 ## Table of Contents
 
@@ -591,6 +592,8 @@ Creates a new hunt file with proper YAML frontmatter and LOCK structure. Automat
 |--------|------|---------|-------------|
 | `--non-interactive` | Flag | False | Skip interactive prompts |
 | `--technique` | String | Required* | MITRE ATT&CK technique (e.g., T1003.001) |
+| `--atlas-technique` | String | - | MITRE ATLAS technique (e.g., AML.T0051); repeatable |
+| `--atlas-tactic` | String | - | MITRE ATLAS tactic ID (e.g., AML.TA0005); repeatable |
 | `--title` | String | Required* | Hunt title |
 | `--tactics` | String | - | Comma-separated tactics (e.g., credential-access,defense-evasion) |
 | `--platforms` | String | - | Comma-separated platforms (e.g., windows,linux,macos) |
@@ -2192,6 +2195,21 @@ athf hunt execute H-0013 --dry-run
 
 - `0`: Success
 - `1`: Execution failed
+
+---
+
+### `athf atlas update`
+
+Download or refresh MITRE ATLAS (Adversarial Threat Landscape for AI Systems) data. It fetches the newest v6 release listed in `mitre-atlas/atlas-data`'s manifest. Cache: `$ATHF_ATLAS_CACHE`, else `<workspace>/.athf/atlas-data/`, else `~/.athf/atlas-data/`.
+
+```bash
+athf atlas update          # skip if cached
+athf atlas update --force  # re-download
+```
+
+ATLAS complements ATT&CK. A hunt keeps conventional kill-chain steps in `techniques:` (ATT&CK only) and AI-specific steps in `atlas_techniques:` / `atlas_tactics:`. **Scope rule:** tag ATLAS only for attacks *on* AI systems. A hunt that uses an LLM as its analysis method is not an ATLAS hunt.
+
+`athf hunt validate` treats a malformed ATLAS ID (or an ATT&CK ID in `atlas_techniques`) as an error. A well-formed ID missing from the cached data is a warning.
 
 ---
 

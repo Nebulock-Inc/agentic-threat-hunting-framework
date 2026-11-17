@@ -5,6 +5,11 @@ All notable changes to the Agentic Threat Hunting Framework (ATHF) will be docum
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **MITRE ATLAS foundation**: [#75](https://github.com/Nebulock-Inc/agentic-threat-hunting-framework/issues/75). Optional `atlas_techniques` / `atlas_tactics` hunt front matter alongside ATT&CK (`techniques` stays ATT&CK-only). `athf hunt new --atlas-technique/--atlas-tactic`, `hunt validate` checks (malformed ID = error, unknown ID = warning), `hunt list`/`export` pass-through, and `athf atlas update` (MITRE ATLAS v6 YAML). Existing hunts are unaffected, and ATLAS data loads only for hunts that carry ATLAS fields.
+
 ## [0.24.0] - 2026-10-21
 
 ### Security
