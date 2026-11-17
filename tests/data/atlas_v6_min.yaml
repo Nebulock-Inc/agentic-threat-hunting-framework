@@ -1,0 +1,38 @@
+format-version: 6.1.0
+collection:
+  name: ATLAS
+  version: '2099.01'
+  id: ATLAS-collection
+  object-type: collection
+matrix:
+  name: ATLAS
+  id: ATLAS-matrix
+  object-type: matrix
+tactics:
+  AML.TA0002: {id: AML.TA0002, name: Reconnaissance, object-type: tactic}
+  AML.TA0005: {id: AML.TA0005, name: Execution, object-type: tactic}
+  AML.TA0010: {id: AML.TA0010, name: Exfiltration, object-type: tactic}
+techniques:
+  AML.T0000:
+    {id: AML.T0000, name: Search Open Technical Databases, platforms: [Enterprise], maturity: Realized, description: d, object-type: technique}
+  AML.T0000.000:
+    {id: AML.T0000.000, name: Journals and Conference Proceedings, platforms: [Enterprise], maturity: Feasible, description: d, object-type: technique}
+  AML.T0024:
+    {id: AML.T0024, name: Exfiltration via AI Inference API, platforms: [Generative AI], maturity: Demonstrated, description: d, object-type: technique}
+  AML.T0051:
+    {id: AML.T0051, name: LLM Prompt Injection, platforms: [Generative AI, Agentic AI], maturity: Realized, description: d, object-type: technique}
+  AML.T0051.000:
+    {id: AML.T0051.000, name: Direct, platforms: [Generative AI], maturity: Realized, description: d, object-type: technique}
+relationships:
+  AML.T0000:
+    achieves: [{source: AML.T0000, target: AML.TA0002, relationship-type: achieves}]
+  AML.T0000.000:
+    achieves: [{source: AML.T0000.000, target: AML.TA0002, relationship-type: achieves}]
+    specializes: [{source: AML.T0000.000, target: AML.T0000, relationship-type: specializes}]
+  AML.T0024:
+    achieves: [{source: AML.T0024, target: AML.TA0010, relationship-type: achieves}]
+  AML.T0051:
+    achieves: [{source: AML.T0051, target: AML.TA0005, relationship-type: achieves}]
+  AML.T0051.000:
+    achieves: [{source: AML.T0051.000, target: AML.TA0005, relationship-type: achieves}]
+    specializes: [{source: AML.T0051.000, target: AML.T0051, relationship-type: specializes}]

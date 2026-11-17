@@ -169,3 +169,29 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "unit: mark test as a unit test (fast, isolated)")
     config.addinivalue_line("markers", "integration: mark test as an integration test (slower, multiple components)")
     config.addinivalue_line("markers", "slow: mark test as slow (skipped in quick test runs)")
+
+
+@pytest.fixture
+def atlas_fixture_path() -> Path:
+    """Path to the minimal synthetic ATLAS v6 file."""
+    return Path(__file__).parent / "data" / "atlas_v6_min.yaml"
+
+
+@pytest.fixture
+def atlas_provider(atlas_fixture_path):
+    """Install a provider backed by the fixture; restore the previous one afterwards."""
+    from athf.core import atlas_matrix
+
+    previous = atlas_matrix._provider
+    provider = atlas_matrix.AtlasYamlProvider(atlas_fixture_path)
+    atlas_matrix.reset_atlas_provider(provider)
+    try:
+        yield provider
+    finally:
+        atlas_matrix.reset_atlas_provider(previous)
+
+
+@pytest.fixture(autouse=True)
+def _isolate_atlas_cache(tmp_path, monkeypatch):
+    """No test may read or write a real ~/.athf/atlas-data cache."""
+    monkeypatch.setenv("ATHF_ATLAS_CACHE", str(tmp_path / "atlas-cache"))
