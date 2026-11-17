@@ -8,7 +8,7 @@ absent from the cached data are warnings, because the cache may be stale.
 import re
 from typing import Any, Dict, List, Optional
 
-from athf.core.atlas_matrix import ATLAS_TACTIC_RE, ATLAS_TECHNIQUE_RE, get_atlas_provider
+from athf.core.atlas_matrix import ATLAS_TACTIC_RE, ATLAS_TECHNIQUE_RE, AtlasDataProvider, get_atlas_provider
 
 ATTACK_TECHNIQUE_RE = re.compile(r"^T\d{4}(?:\.\d{3})?$")
 
@@ -58,12 +58,9 @@ def atlas_field_errors(frontmatter: Optional[Dict[str, Any]]) -> List[str]:
     return errors
 
 
-def atlas_field_warnings(frontmatter: Optional[Dict[str, Any]]) -> List[str]:
-    """Non-fatal advisories. Loads ATLAS data only if the hunt carries ATLAS IDs."""
-    if not isinstance(frontmatter, dict):
-        return []
+def _misplaced_atlas_ids(frontmatter: Dict[str, Any]) -> List[str]:
+    """Check for ATLAS IDs incorrectly placed in the ATT&CK techniques field."""
     warnings: List[str] = []
-
     attack = frontmatter.get("techniques")
     if isinstance(attack, list):
         for value in attack:
@@ -71,16 +68,12 @@ def atlas_field_warnings(frontmatter: Optional[Dict[str, Any]]) -> List[str]:
                 warnings.append(
                     f"techniques contains ATLAS ID {value}; techniques is ATT&CK-only, move it to {TECHNIQUES_KEY}"
                 )
+    return warnings
 
-    techniques = _valid_strings(frontmatter, TECHNIQUES_KEY, ATLAS_TECHNIQUE_RE)
-    tactics = _valid_strings(frontmatter, TACTICS_KEY, ATLAS_TACTIC_RE)
-    if not techniques and not tactics:
-        return warnings
 
-    provider = get_atlas_provider()
-    if not provider.is_live():
-        return warnings  # Fallback knows no techniques; it cannot judge.
-
+def _unknown_id_warnings(provider: AtlasDataProvider, techniques: List[str], tactics: List[str]) -> List[str]:
+    """Check if technique and tactic IDs exist in the provider's data."""
+    warnings: List[str] = []
     version = provider.get_version()
     for tid in techniques:
         if provider.get_technique_by_id(tid) is None:
@@ -95,4 +88,24 @@ def atlas_field_warnings(frontmatter: Optional[Dict[str, Any]]) -> List[str]:
                 f"Unknown ATLAS tactic {tid} (not in ATLAS {version}); "
                 "check the ID or run 'athf atlas update --force'"
             )
+    return warnings
+
+
+def atlas_field_warnings(frontmatter: Optional[Dict[str, Any]]) -> List[str]:
+    """Non-fatal advisories. Loads ATLAS data only if the hunt carries ATLAS IDs."""
+    if not isinstance(frontmatter, dict):
+        return []
+
+    warnings = _misplaced_atlas_ids(frontmatter)
+
+    techniques = _valid_strings(frontmatter, TECHNIQUES_KEY, ATLAS_TECHNIQUE_RE)
+    tactics = _valid_strings(frontmatter, TACTICS_KEY, ATLAS_TACTIC_RE)
+    if not techniques and not tactics:
+        return warnings
+
+    provider = get_atlas_provider()
+    if not provider.is_live():
+        return warnings  # Fallback knows no techniques; it cannot judge.
+
+    warnings.extend(_unknown_id_warnings(provider, techniques, tactics))
     return warnings

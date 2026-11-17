@@ -1,10 +1,7 @@
 """Tests for athf.core.atlas_matrix - MITRE ATLAS data provider."""
 
-from pathlib import Path
-
 import pytest
 
-from athf.core import atlas_matrix
 from athf.core.atlas_matrix import (
     ATLAS_TACTIC_RE,
     ATLAS_TECHNIQUE_RE,
@@ -146,3 +143,38 @@ class TestCacheAndSingleton:
 
     def test_singleton_is_cached(self):
         assert get_atlas_provider() is get_atlas_provider()
+
+    def test_non_utf8_cache_degrades_to_fallback(self):
+        """Corrupt cache with non-UTF-8 bytes must not raise (issue #75)."""
+        target = get_atlas_file_path()
+        target.parent.mkdir(parents=True)
+        target.write_bytes(b"format-version: 6.0.0\ngarbage: \xff\xfe")
+        # Must not raise UnicodeDecodeError: a bad cache cannot break `hunt validate`.
+        assert isinstance(get_atlas_provider(), AtlasFallbackProvider)
+
+    def test_malformed_relationships_degrades_to_fallback(self):
+        """Cache with list-valued relationships entry must not raise (issue #75)."""
+        target = get_atlas_file_path()
+        target.parent.mkdir(parents=True)
+        # Write a cache where relationships[AML.T0051] is a list, not a dict
+        content = """format-version: 6.0.0
+tactics:
+  AML.TA0000:
+    name: Initial Access
+techniques:
+  AML.T0051:
+    name: Example
+    description: Test
+relationships:
+  AML.T0051: [a]
+collection:
+  version: 6.1.0
+"""
+        target.write_text(content, encoding="utf-8")
+        # Must not raise AttributeError: rels.get is not a method
+        provider = get_atlas_provider()
+        assert provider.is_live() is True
+        # The technique should still exist, just with empty tactics list
+        tech = provider.get_technique_by_id("AML.T0051")
+        assert tech is not None
+        assert tech["tactics"] == []

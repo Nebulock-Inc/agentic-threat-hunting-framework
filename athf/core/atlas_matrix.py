@@ -86,19 +86,24 @@ class AtlasDataProvider(ABC):
     """Abstract source of ATLAS tactic and technique data."""
 
     @abstractmethod
-    def get_tactics(self) -> Dict[str, AtlasTacticInfo]: ...
+    def get_tactics(self) -> Dict[str, AtlasTacticInfo]:
+        """Return all known ATLAS tactics."""
 
     @abstractmethod
-    def get_technique_by_id(self, technique_id: str) -> Optional[AtlasTechniqueInfo]: ...
+    def get_technique_by_id(self, technique_id: str) -> Optional[AtlasTechniqueInfo]:
+        """Return technique metadata or None if not found."""
 
     @abstractmethod
-    def get_techniques_for_tactic(self, tactic_id: str) -> List[AtlasTechniqueInfo]: ...
+    def get_techniques_for_tactic(self, tactic_id: str) -> List[AtlasTechniqueInfo]:
+        """Return all techniques that achieve a given tactic."""
 
     @abstractmethod
-    def get_sub_techniques(self, parent_id: str) -> List[AtlasTechniqueInfo]: ...
+    def get_sub_techniques(self, parent_id: str) -> List[AtlasTechniqueInfo]:
+        """Return all sub-techniques under a parent technique."""
 
     @abstractmethod
-    def get_version(self) -> str: ...
+    def get_version(self) -> str:
+        """Return provider version and data source information."""
 
     @abstractmethod
     def is_live(self) -> bool:
@@ -144,6 +149,8 @@ class AtlasYamlProvider(AtlasDataProvider):
         check_format_version(data)
 
         relationships = data.get("relationships") or {}
+        if not isinstance(relationships, dict):
+            relationships = {}
         tactics: Dict[str, AtlasTacticInfo] = {}
         for tid, raw in data["tactics"].items():
             if ATLAS_TACTIC_RE.match(str(tid)) and isinstance(raw, dict):
@@ -154,9 +161,14 @@ class AtlasYamlProvider(AtlasDataProvider):
             if not ATLAS_TECHNIQUE_RE.match(str(tid)) or not isinstance(raw, dict):
                 continue
             rels = relationships.get(tid) or {}
+            if not isinstance(rels, dict):
+                rels = {}
+            achieves_raw = rels.get("achieves") or []
+            if not isinstance(achieves_raw, list):
+                achieves_raw = []
             achieved = [
                 str(r.get("target"))
-                for r in rels.get("achieves") or []
+                for r in achieves_raw
                 if isinstance(r, dict) and ATLAS_TACTIC_RE.match(str(r.get("target", "")))
             ]
             is_sub = tid.count(".") == 2
@@ -173,6 +185,8 @@ class AtlasYamlProvider(AtlasDataProvider):
             )
 
         collection = data.get("collection") or {}
+        if not isinstance(collection, dict):
+            collection = {}
         self._version = f"{collection.get('version', 'unknown')} (format {data['format-version']})"
         self._techniques = techniques
         self._tactics = tactics
@@ -243,7 +257,7 @@ def get_atlas_provider() -> AtlasDataProvider:
         try:
             candidate.get_tactics()
             _provider = candidate
-        except (OSError, yaml.YAMLError, AtlasFormatError) as exc:
+        except Exception as exc:
             logger.warning("Ignoring unusable ATLAS cache at %s: %s", path, exc)
             _provider = AtlasFallbackProvider()
     else:

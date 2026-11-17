@@ -194,4 +194,8 @@ def atlas_provider(atlas_fixture_path):
 @pytest.fixture(autouse=True)
 def _isolate_atlas_cache(tmp_path, monkeypatch):
     """No test may read or write a real ~/.athf/atlas-data cache."""
+    from athf.core import atlas_matrix
+    atlas_matrix.reset_atlas_provider(None)
     monkeypatch.setenv("ATHF_ATLAS_CACHE", str(tmp_path / "atlas-cache"))
+    yield
+    atlas_matrix.reset_atlas_provider(None)
