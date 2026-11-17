@@ -4,6 +4,7 @@ import os
 import re
 import time
 import urllib.request
+from pathlib import Path
 from typing import Tuple
 
 import click
@@ -22,7 +23,7 @@ console = Console()
 _ATLAS_DIST = "https://raw.githubusercontent.com/mitre-atlas/atlas-data/main/dist/"
 _MANIFEST_URL = _ATLAS_DIST + "manifest.yaml"
 # Only canonical release paths are fetched; a manifest can't redirect us elsewhere.
-_RELEASE_PATH_RE = re.compile(r"^v6/ATLAS-\d{4}\.\d{2}\.yaml$")
+_RELEASE_PATH_RE = re.compile(r"^v6/ATLAS-\d{4}\.\d{2}\.yaml\Z")
 _TIMEOUT_SECONDS = 60
 
 
@@ -69,6 +70,22 @@ def _latest_release(manifest_bytes: bytes) -> Tuple[str, str]:
     return release, path
 
 
+def _write_cache(path: Path, body: bytes) -> None:
+    """Write ATLAS data to cache with atomic replace."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(path.name + ".tmp")
+    try:
+        tmp.write_bytes(body)
+        os.replace(tmp, path)
+    except OSError as exc:
+        try:
+            tmp.unlink(missing_ok=True)
+        except OSError:
+            pass
+        console.print(f"[red]Error writing ATLAS cache: {exc}[/red]")
+        raise click.Abort()
+
+
 @atlas.command()
 @click.option("--force", is_flag=True, help="Re-download even if cache exists")
 def update(force: bool) -> None:
@@ -100,10 +117,7 @@ def update(force: bool) -> None:
         console.print(f"[red]Error downloading ATLAS data: {exc}[/red]")
         raise click.Abort()
 
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(path.name + ".tmp")
-    tmp.write_bytes(body)
-    os.replace(tmp, path)
+    _write_cache(path, body)
     reset_atlas_provider()
 
     console.print(

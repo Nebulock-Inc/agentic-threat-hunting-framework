@@ -107,6 +107,32 @@ class TestAtlasUpdate:
         assert result.exit_code != 0
         assert "No v6 ATLAS release" in result.output
 
+    def test_manifest_path_with_trailing_newline_rejected(self, monkeypatch):
+        manifest = b"""- release: '2026.10'
+  versions:
+  - format-version: 6.1.0
+    path: "v6/ATLAS-2026.10.yaml\\n"
+"""
+        monkeypatch.setattr(
+            atlas_cmd.urllib.request, "urlopen",
+            lambda url, timeout=None: io.BytesIO(manifest),
+        )
+        result = CliRunner().invoke(atlas, ["update"])
+        assert result.exit_code != 0
+        assert "No v6 ATLAS release" in result.output
+
+    def test_cache_write_failure_cleans_tmp_and_aborts(self, fake_net, monkeypatch):
+        def _boom(src, dst):
+            raise OSError("disk full")
+
+        monkeypatch.setattr(atlas_cmd.os, "replace", _boom)
+        result = CliRunner().invoke(atlas, ["update"])
+        assert result.exit_code != 0
+        assert "disk full" in result.output
+        cache_dir = atlas_matrix.get_atlas_file_path().parent
+        assert not (cache_dir / "atlas.yaml").exists()
+        assert not (cache_dir / "atlas.yaml.tmp").exists()
+
     def test_registered_on_root_cli(self):
         from athf.cli import cli
 
