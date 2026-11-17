@@ -4,6 +4,7 @@ import pytest
 
 from athf.core import atlas_matrix
 from athf.core.atlas_fields import atlas_field_errors, atlas_field_warnings
+from athf.core.hunt_parser import hunt_file_warnings, validate_hunt_file
 
 
 @pytest.mark.unit
@@ -82,3 +83,60 @@ class TestAtlasFieldWarnings:
     def test_malformed_ids_are_not_double_reported(self, atlas_provider):
         # Malformed IDs are errors; warnings must not repeat them as "unknown".
         assert atlas_field_warnings({"atlas_techniques": ["bogus"]}) == []
+
+
+HUNT = """---
+hunt_id: H-0001
+title: Test Hunt
+status: planning
+date: 2026-11-17
+hunt_type: hypothesis
+techniques: [T1567]
+{extra}---
+
+## LEARN: x
+
+## OBSERVE: x
+
+## CHECK: x
+
+## KEEP: x
+"""
+
+
+def _write(tmp_path, extra=""):
+    path = tmp_path / "hunts" / "H-0001.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(HUNT.format(extra=extra), encoding="utf-8")
+    return path
+
+
+@pytest.mark.unit
+class TestParserWiring:
+    def setup_method(self):
+        atlas_matrix.reset_atlas_provider(None)
+
+    def teardown_method(self):
+        atlas_matrix.reset_atlas_provider(None)
+
+    def test_hunt_without_atlas_unchanged(self, tmp_path):
+        path = _write(tmp_path)
+        assert validate_hunt_file(path) == (True, [])
+        assert hunt_file_warnings(path) == []
+        assert atlas_matrix._provider is None  # ATLAS data never touched
+
+    def test_valid_atlas_hunt_passes(self, tmp_path, atlas_provider):
+        path = _write(tmp_path, "atlas_techniques: [AML.T0051]\natlas_tactics: [AML.TA0005]\n")
+        assert validate_hunt_file(path) == (True, [])
+        assert hunt_file_warnings(path) == []
+
+    def test_malformed_atlas_fails_validate(self, tmp_path):
+        path = _write(tmp_path, "atlas_techniques: [T1059]\n")
+        ok, errors = validate_hunt_file(path)
+        assert ok is False
+        assert any("ATT&CK ID" in e for e in errors)
+
+    def test_unknown_atlas_id_is_warning_not_error(self, tmp_path, atlas_provider):
+        path = _write(tmp_path, "atlas_techniques: [AML.T9999]\n")
+        assert validate_hunt_file(path) == (True, [])
+        assert any("AML.T9999" in w for w in hunt_file_warnings(path))
