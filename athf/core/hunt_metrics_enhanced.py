@@ -151,41 +151,41 @@ def _drill_down_generic(
     Returns:
         List of tuples from extract_fn
     """
-    results = []
+    results: List[Tuple[Any, ...]] = []
 
     # Use loader if provided, otherwise scan directly
     if loader is not None:
         all_hunts = loader.load_all()
-        for meta in all_hunts:
-            hunt_date = _parse_date_field(meta.get('date'))
+        for hunt_meta in all_hunts:
+            hunt_date = _parse_date_field(hunt_meta.get('date'))
 
             if not hunt_date or not (start_date <= hunt_date <= end_date):
                 continue
 
-            if meta.get('status') != 'completed':
+            if hunt_meta.get('status') != 'completed':
                 continue
 
             # Apply custom filter
-            if filter_fn(meta):
-                results.append(extract_fn(meta))
+            if filter_fn(hunt_meta):
+                results.append(extract_fn(hunt_meta))
     else:
         # Original behavior: direct filesystem scan
         for hunt_file in hunt_dir.rglob("H-*.md"):
-            meta = parse_hunt_frontmatter(hunt_file)
-            if not meta:
+            parsed_meta = parse_hunt_frontmatter(hunt_file)
+            if not parsed_meta:
                 continue
 
-            hunt_date = _parse_date_field(meta.get('date'))
+            hunt_date = _parse_date_field(parsed_meta.get('date'))
 
             if not hunt_date or not (start_date <= hunt_date <= end_date):
                 continue
 
-            if meta.get('status') != 'completed':
+            if parsed_meta.get('status') != 'completed':
                 continue
 
             # Apply custom filter
-            if filter_fn(meta):
-                results.append(extract_fn(meta))
+            if filter_fn(parsed_meta):
+                results.append(extract_fn(parsed_meta))
 
     # Sort only if ALL results have numeric third element (not just first)
     if results and all(len(r) >= 3 and isinstance(r[2], (int, float)) for r in results):

@@ -104,17 +104,16 @@ def calculate_metrics(
     """
 
     # Use loader if provided, otherwise scan directly
+    hunts: List[Dict[str, Any]] = []
     if loader is not None:
         all_hunts = loader.load_all()
         # Filter by date range
-        hunts = []
         for meta in all_hunts:
             hunt_date = _parse_date_field(meta.get('date'))
             if hunt_date and start_date <= hunt_date <= end_date:
                 hunts.append(meta)
     else:
         # Original behavior: direct filesystem scan
-        hunts = []
         for hunt_file in hunt_dir.rglob("H-*.md"):
             meta = parse_hunt_frontmatter(hunt_file)
             if not meta:
