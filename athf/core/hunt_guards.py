@@ -26,16 +26,11 @@ def find_hunt_directory() -> Optional[Path]:
     # Current directory (running from repo root)
     candidates.append(Path("hunts/production"))
 
-    # Sibling repo (running from another repo in same parent)
-    candidates.append(Path("../agentic-threat-hunting-framework/hunts/production"))
+    # Sibling hunt-vault checkout (running from another repo in same parent)
+    candidates.append(Path("../hunt-vault/hunts/production"))
 
-    # Installed package location (find where athf is installed)
-    try:
-        import athf
-        package_dir = Path(athf.__file__).parent.parent
-        candidates.append(package_dir / "hunts" / "production")
-    except (ImportError, AttributeError):
-        pass
+    # Home-directory checkout (~/athf/hunt-vault/hunts/production)
+    candidates.append(Path.home() / "athf" / "hunt-vault" / "hunts" / "production")
 
     for candidate in candidates:
         if candidate.exists() and candidate.is_dir():

@@ -2,6 +2,7 @@
 
 import json
 import random
+from collections import defaultdict
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -23,6 +24,32 @@ from athf.core.verdicts import UNFILLED_HUNTER, VERDICTS
 from athf.utils.validation import validate_hunt_id, validate_research_id
 
 console = Console()
+
+# The six frontmatter fields the metrics system needs to classify a hunt.
+# `athf hunt metrics gaps` reports any hunt missing one of these.
+REQUIRED_METRICS_FIELDS = (
+    "technology_domain",
+    "hunt_type",
+    "data_sources_available",
+    "completed_date",
+    "output_type",
+    "output_criticality",
+)
+
+
+def _extract_period_from_path(hunt_file: Path) -> str:
+    """Derive a ``YYYY-QN`` period label from a hunt file's path.
+
+    Hunts live under ``.../<year>/<quarter>/H-XXXX.md`` (e.g. ``2025/Q1``).
+    Returns ``"unknown"`` when the path lacks a year and quarter segment.
+    """
+    year = quarter = None
+    for part in hunt_file.parts:
+        if len(part) == 4 and part.isdigit():
+            year = part
+        elif len(part) == 2 and part[0] in "Qq" and part[1] in "1234":
+            quarter = part.upper()
+    return f"{year}-{quarter}" if year and quarter else "unknown"
 
 
 def _default_tactics_for_technique(technique_id: str) -> List[str]:
@@ -1438,8 +1465,8 @@ def metrics(
         console.print("[bold red]Error:[/bold red] Could not find hunt directory")
         console.print("\n[dim]Searched:[/dim]")
         console.print("  • ./hunts/production (current directory)")
-        console.print("  • ../agentic-threat-hunting-framework/hunts/production (sibling repo)")
-        console.print("  • Package installation location")
+        console.print("  • ../hunt-vault/hunts/production (sibling repo)")
+        console.print("  • ~/athf/hunt-vault/hunts/production (home directory)")
         console.print("\n💡 Tips:")
         console.print("  • Run from the repository root")
         console.print("  • Or set ATHF_HUNT_DIR=/path/to/hunts/production")
@@ -1739,14 +1766,21 @@ def gaps(output_format: str, strict: bool) -> None:
     • Enforce metrics standards in CI/CD pipelines
     • Generate reports for leadership
     """
-    # Use same hunt directory resolution as metrics command
-    try:
-        hunt_dir = find_hunt_directory()
-    except ValueError as e:
-        console.print(f"[bold red]Error:[/bold red] {e}")
-        raise click.Abort()
+    # Use the same hunt directory resolution as the metrics command
+    # (honors ATHF_HUNT_DIR, sibling and home-directory checkouts).
+    from athf.core.hunt_guards import find_hunt_directory
 
-    manager = HuntManager()
+    hunt_dir = find_hunt_directory()
+    if not hunt_dir:
+        console.print("[bold red]Error:[/bold red] Could not find hunt directory")
+        console.print("\n[dim]Searched:[/dim]")
+        console.print("  • ./hunts/production (current directory)")
+        console.print("  • ../hunt-vault/hunts/production (sibling repo)")
+        console.print("  • ~/athf/hunt-vault/hunts/production (home directory)")
+        console.print("\n💡 Set ATHF_HUNT_DIR=/path/to/hunts/production to override")
+        raise click.exceptions.Exit(1)
+
+    manager = HuntManager(hunt_dir)
     hunt_files = manager.find_all_hunt_files()
 
     if not hunt_files:
@@ -1866,583 +1900,3 @@ def _output_gaps_report(
                 console.print(f"   [cyan]{record['period']} {record['hunt_id']}[/cyan]")
                 console.print(f"      Missing: {', '.join(record['missing_fields'])}")
             console.print()
-
-
-@hunt.command()
-@click.argument("query")
-@click.option("--directory", type=click.Choice(["test", "production"]), help="Filter by environment directory")
-def search(query: str, directory: str) -> None:
-    """Full-text search across all hunt files.
-
-    \b
-    Searches through:
-    • Hunt titles and descriptions
-    • YAML frontmatter metadata
-    • LOCK section content
-    • Lessons learned
-    • Query comments
-
-    \b
-    Examples:
-      # Search for specific TTP
-      athf hunt search "kerberoasting"
-
-      # Search for technology
-      athf hunt search "powershell"
-
-      # Search by hunt ID
-      athf hunt search "H-0042"
-
-      # Search for data source
-      athf hunt search "sysmon"
-
-      # Filter by environment directory
-      athf hunt search "credential" --directory test
-
-    \b
-    Use this to:
-    • Avoid duplicate hunts
-    • Find related past work
-    • Reference lessons learned
-    • Check if a TTP has been hunted before
-    """
-    manager = HuntManager()
-    results = manager.search_hunts(query, directory=directory)
-
-    if not results:
-        console.print(f"[yellow]No hunts found matching '{query}'[/yellow]")
-        return
-
-    console.print(f"\n[bold]🔍 Search results for '{query}' ({len(results)} found)[/bold]\n")
-
-    for result in results:
-        environment = result.get("environment", "-")
-        env_display = f" | Env: {environment}" if environment else ""
-        console.print(f"[cyan]{result['hunt_id']}[/cyan]: {result['title']}")
-        console.print(f"  Status: {result['status']}{env_display} | File: {result['file_path']}")
-        console.print()
-
-
-def _render_progress_bar(covered: int, total: int, width: int = 20) -> str:
-    """Render a visual progress bar with filled and empty blocks.
-
-    Args:
-        covered: Number of covered techniques
-        total: Total number of techniques
-        width: Width of the progress bar in characters
-
-    Returns:
-        ASCII progress bar string using simple characters
-    """
-    if total == 0:
-        return "·" * width
-
-    # Cap percentage at 100% for visual display
-    percentage = min(covered / total, 1.0)
-    filled = int(percentage * width)
-    empty = width - filled
-
-    # Use simple characters that render reliably
-    filled_char = "■"
-    empty_char = "·"
-
-    return filled_char * filled + empty_char * empty
-
-
-@hunt.command()
-@click.option("--tactic", help="Filter by specific tactic (or 'all' for all tactics)")
-@click.option("--detailed", is_flag=True, help="Show detailed technique coverage with hunt references")
-def coverage(tactic: Optional[str], detailed: bool) -> None:
-    """Show MITRE ATT&CK technique coverage across hunts.
-
-    \b
-    Analyzes and displays:
-    • Hunt count per tactic across all 14 ATT&CK tactics
-    • Technique count per tactic (with caveats - see note below)
-    • Overall unique technique coverage across all hunts
-    • Detailed technique-to-hunt mapping (with --detailed)
-
-    \b
-    Examples:
-      # Show coverage overview for all tactics
-      athf hunt coverage
-
-      # Show all tactics explicitly
-      athf hunt coverage --tactic all
-
-      # Show coverage for a specific tactic
-      athf hunt coverage --tactic credential-access
-
-      # Show detailed technique mapping for execution tactic
-      athf hunt coverage --tactic execution --detailed
-
-    \b
-    Note on technique counts:
-      Per-tactic technique counts may include duplicates if hunts cover
-      multiple tactics. The overall unique technique count (bottom) is accurate.
-
-    \b
-    Use this to:
-    • Identify blind spots in your hunting program
-    • Prioritize future hunt topics
-    • Demonstrate coverage to stakeholders
-    • Align hunting with threat intelligence priorities
-    • Balance hunt portfolio across tactics
-
-    \b
-    Pro tip:
-      Focus on tactics with no coverage that align with your threat model.
-      Use --detailed to see which specific techniques each hunt covers.
-    """
-    from athf.core.attack_matrix import ATTACK_TACTICS, get_sorted_tactics
-
-    manager = HuntManager()
-    coverage = manager.calculate_attack_coverage()
-
-    if not coverage or not coverage.get("by_tactic"):
-        console.print("[yellow]No hunt coverage data available.[/yellow]")
-        return
-
-    summary = coverage["summary"]
-    by_tactic = coverage["by_tactic"]
-
-    # Determine which tactics to display
-    tactics_to_display = []
-    if tactic and tactic.lower() != "all":
-        # Validate tactic exists
-        if tactic not in ATTACK_TACTICS:
-            console.print(f"[red]Error: Unknown tactic '{tactic}'[/red]")
-            console.print("\n[bold]Valid tactics:[/bold]")
-            for tactic_key in get_sorted_tactics():
-                console.print(f"  • {tactic_key}")
-            return
-        tactics_to_display = [tactic]
-    else:
-        # Show all tactics
-        tactics_to_display = get_sorted_tactics()
-
-    # Display title
-    if tactic and tactic.lower() != "all":
-        tactic_display_name = ATTACK_TACTICS[tactic]["name"]
-        console.print(f"\n[bold]MITRE ATT&CK Coverage - {tactic_display_name}[/bold]")
-    else:
-        console.print("\n[bold]MITRE ATT&CK Coverage[/bold]")
-    console.print("─" * 60 + "\n")
-
-    # Display selected tactics in ATT&CK order with hunt counts
-    for tactic_key in tactics_to_display:
-        data = by_tactic.get(tactic_key, {})
-        tactic_name = ATTACK_TACTICS[tactic_key]["name"]
-
-        hunt_count = data.get("hunt_count", 0)
-        techniques_covered = data.get("techniques_covered", 0)
-
-        # Format: "Tactic Name          2 hunts, 7 techniques"
-        if hunt_count > 0:
-            console.print(f"{tactic_name:<24} {hunt_count} hunts, {techniques_covered} techniques")
-        else:
-            console.print(f"{tactic_name:<24} [dim]no coverage[/dim]")
-
-    # Display overall coverage only if showing all tactics
-    if not tactic or tactic.lower() == "all":
-        console.print(
-            f"\n[bold]Overall: {summary['unique_techniques']}/{summary['total_techniques']} techniques ({summary['overall_coverage_pct']:.0f}%)[/bold]\n"
-        )
-    else:
-        console.print()
-
-    # Display detailed technique coverage if requested
-    if detailed:
-        console.print("\n[bold cyan]🔍 Detailed Technique Coverage[/bold cyan]\n")
-
-        for tactic_key in tactics_to_display:
-            data = by_tactic.get(tactic_key, {})
-            if data.get("hunt_count", 0) == 0:
-                continue  # Skip tactics with no hunts in detailed view
-
-            tactic_name = ATTACK_TACTICS[tactic_key]["name"]
-            console.print(
-                f"\n[bold]{tactic_name}[/bold] ({data['hunt_count']} hunts, {len(data['techniques'])} unique techniques)"
-            )
-
-            # Show techniques with hunt references
-            for technique, hunt_ids in sorted(data["techniques"].items()):
-                hunt_refs = ", ".join(sorted(set(hunt_ids)))  # Remove duplicates and sort
-                console.print(f"  • [yellow]{technique}[/yellow] - {hunt_refs}")
-
-    console.print()
-
-
-@hunt.command(hidden=True)
-def coffee() -> None:
-    """Check your caffeine levels (critical for threat hunting)."""
-    now = datetime.now()
-    hour = now.hour
-
-    # Random caffeine level
-    caffeine_level = random.randint(0, 100)
-
-    # Time-aware status
-    if 3 <= hour < 5:
-        status = "Incident Response Mode"
-        time_message = "Running on pure incident response adrenaline."
-    elif 0 <= hour < 6:
-        status = "Night Hunter"
-        time_message = "The real threat hunting happens in the dark."
-    elif 6 <= hour < 9:
-        status = "Early Bird"
-        time_message = "Morning hunts catch the adversaries."
-    elif 18 <= hour < 24:
-        status = "Evening Detective"
-        time_message = "Picking up where the day shift left off."
-    else:
-        status = "Operational"
-        time_message = "Sustainable hunting pace detected."
-
-    # Caffeine-level specific recommendations
-    if caffeine_level < 30:
-        recommendation = "Consider refueling. Even the best hunters need breaks."
-    elif caffeine_level > 90:
-        recommendation = "Peak operational capacity. Time to chase that hypothesis."
-    else:
-        recommendation = time_message
-
-    console.print("\n[bold]☕ Threat Hunter Caffeine Check[/bold]\n")
-    console.print(f"Current Level: [cyan]{caffeine_level}%[/cyan]")
-    console.print(f"Status: [yellow]{status}[/yellow]")
-    console.print(f"Recommendation: [italic]{recommendation}[/italic]\n")
-
-    # Random wisdom quote
-    wisdom_quotes = [
-        "The best hunts are fueled by curiosity, not just caffeine.",
-        "Caffeine enables the hunt. Rigor validates the findings.",
-        "Stay sharp, stay curious, stay caffeinated.",
-        "Coffee: because threat actors don't work business hours.",
-        "Fuel your hypotheses with coffee. Validate them with data.",
-    ]
-    console.print(f"[dim italic]{random.choice(wisdom_quotes)}[/dim italic]\n")
-
-
-@hunt.command(name="promote")
-@click.argument("hunt_id")
-@click.option("--yes", "-y", is_flag=True, help="Skip confirmation prompt")
-def promote_hunt(hunt_id: str, yes: bool) -> None:
-    """Promote a hunt from test to production.
-
-    \b
-    Moves a hunt file from hunts/test/... to hunts/production/...
-    while preserving its hunt ID and updating the file path.
-
-    \b
-    Examples:
-      # Promote a test hunt to production
-      athf hunt promote H-0042
-
-      # Skip confirmation
-      athf hunt promote H-0042 --yes
-
-    \b
-    After promotion:
-      • Hunt file moved to production directory
-      • Original test file removed
-      • Hunt ID preserved (no renumbering)
-    """
-    import shutil
-
-    if not validate_hunt_id(hunt_id):
-        console.print(f"[red]Error: Invalid hunt ID format: {hunt_id}[/red]")
-        console.print("[yellow]Expected format: H-0001[/yellow]")
-        return
-
-    manager = HuntManager()
-    hunt_file = manager.find_hunt_file(hunt_id)
-
-    if not hunt_file:
-        console.print(f"[red]Error: Hunt not found: {hunt_id}[/red]")
-        return
-
-    # Check hunt is in test directory
-    if "test" not in hunt_file.parts:
-        if "production" in hunt_file.parts:
-            console.print(f"[yellow]{hunt_id} is already in production: {hunt_file}[/yellow]")
-        else:
-            console.print(f"[yellow]{hunt_id} is not in a test directory: {hunt_file}[/yellow]")
-        return
-
-    # Calculate production destination
-    prod_dir = get_hunt_directory(is_test=False)
-    prod_file = prod_dir / f"{hunt_id}.md"
-
-    console.print(f"\n[bold cyan]🔄 Promoting {hunt_id} to production[/bold cyan]\n")
-    console.print(f"  [dim]From:[/dim] {hunt_file}")
-    console.print(f"  [dim]To:  [/dim] {prod_file}\n")
-
-    if prod_file.exists():
-        console.print(f"[red]Error: Destination already exists: {prod_file}[/red]")
-        return
-
-    if not yes:
-        confirm = Prompt.ask("Proceed with promotion?", choices=["y", "n"], default="y")
-        if confirm != "y":
-            console.print("[dim]Promotion cancelled.[/dim]")
-            return
-
-    # Move the file
-    prod_dir.mkdir(parents=True, exist_ok=True)
-    shutil.move(str(hunt_file), str(prod_file))
-
-    console.print(f"[bold green]✅ Promoted {hunt_id} to production[/bold green]")
-    console.print(f"  [dim]{prod_file}[/dim]\n")
-
-
-def _load_linked_research(research_id: str, research_dir: Path) -> Optional[Dict[str, Any]]:
-    """Load a linked research document by ID.
-
-    Args:
-        research_id: Research ID (e.g., R-0008)
-        research_dir: Path to research directory
-
-    Returns:
-        Dict with research frontmatter and sections, or None if not found
-    """
-    research_file = research_dir / f"{research_id}.md"
-    if not research_file.exists():
-        return None
-
-    try:
-        from athf.core.research_manager import parse_research_file
-
-        research_data = parse_research_file(research_file)
-        frontmatter = research_data.get("frontmatter", {})
-
-        return {
-            "research_id": frontmatter.get("research_id"),
-            "topic": frontmatter.get("topic"),
-            "mitre_techniques": frontmatter.get("mitre_techniques", []),
-            "status": frontmatter.get("status"),
-            "depth": frontmatter.get("depth"),
-            "duration_minutes": frontmatter.get("duration_minutes"),
-            "data_source_availability": frontmatter.get("data_source_availability", {}),
-            "estimated_hunt_complexity": frontmatter.get("estimated_hunt_complexity"),
-            "created_date": frontmatter.get("created_date"),
-            "sections": research_data.get("sections", {}),
-            "file_path": str(research_file),
-        }
-    except Exception:
-        return None
-
-
-def _json_serializer(obj: Any) -> Any:
-    """JSON serializer for objects not serializable by default."""
-    if isinstance(obj, (date, datetime)):
-        return obj.isoformat()
-    raise TypeError(f"Type {type(obj)} not serializable")
-
-
-def _load_sessions_for_hunt(hunt_id: str, sessions_dir: Path) -> List[Dict[str, Any]]:
-    """Load all session data for a hunt from the sessions directory.
-
-    Reads session.yaml, decisions.yaml, findings.yaml, and queries.yaml
-    from each matching session directory.
-
-    Args:
-        hunt_id: Hunt ID to find sessions for (e.g., H-0027)
-        sessions_dir: Path to sessions directory
-
-    Returns:
-        List of session dicts with all available data
-    """
-    sessions: List[Dict[str, Any]] = []
-
-    if not sessions_dir.exists():
-        return sessions
-
-    for session_dir in sorted(sessions_dir.iterdir()):
-        if not session_dir.is_dir() or session_dir.name.startswith("."):
-            continue
-
-        session_file = session_dir / "session.yaml"
-        if not session_file.exists():
-            continue
-
-        try:
-            with open(session_file, "r", encoding="utf-8") as f:
-                session_data = yaml.safe_load(f) or {}
-
-            if session_data.get("hunt_id") != hunt_id:
-                continue
-
-            # Load optional YAML files
-            for yaml_name in ("decisions", "findings", "queries"):
-                yaml_file = session_dir / f"{yaml_name}.yaml"
-                if yaml_file.exists():
-                    with open(yaml_file, "r", encoding="utf-8") as f:
-                        extra_data = yaml.safe_load(f) or {}
-                    session_data[yaml_name] = extra_data.get(yaml_name, [])
-
-            sessions.append(session_data)
-        except Exception:
-            continue
-
-    return sessions
-
-
-@hunt.command(name="export")
-@click.argument("hunt_id", required=False)
-@click.option("--all", "export_all", is_flag=True, help="Export all hunts")
-@click.option("--output", "output_file", type=click.Path(), help="Write to file instead of stdout")
-@click.option("--include-content", is_flag=True, help="Include raw markdown content in output")
-@click.option("--no-sessions", is_flag=True, help="Exclude session data from export")
-@click.option("--status", help="Filter by status when using --all (planning, active, completed)")
-def export_hunt(
-    hunt_id: Optional[str],
-    export_all: bool,
-    output_file: Optional[str],
-    include_content: bool,
-    no_sessions: bool,
-    status: Optional[str],
-) -> None:
-    """Export hunt data as structured JSON.
-
-    \b
-    Exports full hunt data including frontmatter, LOCK sections,
-    and associated session data (decisions, findings, queries).
-
-    \b
-    Examples:
-      # Export a single hunt
-      athf hunt export H-0027
-
-      # Export all hunts
-      athf hunt export --all
-
-      # Export to file
-      athf hunt export H-0027 --output hunt-0027.json
-
-      # Export with raw markdown content
-      athf hunt export H-0027 --include-content
-
-      # Export without session data
-      athf hunt export H-0027 --no-sessions
-
-      # Export all completed hunts
-      athf hunt export --all --status completed
-
-    \b
-    Use this to:
-      • Feed hunt data into external tools and dashboards
-      • Create machine-readable hunt reports
-      • Power graph databases and analytics pipelines
-      • Archive hunts in structured format
-    """
-    if not hunt_id and not export_all:
-        console.print("[red]Error: Provide a hunt ID or use --all[/red]")
-        console.print("[dim]Example: athf hunt export H-0027[/dim]")
-        console.print("[dim]         athf hunt export --all[/dim]")
-        raise click.Abort()
-
-    manager = HuntManager()
-    sessions_dir = Path("sessions")
-
-    if export_all:
-        hunts = manager.list_hunts(status=status)
-        if not hunts:
-            console.print("[yellow]No hunts found.[/yellow]")
-            return
-
-        export_data: List[Dict[str, Any]] = []
-        for hunt_summary in hunts:
-            hid = hunt_summary.get("hunt_id")
-            if not hid:
-                continue
-            hunt_data = manager.get_hunt(hid)
-            if not hunt_data:
-                continue
-            export_data.append(_build_export_dict(hunt_data, sessions_dir, include_content, no_sessions))
-
-        result = json.dumps(export_data, indent=2, default=_json_serializer)
-
-    else:
-        if not validate_hunt_id(hunt_id):  # type: ignore[arg-type]
-            console.print(f"[red]Error: Invalid hunt ID format: {hunt_id}[/red]")
-            console.print("[yellow]Expected format: H-0001[/yellow]")
-            raise click.Abort()
-
-        hunt_data = manager.get_hunt(hunt_id)  # type: ignore[arg-type]
-        if not hunt_data:
-            console.print(f"[red]Error: Hunt not found: {hunt_id}[/red]")
-            raise click.Abort()
-
-        export_dict = _build_export_dict(hunt_data, sessions_dir, include_content, no_sessions)
-        result = json.dumps(export_dict, indent=2, default=_json_serializer)
-
-    if output_file:
-        output_path = Path(output_file)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(output_path, "w", encoding="utf-8") as f:
-            f.write(result)
-            f.write("\n")
-        console.print(f"[green]Exported to {output_path}[/green]")
-    else:
-        click.echo(result)
-
-
-def _build_export_dict(
-    hunt_data: Dict[str, Any],
-    sessions_dir: Path,
-    include_content: bool,
-    no_sessions: bool,
-) -> Dict[str, Any]:
-    """Build the export dictionary for a single hunt.
-
-    Args:
-        hunt_data: Parsed hunt data from HuntParser
-        sessions_dir: Path to sessions directory
-        include_content: Whether to include raw markdown
-        no_sessions: Whether to exclude sessions
-
-    Returns:
-        Dict ready for JSON serialization
-    """
-    frontmatter = hunt_data.get("frontmatter", {})
-    hunt_id = frontmatter.get("hunt_id", "")
-
-    export: Dict[str, Any] = {
-        "hunt_id": hunt_id,
-        "title": frontmatter.get("title"),
-        "status": frontmatter.get("status"),
-        "date": frontmatter.get("date"),
-        "hunter": frontmatter.get("hunter"),
-        "hunt_type": frontmatter.get("hunt_type"),
-        "platform": frontmatter.get("platform", []),
-        "tactics": frontmatter.get("tactics", []),
-        "techniques": frontmatter.get("techniques", []),
-        "data_sources": frontmatter.get("data_sources", []),
-        "related_hunts": frontmatter.get("related_hunts", []),
-        "spawned_from": frontmatter.get("spawned_from"),
-        "findings_count": frontmatter.get("findings_count", 0),
-        "findings": hunt_data.get("findings", []),
-        "ruled_out": hunt_data.get("ruled_out", []),
-        "true_positives": frontmatter.get("true_positives", 0),
-        "false_positives": frontmatter.get("false_positives", 0),
-        "events_scanned": frontmatter.get("events_scanned"),
-        "tags": frontmatter.get("tags", []),
-        "lock_sections": hunt_data.get("lock_sections", {}),
-        "file_path": hunt_data.get("file_path"),
-    }
-
-    if include_content:
-        export["content"] = hunt_data.get("content", "")
-
-    # Load linked research document
-    spawned_from = frontmatter.get("spawned_from")
-    if spawned_from:
-        research_dir = Path("research")
-        research = _load_linked_research(spawned_from, research_dir)
-        if research:
-            export["research"] = research
-
-    if not no_sessions:
-        export["sessions"] = _load_sessions_for_hunt(hunt_id, sessions_dir)
-
-    return export
