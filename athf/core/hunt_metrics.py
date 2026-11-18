@@ -115,7 +115,7 @@ def calculate_metrics(
     else:
         # Original behavior: direct filesystem scan
         for hunt_file in hunt_dir.rglob("H-*.md"):
-            meta = parse_hunt_frontmatter(hunt_file)
+            meta: Optional[Dict[str, Any]] = parse_hunt_frontmatter(hunt_file)
             if not meta:
                 continue
 
