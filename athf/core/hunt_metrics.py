@@ -108,10 +108,10 @@ def calculate_metrics(
     if loader is not None:
         all_hunts = loader.load_all()
         # Filter by date range
-        for meta in all_hunts:
-            hunt_date = _parse_date_field(meta.get('date'))
+        for hunt_meta in all_hunts:
+            hunt_date = _parse_date_field(hunt_meta.get('date'))
             if hunt_date and start_date <= hunt_date <= end_date:
-                hunts.append(meta)
+                hunts.append(hunt_meta)
     else:
         # Original behavior: direct filesystem scan
         for hunt_file in hunt_dir.rglob("H-*.md"):
@@ -263,8 +263,8 @@ def format_metrics(metrics: HuntMetrics) -> str:
 
     lines.extend([
         "",
-        f"COVERAGE",
-        f"  ✓ ATT&CK tactics hunted: {len(metrics.tactics_covered)} of 14 ({len(metrics.tactics_covered)/14*100:.0f}%)",
+        "COVERAGE",
+        f"  ✓ ATT&CK tactics hunted: {len(metrics.tactics_covered)} of 14 ({len(metrics.tactics_covered) / 14 * 100:.0f}%)",
     ])
 
     # Show technologies hunted
@@ -281,7 +281,7 @@ def format_metrics(metrics: HuntMetrics) -> str:
     lines.extend([
         f"  ✓ Techniques hunted: {len(metrics.techniques_covered)}",
         "",
-        f"OPERATIONS",
+        "OPERATIONS",
         f"  ✓ Average hunt duration: {metrics.avg_duration_days:.1f} days",
         f"  ✓ Total findings: {metrics.total_findings}",
         f"  ✓ Success rate: {metrics.success_rate_pct:.0f}% ({int(metrics.success_rate_pct * metrics.completed_hunts / 100)} hunts with TP)",

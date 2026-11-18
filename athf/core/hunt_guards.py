@@ -87,7 +87,7 @@ def validate_date_range(start: date, end: date) -> Tuple[bool, Optional[str]]:
     # Warn if range is very large
     delta = (end - start).days
     if delta > 730:  # > 2 years
-        return True, f"Date range is {delta} days ({delta/365:.1f} years) - might be slow"
+        return True, f"Date range is {delta} days ({delta / 365:.1f} years) - might be slow"
 
     return True, None
 

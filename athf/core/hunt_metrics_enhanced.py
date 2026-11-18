@@ -14,8 +14,6 @@ from athf.core.hunt_metrics import (
     HuntMetrics,
     _parse_date_field,
     calculate_metrics,
-    format_metrics,
-    format_quarterly_scorecard,
     parse_hunt_frontmatter,
 )
 
