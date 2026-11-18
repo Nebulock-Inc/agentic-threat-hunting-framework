@@ -15,6 +15,7 @@ from rich.table import Table
 
 from athf.core.attack_matrix import get_technique
 from athf.core.hunt_manager import HuntManager
+from athf.core.hunt_metrics import parse_hunt_frontmatter
 from athf.core.hunt_parser import hunt_file_warnings, validate_hunt_file
 from athf.core.hunt_types import DEFAULT_HUNT_TYPE, HUNT_TYPE_DESCRIPTIONS, HUNT_TYPES, UNCATEGORIZED_LABEL
 from athf.core.template_engine import render_hunt_template
@@ -749,6 +750,1122 @@ def stats(by_field: Optional[str], status: Optional[str], directory: Optional[st
         console.print(
             "[italic]Every expert threat hunter started here. This confirms your hypothesis was testable, your data was sufficient, and your analytical instincts were sound. Document what worked.[/italic]\n"
         )
+
+
+@hunt.command()
+@click.argument("query")
+@click.option("--directory", type=click.Choice(["test", "production"]), help="Filter by environment directory")
+def search(query: str, directory: str) -> None:
+    """Full-text search across all hunt files.
+
+    \b
+    Searches through:
+    • Hunt titles and descriptions
+    • YAML frontmatter metadata
+    • LOCK section content
+    • Lessons learned
+    • Query comments
+
+    \b
+    Examples:
+      # Search for specific TTP
+      athf hunt search "kerberoasting"
+
+      # Search for technology
+      athf hunt search "powershell"
+
+      # Search by hunt ID
+      athf hunt search "H-0042"
+
+      # Search for data source
+      athf hunt search "sysmon"
+
+      # Filter by environment directory
+      athf hunt search "credential" --directory test
+
+    \b
+    Use this to:
+    • Avoid duplicate hunts
+    • Find related past work
+    • Reference lessons learned
+    • Check if a TTP has been hunted before
+    """
+    manager = HuntManager()
+    results = manager.search_hunts(query, directory=directory)
+
+    if not results:
+        console.print(f"[yellow]No hunts found matching '{query}'[/yellow]")
+        return
+
+    console.print(f"\n[bold]🔍 Search results for '{query}' ({len(results)} found)[/bold]\n")
+
+    for result in results:
+        environment = result.get("environment", "-")
+        env_display = f" | Env: {environment}" if environment else ""
+        console.print(f"[cyan]{result['hunt_id']}[/cyan]: {result['title']}")
+        console.print(f"  Status: {result['status']}{env_display} | File: {result['file_path']}")
+        console.print()
+
+
+def _render_progress_bar(covered: int, total: int, width: int = 20) -> str:
+    """Render a visual progress bar with filled and empty blocks.
+
+    Args:
+        covered: Number of covered techniques
+        total: Total number of techniques
+        width: Width of the progress bar in characters
+
+    Returns:
+        ASCII progress bar string using simple characters
+    """
+    if total == 0:
+        return "·" * width
+
+    # Cap percentage at 100% for visual display
+    percentage = min(covered / total, 1.0)
+    filled = int(percentage * width)
+    empty = width - filled
+
+    # Use simple characters that render reliably
+    filled_char = "■"
+    empty_char = "·"
+
+    return filled_char * filled + empty_char * empty
+
+
+@hunt.command()
+@click.option("--tactic", help="Filter by specific tactic (or 'all' for all tactics)")
+@click.option("--detailed", is_flag=True, help="Show detailed technique coverage with hunt references")
+def coverage(tactic: Optional[str], detailed: bool) -> None:
+    """Show MITRE ATT&CK technique coverage across hunts.
+
+    \b
+    Analyzes and displays:
+    • Hunt count per tactic across all 14 ATT&CK tactics
+    • Technique count per tactic (with caveats - see note below)
+    • Overall unique technique coverage across all hunts
+    • Detailed technique-to-hunt mapping (with --detailed)
+
+    \b
+    Examples:
+      # Show coverage overview for all tactics
+      athf hunt coverage
+
+      # Show all tactics explicitly
+      athf hunt coverage --tactic all
+
+      # Show coverage for a specific tactic
+      athf hunt coverage --tactic credential-access
+
+      # Show detailed technique mapping for execution tactic
+      athf hunt coverage --tactic execution --detailed
+
+    \b
+    Note on technique counts:
+      Per-tactic technique counts may include duplicates if hunts cover
+      multiple tactics. The overall unique technique count (bottom) is accurate.
+
+    \b
+    Use this to:
+    • Identify blind spots in your hunting program
+    • Prioritize future hunt topics
+    • Demonstrate coverage to stakeholders
+    • Align hunting with threat intelligence priorities
+    • Balance hunt portfolio across tactics
+
+    \b
+    Pro tip:
+      Focus on tactics with no coverage that align with your threat model.
+      Use --detailed to see which specific techniques each hunt covers.
+    """
+    from athf.core.attack_matrix import ATTACK_TACTICS, get_sorted_tactics
+
+    manager = HuntManager()
+    coverage = manager.calculate_attack_coverage()
+
+    if not coverage or not coverage.get("by_tactic"):
+        console.print("[yellow]No hunt coverage data available.[/yellow]")
+        return
+
+    summary = coverage["summary"]
+    by_tactic = coverage["by_tactic"]
+
+    # Determine which tactics to display
+    tactics_to_display = []
+    if tactic and tactic.lower() != "all":
+        # Validate tactic exists
+        if tactic not in ATTACK_TACTICS:
+            console.print(f"[red]Error: Unknown tactic '{tactic}'[/red]")
+            console.print("\n[bold]Valid tactics:[/bold]")
+            for tactic_key in get_sorted_tactics():
+                console.print(f"  • {tactic_key}")
+            return
+        tactics_to_display = [tactic]
+    else:
+        # Show all tactics
+        tactics_to_display = get_sorted_tactics()
+
+    # Display title
+    if tactic and tactic.lower() != "all":
+        tactic_display_name = ATTACK_TACTICS[tactic]["name"]
+        console.print(f"\n[bold]MITRE ATT&CK Coverage - {tactic_display_name}[/bold]")
+    else:
+        console.print("\n[bold]MITRE ATT&CK Coverage[/bold]")
+    console.print("─" * 60 + "\n")
+
+    # Display selected tactics in ATT&CK order with hunt counts
+    for tactic_key in tactics_to_display:
+        data = by_tactic.get(tactic_key, {})
+        tactic_name = ATTACK_TACTICS[tactic_key]["name"]
+
+        hunt_count = data.get("hunt_count", 0)
+        techniques_covered = data.get("techniques_covered", 0)
+
+        # Format: "Tactic Name          2 hunts, 7 techniques"
+        if hunt_count > 0:
+            console.print(f"{tactic_name:<24} {hunt_count} hunts, {techniques_covered} techniques")
+        else:
+            console.print(f"{tactic_name:<24} [dim]no coverage[/dim]")
+
+    # Display overall coverage only if showing all tactics
+    if not tactic or tactic.lower() == "all":
+        console.print(
+            f"\n[bold]Overall: {summary['unique_techniques']}/{summary['total_techniques']} techniques ({summary['overall_coverage_pct']:.0f}%)[/bold]\n"
+        )
+    else:
+        console.print()
+
+    # Display detailed technique coverage if requested
+    if detailed:
+        console.print("\n[bold cyan]🔍 Detailed Technique Coverage[/bold cyan]\n")
+
+        for tactic_key in tactics_to_display:
+            data = by_tactic.get(tactic_key, {})
+            if data.get("hunt_count", 0) == 0:
+                continue  # Skip tactics with no hunts in detailed view
+
+            tactic_name = ATTACK_TACTICS[tactic_key]["name"]
+            console.print(
+                f"\n[bold]{tactic_name}[/bold] ({data['hunt_count']} hunts, {len(data['techniques'])} unique techniques)"
+            )
+
+            # Show techniques with hunt references
+            for technique, hunt_ids in sorted(data["techniques"].items()):
+                hunt_refs = ", ".join(sorted(set(hunt_ids)))  # Remove duplicates and sort
+                console.print(f"  • [yellow]{technique}[/yellow] - {hunt_refs}")
+
+    console.print()
+
+
+@hunt.command(hidden=True)
+def coffee() -> None:
+    """Check your caffeine levels (critical for threat hunting)."""
+    now = datetime.now()
+    hour = now.hour
+
+    # Random caffeine level
+    caffeine_level = random.randint(0, 100)
+
+    # Time-aware status
+    if 3 <= hour < 5:
+        status = "Incident Response Mode"
+        time_message = "Running on pure incident response adrenaline."
+    elif 0 <= hour < 6:
+        status = "Night Hunter"
+        time_message = "The real threat hunting happens in the dark."
+    elif 6 <= hour < 9:
+        status = "Early Bird"
+        time_message = "Morning hunts catch the adversaries."
+    elif 18 <= hour < 24:
+        status = "Evening Detective"
+        time_message = "Picking up where the day shift left off."
+    else:
+        status = "Operational"
+        time_message = "Sustainable hunting pace detected."
+
+    # Caffeine-level specific recommendations
+    if caffeine_level < 30:
+        recommendation = "Consider refueling. Even the best hunters need breaks."
+    elif caffeine_level > 90:
+        recommendation = "Peak operational capacity. Time to chase that hypothesis."
+    else:
+        recommendation = time_message
+
+    console.print("\n[bold]☕ Threat Hunter Caffeine Check[/bold]\n")
+    console.print(f"Current Level: [cyan]{caffeine_level}%[/cyan]")
+    console.print(f"Status: [yellow]{status}[/yellow]")
+    console.print(f"Recommendation: [italic]{recommendation}[/italic]\n")
+
+    # Random wisdom quote
+    wisdom_quotes = [
+        "The best hunts are fueled by curiosity, not just caffeine.",
+        "Caffeine enables the hunt. Rigor validates the findings.",
+        "Stay sharp, stay curious, stay caffeinated.",
+        "Coffee: because threat actors don't work business hours.",
+        "Fuel your hypotheses with coffee. Validate them with data.",
+    ]
+    console.print(f"[dim italic]{random.choice(wisdom_quotes)}[/dim italic]\n")
+
+
+@hunt.command(name="promote")
+@click.argument("hunt_id")
+@click.option("--yes", "-y", is_flag=True, help="Skip confirmation prompt")
+def promote_hunt(hunt_id: str, yes: bool) -> None:
+    """Promote a hunt from test to production.
+
+    \b
+    Moves a hunt file from hunts/test/... to hunts/production/...
+    while preserving its hunt ID and updating the file path.
+
+    \b
+    Examples:
+      # Promote a test hunt to production
+      athf hunt promote H-0042
+
+      # Skip confirmation
+      athf hunt promote H-0042 --yes
+
+    \b
+    After promotion:
+      • Hunt file moved to production directory
+      • Original test file removed
+      • Hunt ID preserved (no renumbering)
+    """
+    import shutil
+
+    if not validate_hunt_id(hunt_id):
+        console.print(f"[red]Error: Invalid hunt ID format: {hunt_id}[/red]")
+        console.print("[yellow]Expected format: H-0001[/yellow]")
+        return
+
+    manager = HuntManager()
+    hunt_file = manager.find_hunt_file(hunt_id)
+
+    if not hunt_file:
+        console.print(f"[red]Error: Hunt not found: {hunt_id}[/red]")
+        return
+
+    # Check hunt is in test directory
+    if "test" not in hunt_file.parts:
+        if "production" in hunt_file.parts:
+            console.print(f"[yellow]{hunt_id} is already in production: {hunt_file}[/yellow]")
+        else:
+            console.print(f"[yellow]{hunt_id} is not in a test directory: {hunt_file}[/yellow]")
+        return
+
+    # Calculate production destination
+    prod_dir = get_hunt_directory(is_test=False)
+    prod_file = prod_dir / f"{hunt_id}.md"
+
+    console.print(f"\n[bold cyan]🔄 Promoting {hunt_id} to production[/bold cyan]\n")
+    console.print(f"  [dim]From:[/dim] {hunt_file}")
+    console.print(f"  [dim]To:  [/dim] {prod_file}\n")
+
+    if prod_file.exists():
+        console.print(f"[red]Error: Destination already exists: {prod_file}[/red]")
+        return
+
+    if not yes:
+        confirm = Prompt.ask("Proceed with promotion?", choices=["y", "n"], default="y")
+        if confirm != "y":
+            console.print("[dim]Promotion cancelled.[/dim]")
+            return
+
+    # Move the file
+    prod_dir.mkdir(parents=True, exist_ok=True)
+    shutil.move(str(hunt_file), str(prod_file))
+
+    console.print(f"[bold green]✅ Promoted {hunt_id} to production[/bold green]")
+    console.print(f"  [dim]{prod_file}[/dim]\n")
+
+
+def _load_linked_research(research_id: str, research_dir: Path) -> Optional[Dict[str, Any]]:
+    """Load a linked research document by ID.
+
+    Args:
+        research_id: Research ID (e.g., R-0008)
+        research_dir: Path to research directory
+
+    Returns:
+        Dict with research frontmatter and sections, or None if not found
+    """
+    research_file = research_dir / f"{research_id}.md"
+    if not research_file.exists():
+        return None
+
+    try:
+        from athf.core.research_manager import parse_research_file
+
+        research_data = parse_research_file(research_file)
+        frontmatter = research_data.get("frontmatter", {})
+
+        return {
+            "research_id": frontmatter.get("research_id"),
+            "topic": frontmatter.get("topic"),
+            "mitre_techniques": frontmatter.get("mitre_techniques", []),
+            "status": frontmatter.get("status"),
+            "depth": frontmatter.get("depth"),
+            "duration_minutes": frontmatter.get("duration_minutes"),
+            "data_source_availability": frontmatter.get("data_source_availability", {}),
+            "estimated_hunt_complexity": frontmatter.get("estimated_hunt_complexity"),
+            "created_date": frontmatter.get("created_date"),
+            "sections": research_data.get("sections", {}),
+            "file_path": str(research_file),
+        }
+    except Exception:
+        return None
+
+
+def _json_serializer(obj: Any) -> Any:
+    """JSON serializer for objects not serializable by default."""
+    if isinstance(obj, (date, datetime)):
+        return obj.isoformat()
+    raise TypeError(f"Type {type(obj)} not serializable")
+
+
+def _load_sessions_for_hunt(hunt_id: str, sessions_dir: Path) -> List[Dict[str, Any]]:
+    """Load all session data for a hunt from the sessions directory.
+
+    Reads session.yaml, decisions.yaml, findings.yaml, and queries.yaml
+    from each matching session directory.
+
+    Args:
+        hunt_id: Hunt ID to find sessions for (e.g., H-0027)
+        sessions_dir: Path to sessions directory
+
+    Returns:
+        List of session dicts with all available data
+    """
+    sessions: List[Dict[str, Any]] = []
+
+    if not sessions_dir.exists():
+        return sessions
+
+    for session_dir in sorted(sessions_dir.iterdir()):
+        if not session_dir.is_dir() or session_dir.name.startswith("."):
+            continue
+
+        session_file = session_dir / "session.yaml"
+        if not session_file.exists():
+            continue
+
+        try:
+            with open(session_file, "r", encoding="utf-8") as f:
+                session_data = yaml.safe_load(f) or {}
+
+            if session_data.get("hunt_id") != hunt_id:
+                continue
+
+            # Load optional YAML files
+            for yaml_name in ("decisions", "findings", "queries"):
+                yaml_file = session_dir / f"{yaml_name}.yaml"
+                if yaml_file.exists():
+                    with open(yaml_file, "r", encoding="utf-8") as f:
+                        extra_data = yaml.safe_load(f) or {}
+                    session_data[yaml_name] = extra_data.get(yaml_name, [])
+
+            sessions.append(session_data)
+        except Exception:
+            continue
+
+    return sessions
+
+
+@hunt.command(name="export")
+@click.argument("hunt_id", required=False)
+@click.option("--all", "export_all", is_flag=True, help="Export all hunts")
+@click.option("--output", "output_file", type=click.Path(), help="Write to file instead of stdout")
+@click.option("--include-content", is_flag=True, help="Include raw markdown content in output")
+@click.option("--no-sessions", is_flag=True, help="Exclude session data from export")
+@click.option("--status", help="Filter by status when using --all (planning, active, completed)")
+def export_hunt(
+    hunt_id: Optional[str],
+    export_all: bool,
+    output_file: Optional[str],
+    include_content: bool,
+    no_sessions: bool,
+    status: Optional[str],
+) -> None:
+    """Export hunt data as structured JSON.
+
+    \b
+    Exports full hunt data including frontmatter, LOCK sections,
+    and associated session data (decisions, findings, queries).
+
+    \b
+    Examples:
+      # Export a single hunt
+      athf hunt export H-0027
+
+      # Export all hunts
+      athf hunt export --all
+
+      # Export to file
+      athf hunt export H-0027 --output hunt-0027.json
+
+      # Export with raw markdown content
+      athf hunt export H-0027 --include-content
+
+      # Export without session data
+      athf hunt export H-0027 --no-sessions
+
+      # Export all completed hunts
+      athf hunt export --all --status completed
+
+    \b
+    Use this to:
+      • Feed hunt data into external tools and dashboards
+      • Create machine-readable hunt reports
+      • Power graph databases and analytics pipelines
+      • Archive hunts in structured format
+    """
+    if not hunt_id and not export_all:
+        console.print("[red]Error: Provide a hunt ID or use --all[/red]")
+        console.print("[dim]Example: athf hunt export H-0027[/dim]")
+        console.print("[dim]         athf hunt export --all[/dim]")
+        raise click.Abort()
+
+    manager = HuntManager()
+    sessions_dir = Path("sessions")
+
+    if export_all:
+        hunts = manager.list_hunts(status=status)
+        if not hunts:
+            console.print("[yellow]No hunts found.[/yellow]")
+            return
+
+        export_data: List[Dict[str, Any]] = []
+        for hunt_summary in hunts:
+            hid = hunt_summary.get("hunt_id")
+            if not hid:
+                continue
+            hunt_data = manager.get_hunt(hid)
+            if not hunt_data:
+                continue
+            export_data.append(_build_export_dict(hunt_data, sessions_dir, include_content, no_sessions))
+
+        result = json.dumps(export_data, indent=2, default=_json_serializer)
+
+    else:
+        if not validate_hunt_id(hunt_id):  # type: ignore[arg-type]
+            console.print(f"[red]Error: Invalid hunt ID format: {hunt_id}[/red]")
+            console.print("[yellow]Expected format: H-0001[/yellow]")
+            raise click.Abort()
+
+        hunt_data = manager.get_hunt(hunt_id)  # type: ignore[arg-type]
+        if not hunt_data:
+            console.print(f"[red]Error: Hunt not found: {hunt_id}[/red]")
+            raise click.Abort()
+
+        export_dict = _build_export_dict(hunt_data, sessions_dir, include_content, no_sessions)
+        result = json.dumps(export_dict, indent=2, default=_json_serializer)
+
+    if output_file:
+        output_path = Path(output_file)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(output_path, "w", encoding="utf-8") as f:
+            f.write(result)
+            f.write("\n")
+        console.print(f"[green]Exported to {output_path}[/green]")
+    else:
+        click.echo(result)
+
+
+def _build_export_dict(
+    hunt_data: Dict[str, Any],
+    sessions_dir: Path,
+    include_content: bool,
+    no_sessions: bool,
+) -> Dict[str, Any]:
+    """Build the export dictionary for a single hunt.
+
+    Args:
+        hunt_data: Parsed hunt data from HuntParser
+        sessions_dir: Path to sessions directory
+        include_content: Whether to include raw markdown
+        no_sessions: Whether to exclude sessions
+
+    Returns:
+        Dict ready for JSON serialization
+    """
+    frontmatter = hunt_data.get("frontmatter", {})
+    hunt_id = frontmatter.get("hunt_id", "")
+
+    export: Dict[str, Any] = {
+        "hunt_id": hunt_id,
+        "title": frontmatter.get("title"),
+        "status": frontmatter.get("status"),
+        "date": frontmatter.get("date"),
+        "hunter": frontmatter.get("hunter"),
+        "hunt_type": frontmatter.get("hunt_type"),
+        "platform": frontmatter.get("platform", []),
+        "tactics": frontmatter.get("tactics", []),
+        "techniques": frontmatter.get("techniques", []),
+        "data_sources": frontmatter.get("data_sources", []),
+        "related_hunts": frontmatter.get("related_hunts", []),
+        "spawned_from": frontmatter.get("spawned_from"),
+        "findings_count": frontmatter.get("findings_count", 0),
+        "findings": hunt_data.get("findings", []),
+        "ruled_out": hunt_data.get("ruled_out", []),
+        "true_positives": frontmatter.get("true_positives", 0),
+        "false_positives": frontmatter.get("false_positives", 0),
+        "events_scanned": frontmatter.get("events_scanned"),
+        "tags": frontmatter.get("tags", []),
+        "lock_sections": hunt_data.get("lock_sections", {}),
+        "file_path": hunt_data.get("file_path"),
+    }
+
+    if include_content:
+        export["content"] = hunt_data.get("content", "")
+
+    # Load linked research document
+    spawned_from = frontmatter.get("spawned_from")
+    if spawned_from:
+        research_dir = Path("research")
+        research = _load_linked_research(spawned_from, research_dir)
+        if research:
+            export["research"] = research
+
+    if not no_sessions:
+        export["sessions"] = _load_sessions_for_hunt(hunt_id, sessions_dir)
+
+    return export
+@hunt.group(invoke_without_command=True)
+@click.pass_context
+@click.option("--period", help="Quarter (2026-Q4) or year (2026)")
+@click.option("--year", type=int, help="Year for year-at-a-glance view (shows all 4 quarters)")
+@click.option("--start", help="Start date (YYYY-MM-DD)")
+@click.option("--end", help="End date (YYYY-MM-DD)")
+@click.option("--compare", help="Previous period to compare (2026-Q3)")
+@click.option("--format", "output_format", type=click.Choice(["text", "json", "csv"]), default="text")
+@click.option("--drill-down", type=click.Choice(["detections", "high_impact", "control_gaps"]), help="Drill down to individual hunts")
+@click.option("--top-performers", type=int, help="Show N top-performing hunts by incidents")
+def metrics(
+    ctx: click.Context,
+    period: Optional[str],
+    year: Optional[int],
+    start: Optional[str],
+    end: Optional[str],
+    compare: Optional[str],
+    output_format: str,
+    drill_down: Optional[str],
+    top_performers: Optional[int],
+) -> None:
+    """Show hunt metrics for 'Measure the Hunt' framework.
+
+    \b
+    Calculates quarterly metrics with 9 starter metrics:
+    • Outputs: detections created, incidents found, control gaps
+    • Coverage: tactics hunted, data available %, technologies
+    • Operations: duration, hunts repeated, backlog ratio
+
+    \b
+    Examples:
+      # Quarter metrics
+      athf hunt metrics --period 2026-Q4
+
+      # Year-at-a-glance (all 4 quarters)
+      athf hunt metrics --year 2024
+
+      # Quarter-over-quarter comparison
+      athf hunt metrics --period 2026-Q4 --compare 2026-Q3
+
+      # Drill down to detections
+      athf hunt metrics --period 2026-Q4 --drill-down detections
+
+      # Top performers
+      athf hunt metrics --period 2026-Q4 --top-performers 10
+
+      # CSV export
+      athf hunt metrics --year 2024 --format csv > metrics.csv
+
+      # Check for missing metrics fields
+      athf hunt metrics gaps
+    """
+    # If a subcommand is invoked, don't run the metrics logic
+    if ctx.invoked_subcommand is not None:
+        return
+
+    # Validate flag combinations
+    if year and period:
+        console.print("[bold red]Error:[/bold red] Cannot use --year and --period together", style="bold red")
+        return
+
+    if year and compare:
+        console.print("[bold red]Error:[/bold red] Cannot use --compare with --year", style="bold red")
+        return
+
+    if drill_down and output_format == "csv":
+        console.print("[bold red]Error:[/bold red] CSV export not supported for drill-downs", style="bold red")
+        return
+
+    if top_performers and output_format == "csv":
+        console.print("[bold red]Error:[/bold red] CSV export not supported for top-performers", style="bold red")
+        return
+
+    if drill_down and top_performers:
+        console.print("[bold red]Error:[/bold red] Cannot use --drill-down and --top-performers together", style="bold red")
+        return
+
+    if compare and not period:
+        console.print("[bold red]Error:[/bold red] --compare requires --period", style="bold red")
+        return
+
+    from athf.core.hunt_metrics import calculate_metrics, format_metrics, format_quarterly_scorecard
+    from athf.core.hunt_metrics_enhanced import (
+        calculate_year_at_glance,
+        drill_down_control_gaps,
+        drill_down_detections,
+        drill_down_high_impact,
+        format_as_csv,
+        format_drill_down,
+        format_year_as_csv,
+        format_year_at_glance,
+    )
+    from athf.core.hunt_guards import (
+        find_hunt_directory,
+        parse_user_date,
+        validate_date_range,
+        check_period_compatibility,
+        suggest_date_range,
+        analyze_hunt_statuses,
+    )
+    from datetime import datetime
+
+    # Find hunt directory
+    hunt_dir = find_hunt_directory()
+    if not hunt_dir:
+        console.print("[bold red]Error:[/bold red] Could not find hunt directory")
+        console.print("\n[dim]Searched:[/dim]")
+        console.print("  • ./hunts/production (current directory)")
+        console.print("  • ../agentic-threat-hunting-framework/hunts/production (sibling repo)")
+        console.print("  • Package installation location")
+        console.print("\n💡 Tips:")
+        console.print("  • Run from the repository root")
+        console.print("  • Or set ATHF_HUNT_DIR=/path/to/hunts/production")
+        return
+
+    # YEAR-AT-A-GLANCE VIEW
+    if year:
+        quarters = calculate_year_at_glance(hunt_dir, year)
+
+        if output_format == "csv":
+            console.print(format_year_as_csv(quarters))
+        elif output_format == "json":
+            import json
+            console.print(json.dumps({
+                "year": year,
+                "quarters": [
+                    {
+                        "period": q.period_label,
+                        "completed_hunts": q.completed_hunts,
+                        "detections_created": q.detections_created,
+                        "incidents_sourced": q.incidents_sourced,
+                        "control_gaps": q.control_gaps,
+                        "tactics_covered": len(q.tactics_covered),
+                        "data_available_pct": q.data_available_pct,
+                        "avg_duration_days": q.avg_duration_days,
+                    }
+                    for q in quarters
+                ]
+            }, indent=2))
+        else:
+            console.print(format_year_at_glance(quarters))
+        return
+
+    # REGULAR PERIOD VIEW (Quarter or date range)
+    start_str: str
+    end_str: str
+
+    if period:
+        if '-Q' in period:
+            try:
+                year_str, quarter_str = period.split('-Q')
+                year_int = int(year_str)
+                quarter_int = int(quarter_str)
+            except (ValueError, AttributeError):
+                console.print(f"[bold red]Error:[/bold red] Invalid quarter format '{period}'")
+                console.print("Expected format: YYYY-Q# (e.g., 2025-Q4)")
+                return
+
+            if quarter_int not in [1, 2, 3, 4]:
+                console.print(f"[bold red]Error:[/bold red] Invalid quarter '{quarter_int}' in '{period}'")
+                console.print("Quarter must be 1, 2, 3, or 4")
+                return
+
+            quarter_dates: Dict[int, Tuple[str, str]] = {
+                1: (f"{year_int}-01-01", f"{year_int}-03-31"),
+                2: (f"{year_int}-04-01", f"{year_int}-06-30"),
+                3: (f"{year_int}-07-01", f"{year_int}-09-30"),
+                4: (f"{year_int}-10-01", f"{year_int}-12-31"),
+            }
+            start_str, end_str = quarter_dates[quarter_int]
+            period_label = period
+        else:
+            # Year only
+            try:
+                year_int = int(period)
+            except ValueError:
+                console.print(f"[bold red]Error:[/bold red] Invalid year format '{period}'")
+                console.print("Expected format: YYYY (e.g., 2025) or YYYY-Q# (e.g., 2025-Q4)")
+                return
+            start_str = f"{year_int}-01-01"
+            end_str = f"{year_int}-12-31"
+            period_label = str(year_int)
+    elif start and end:
+        start_str = start
+        end_str = end
+        period_label = f"{start} to {end}"
+    else:
+        console.print("❌ Error: Specify --period, --year, or --start/--end", style="bold red")
+        return
+
+    # Parse and validate dates
+    start_date = parse_user_date(start_str)
+    end_date = parse_user_date(end_str)
+
+    if not start_date:
+        console.print(f"[bold red]Error:[/bold red] Invalid start date: {start_str}")
+        console.print("\n💡 Use ISO format: YYYY-MM-DD (e.g., 2024-01-15)")
+        return
+
+    if not end_date:
+        console.print(f"[bold red]Error:[/bold red] Invalid end date: {end_str}")
+        console.print("\n💡 Use ISO format: YYYY-MM-DD (e.g., 2024-12-31)")
+        return
+
+    # Validate range
+    is_valid, msg = validate_date_range(start_date, end_date)
+    if not is_valid:
+        console.print(f"[bold red]Error:[/bold red] {msg}")
+        console.print("\n💡 Tip: Swap your dates")
+        return
+
+    if msg:  # Warning
+        console.print(f"[yellow]⚠️  {msg}[/yellow]\n")
+
+    # Calculate current period metrics
+    current_metrics = calculate_metrics(hunt_dir, start_date, end_date, period_label)
+
+    # Check if no hunts found
+    if current_metrics.total_hunts == 0:
+        from athf.core.hunt_loader import HuntLoader
+        loader = HuntLoader(hunt_dir)
+        all_hunts = loader.load_all()
+
+        if len(all_hunts) == 0:
+            console.print("[yellow]⚠️  No hunt files found[/yellow]")
+            console.print(f"\n💡 Tip: Make sure {hunt_dir} contains H-*.md files")
+            return
+
+        # Have hunts, just not in this range
+        suggestion = suggest_date_range(all_hunts)
+        if suggestion:
+            suggested_period, earliest, latest = suggestion
+            console.print(f"[yellow]⚠️  No hunts found between {start_date} and {end_date}[/yellow]")
+            console.print(f"\n💡 Your hunts span {earliest} to {latest}")
+            console.print(f"   Try: athf hunt metrics --period {suggested_period}")
+        else:
+            console.print(f"[yellow]⚠️  No hunts found between {start_date} and {end_date}[/yellow]")
+        return
+
+    # Check if no completed hunts
+    if current_metrics.total_hunts > 0 and current_metrics.completed_hunts == 0:
+        console.print(f"[yellow]⚠️  Found {current_metrics.total_hunts} hunts, but none are completed[/yellow]")
+        console.print("\n💡 Metrics only include hunts with status: completed")
+
+        # Show status breakdown
+        from athf.core.hunt_loader import HuntLoader
+        from athf.core.hunt_metrics import _parse_date_field
+        loader = HuntLoader(hunt_dir)
+        hunts_in_range = []
+        for h in loader.load_all():
+            hunt_date = _parse_date_field(h.get('date'))
+            if hunt_date and start_date <= hunt_date <= end_date:
+                hunts_in_range.append(h)
+
+        statuses = analyze_hunt_statuses(hunts_in_range)
+        console.print("\nStatus breakdown:")
+        for status, count in sorted(statuses.items()):
+            console.print(f"  • {status}: {count}")
+
+        return
+
+    # Calculate comparison period if requested
+    previous_metrics = None
+    if compare:
+        # Check compatibility (period must be set if compare is used, checked earlier)
+        if not period:
+            console.print("[bold red]Error:[/bold red] --compare requires --period")
+            return
+        is_compatible, error_msg = check_period_compatibility(period, compare)
+        if not is_compatible:
+            console.print(f"[bold red]Error:[/bold red] {error_msg}")
+            console.print("\n💡 Compare like periods:")
+            console.print("   • Quarter to quarter: --period 2024-Q4 --compare 2024-Q3")
+            console.print("   • Year to year: --period 2024 --compare 2023")
+            return
+
+        if '-Q' in compare:
+            try:
+                comp_year_str, comp_quarter_str = compare.split('-Q')
+                comp_year_int = int(comp_year_str)
+                comp_quarter_int = int(comp_quarter_str)
+            except (ValueError, AttributeError):
+                console.print(f"[bold red]Error:[/bold red] Invalid quarter format in --compare '{compare}'")
+                console.print("Expected format: YYYY-Q# (e.g., 2024-Q3)")
+                return
+
+            if comp_quarter_int not in [1, 2, 3, 4]:
+                console.print(f"[bold red]Error:[/bold red] Invalid quarter '{comp_quarter_int}' in --compare '{compare}'")
+                console.print("Quarter must be 1, 2, 3, or 4")
+                return
+
+            comp_quarter_dates: Dict[int, Tuple[str, str]] = {
+                1: (f"{comp_year_int}-01-01", f"{comp_year_int}-03-31"),
+                2: (f"{comp_year_int}-04-01", f"{comp_year_int}-06-30"),
+                3: (f"{comp_year_int}-07-01", f"{comp_year_int}-09-30"),
+                4: (f"{comp_year_int}-10-01", f"{comp_year_int}-12-31"),
+            }
+            comp_start, comp_end = comp_quarter_dates[comp_quarter_int]
+            comp_start_date = datetime.strptime(comp_start, "%Y-%m-%d").date()
+            comp_end_date = datetime.strptime(comp_end, "%Y-%m-%d").date()
+
+            previous_metrics = calculate_metrics(hunt_dir, comp_start_date, comp_end_date, compare)
+        else:
+            # Year-to-year comparison
+            try:
+                comp_year_int = int(compare)
+            except ValueError:
+                console.print(f"[bold red]Error:[/bold red] Invalid year format in --compare '{compare}'")
+                console.print("Expected format: YYYY (e.g., 2024)")
+                return
+            comp_start_date = datetime(comp_year_int, 1, 1).date()
+            comp_end_date = datetime(comp_year_int, 12, 31).date()
+
+            previous_metrics = calculate_metrics(hunt_dir, comp_start_date, comp_end_date, compare)
+
+    # DRILL-DOWN VIEW
+    if drill_down:
+        if drill_down == 'detections':
+            detection_results = drill_down_detections(hunt_dir, start_date, end_date, limit=20)
+            console.print(format_drill_down('detections', detection_results, start_date, end_date))
+        elif drill_down == 'high_impact':
+            impact_results = drill_down_high_impact(hunt_dir, start_date, end_date, threshold=5, limit=20)
+            console.print(format_drill_down('high_impact', impact_results, start_date, end_date))
+        elif drill_down == 'control_gaps':
+            gap_results = drill_down_control_gaps(hunt_dir, start_date, end_date, limit=20)
+            console.print(format_drill_down('control_gaps', gap_results, start_date, end_date))
+        return
+
+    # TOP PERFORMERS VIEW
+    if top_performers is not None:
+        results = drill_down_high_impact(hunt_dir, start_date, end_date, threshold=1, limit=top_performers)
+        console.print(format_drill_down('high_impact', results, start_date, end_date))
+        return
+
+    # FORMAT OUTPUT
+    if output_format == "csv":
+        console.print(format_as_csv(current_metrics))
+    elif output_format == "json":
+        import json
+        output = {
+            "period": period_label,
+            "completed_hunts": current_metrics.completed_hunts,
+            "detections_created": current_metrics.detections_created,
+            "incidents_sourced": current_metrics.incidents_sourced,
+            "control_gaps": current_metrics.control_gaps,
+            "tactics_covered": len(current_metrics.tactics_covered),
+            "techniques_covered": len(current_metrics.techniques_covered),
+            "data_available_pct": current_metrics.data_available_pct,
+            "avg_duration_days": current_metrics.avg_duration_days,
+            "hunts_repeated": current_metrics.hunts_repeated,
+            "backlog_ratio": round(current_metrics.backlog_ratio, 2) if current_metrics.backlog_ratio is not None else None,
+        }
+        if previous_metrics:
+            output["comparison"] = {
+                "period": compare,
+                "completed_hunts": previous_metrics.completed_hunts,
+                "detections_created": previous_metrics.detections_created,
+                "incidents_sourced": previous_metrics.incidents_sourced,
+            }
+        console.print(json.dumps(output, indent=2))
+    else:
+        # Text output - use quarterly scorecard if comparing, else standard format
+        if previous_metrics:
+            console.print(format_quarterly_scorecard(current_metrics, previous_metrics))
+        else:
+            console.print(format_metrics(current_metrics))
+
+
+@metrics.command()
+@click.option("--format", "output_format", type=click.Choice(["text", "json", "csv"]), default="text", help="Output format")
+@click.option("--strict", is_flag=True, help="Exit 1 on ANY missing field (for CI/CD)")
+def gaps(output_format: str, strict: bool) -> None:
+    """Check for missing metrics fields across all hunts.
+
+    \b
+    Scans hunt files for missing required metrics fields:
+    • technology_domain - Technology stack coverage
+    • hunt_type - Hunt methodology
+    • data_sources_available - Telemetry availability
+    • completed_date - Hunt completion date
+    • output_type - Output classification
+    • output_criticality - Severity assessment
+
+    \b
+    Examples:
+      # Human-readable report (default)
+      athf hunt metrics gaps
+
+      # JSON output (for automation)
+      athf hunt metrics gaps --format json
+
+      # CSV output (for spreadsheets)
+      athf hunt metrics gaps --format csv
+
+      # CI/CD mode (strict validation)
+      athf hunt metrics gaps --strict
+
+    \b
+    Exit codes:
+      • 0 - All hunts complete OR completion ≥80% (non-strict)
+      • 1 - Gaps found AND completion <80% OR --strict mode
+
+    \b
+    Use this to:
+    • Track metrics completeness across hunt portfolio
+    • Identify hunts needing backfill
+    • Enforce metrics standards in CI/CD pipelines
+    • Generate reports for leadership
+    """
+    # Use same hunt directory resolution as metrics command
+    try:
+        hunt_dir = find_hunt_directory()
+    except ValueError as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise click.Abort()
+
+    manager = HuntManager()
+    hunt_files = manager.find_all_hunt_files()
+
+    if not hunt_files:
+        console.print("[yellow]No hunt files found[/yellow]")
+        return
+
+    # Scan hunts for missing fields
+    total_hunts = 0
+    hunts_with_gaps = 0
+    field_gap_counts: Dict[str, int] = defaultdict(int)
+    gap_records: List[Dict[str, Any]] = []
+
+    for hunt_file in hunt_files:
+        # Parse frontmatter using existing utility
+        frontmatter = parse_hunt_frontmatter(hunt_file)
+        if frontmatter is None:
+            continue
+
+        total_hunts += 1
+
+        # Check for missing or empty fields
+        missing_fields = [
+            field for field in REQUIRED_METRICS_FIELDS
+            if field not in frontmatter or frontmatter[field] is None or frontmatter[field] == ""
+        ]
+
+        if missing_fields:
+            hunts_with_gaps += 1
+
+            # Update gap counts per field
+            for field in missing_fields:
+                field_gap_counts[field] += 1
+
+            # Record hunt with gaps
+            gap_records.append({
+                "period": _extract_period_from_path(hunt_file),
+                "hunt_id": hunt_file.stem,
+                "missing_fields": missing_fields
+            })
+
+    # Calculate completion percentage
+    completion_pct = 0 if total_hunts == 0 else int((total_hunts - hunts_with_gaps) * 100 / total_hunts)
+
+    # Output results based on format
+    _output_gaps_report(output_format, total_hunts, hunts_with_gaps, completion_pct, field_gap_counts, gap_records)
+
+    # Exit code logic
+    if strict and hunts_with_gaps > 0:
+        raise click.exceptions.Exit(1)
+    elif completion_pct < 80:
+        raise click.exceptions.Exit(1)
+
+
+def _output_gaps_report(
+    output_format: str,
+    total_hunts: int,
+    hunts_with_gaps: int,
+    completion_pct: int,
+    field_gap_counts: Dict[str, int],
+    gap_records: List[Dict[str, Any]]
+) -> None:
+    """Output the gaps report in the specified format.
+
+    Args:
+        output_format: Output format (text, json, csv)
+        total_hunts: Total number of hunts scanned
+        hunts_with_gaps: Number of hunts with missing fields
+        completion_pct: Completion percentage
+        field_gap_counts: Count of gaps per field
+        gap_records: List of hunts with missing fields
+    """
+    if output_format == "json":
+        output = {
+            "total_hunts": total_hunts,
+            "complete_hunts": total_hunts - hunts_with_gaps,
+            "incomplete_hunts": hunts_with_gaps,
+            "completion_percentage": completion_pct,
+            "field_gaps": dict(field_gap_counts),
+            "gaps": [
+                {
+                    "period": record["period"],
+                    "hunt_id": record["hunt_id"],
+                    "missing_fields": record["missing_fields"]  # Keep as list for JSON
+                }
+                for record in gap_records
+            ]
+        }
+        console.print(json.dumps(output, indent=2, ensure_ascii=False))
+
+    elif output_format == "csv":
+        console.print("period,hunt_id,missing_fields")
+        for record in gap_records:
+            missing = " ".join(record["missing_fields"])
+            console.print(f'{record["period"]},{record["hunt_id"]},"{missing}"')
+
+    else:
+        # Text format (human-readable)
+        console.print("\n[bold cyan]🔍 Hunt Metrics Gap Analysis[/bold cyan]")
+        console.print("=" * 60 + "\n")
+
+        console.print("[bold]📊 Summary:[/bold]")
+        console.print(f"   Total hunts:          {total_hunts}")
+        console.print(f"   Complete:             {total_hunts - hunts_with_gaps}")
+        console.print(f"   Incomplete:           {hunts_with_gaps}")
+        console.print(f"   Completion:           {completion_pct}%\n")
+
+        if hunts_with_gaps == 0:
+            console.print("[green]✅ All hunts have complete metrics fields![/green]\n")
+        else:
+            console.print("[bold]📋 Field Gap Counts:[/bold]")
+            for field, count in sorted(field_gap_counts.items()):
+                console.print(f"   {field}: {count} hunts")
+            console.print()
+
+            console.print("[bold]❌ Hunts with Missing Fields:[/bold]")
+            for record in gap_records:
+                console.print(f"   [cyan]{record['period']} {record['hunt_id']}[/cyan]")
+                console.print(f"      Missing: {', '.join(record['missing_fields'])}")
+            console.print()
 
 
 @hunt.command()
