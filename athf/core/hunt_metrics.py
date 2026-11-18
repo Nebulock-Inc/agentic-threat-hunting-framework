@@ -133,11 +133,11 @@ def calculate_metrics(
 
     # Outputs
     detections = sum(
-        len(h.get('related_detections', []))
+        len(h.get('related_detections') or [])
         for h in completed
     )
 
-    incidents = sum(h.get('true_positives', 0) for h in completed)
+    incidents = sum(h.get('true_positives') or 0 for h in completed)
 
     control_gaps = sum(
         1 for h in completed
@@ -160,8 +160,8 @@ def calculate_metrics(
     all_tactics = set()
     all_techniques = set()
     for h in completed:
-        all_tactics.update(h.get('tactics', []))
-        all_techniques.update(h.get('techniques', []))
+        all_tactics.update(h.get('tactics') or [])
+        all_techniques.update(h.get('techniques') or [])
 
     # By technology
     by_tech: Dict[str, int] = {}
@@ -170,7 +170,13 @@ def calculate_metrics(
         by_tech[tech] = by_tech.get(tech, 0) + 1
 
     # Data sources available (Coverage metric #5)
-    hunts_with_data = sum(1 for h in completed if h.get('data_sources_available', False))
+    # Accept bool True, non-empty string, or non-empty list
+    hunts_with_data = sum(
+        1 for h in completed
+        if h.get('data_sources_available') in (True, 'true', 'True', 'yes', 'Yes')
+        or (isinstance(h.get('data_sources_available'), (list, str))
+            and len(h.get('data_sources_available') or '') > 0)
+    )
     data_available_pct = (hunts_with_data / len(completed) * 100) if completed else 0
 
     # Duration (Operations metric #9)
@@ -206,11 +212,11 @@ def calculate_metrics(
         backlog_ratio = None
 
     # Success rate
-    success = sum(1 for h in completed if h.get('true_positives', 0) > 0)
+    success = sum(1 for h in completed if (h.get('true_positives') or 0) > 0)
     success_rate = (success / len(completed) * 100) if completed else 0
 
     # Total findings
-    total_findings = sum(h.get('findings_count', 0) for h in completed)
+    total_findings = sum(h.get('findings_count') or 0 for h in completed)
 
     return HuntMetrics(
         period_label=period_label,
