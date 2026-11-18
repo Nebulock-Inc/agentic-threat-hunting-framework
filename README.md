@@ -351,6 +351,30 @@ See the [Quick Start](#-quick-start) section above for installation options (PyP
 - Python 3.11 or higher (for CLI option)
 - Your favorite AI code assistant
 
+## 📊 Tracking Hunt Metrics
+
+Once you accumulate hunts, ATHF tracks key metrics across three arenas:
+
+**Outputs** - What you produced (detections, control gaps, negative findings)  
+**Coverage** - What you hunted (tactics, techniques, technologies)  
+**Operations** - How you hunted (duration, success rate, efficiency)
+
+```bash
+# View annual metrics
+athf hunt metrics --year 2025
+
+# Compare quarters
+athf hunt metrics --period 2025-Q4 --compare 2025-Q3
+
+# Drill down to high-impact hunts
+athf hunt metrics --period 2025-Q4 --drill-down high_impact
+
+# Check metrics completeness
+athf hunt metrics gaps
+```
+
+> **📝 Note on Example Hunts:** This repository includes example hunts in `hunts/production/2025/` to demonstrate what metrics look like when you're consistent with the file structure. These are **for demonstration only** - explore them to understand the format and see how metrics aggregate, then **clear them out** and replace with your own hunts. Your hunting program's data should be yours.
+
 ## Documentation
 
 ### Core Concepts
