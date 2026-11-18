@@ -13,6 +13,12 @@ related_hunts: []  # Hunt IDs that relate to this hunt (e.g., [H-0001, H-0005])
 findings_count: 0  # Total findings discovered (optional - can update post-execution)
 findings: []  # Verdict-tagged findings: confirmed | suspected. Each entry: subject, verdict, evidence, confirmation
 ruled_out: []  # Results that closed the question: attempted_not_vulnerable | benign | inconclusive. Each entry: subject, verdict, reason (attempted_not_vulnerable also requires control naming the control that held)
+# Required metrics fields (for `athf hunt metrics gaps` tracking)
+technology_domain: # Options: endpoint | cloud_aws | cloud_azure | cloud_gcp | identity | network | saas | kubernetes | containers
+data_sources_available: # Set to true if telemetry is available, false if not, or describe: "EDR process telemetry, CloudTrail logs"
+completed_date: # YYYY-MM-DD when hunt was completed (required for metrics tracking)
+output_type: # Options: detection | finding | control_gap | negative_finding | inconclusive
+output_criticality: # Options: critical | high | medium | low | info
 # Legacy counters, still read for hunts predating the verdict ladder. Leave them
 # commented out: an explicit value overrides the counts derived from
 # findings/ruled_out above, so `true_positives: 0` would mask a real confirmed
