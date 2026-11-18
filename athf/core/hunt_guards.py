@@ -122,20 +122,21 @@ def suggest_date_range(hunts: List[Dict]) -> Optional[Tuple[str, date, date]]:
     """
     from athf.core.hunt_metrics import _parse_date_field
 
-    dates = [_parse_date_field(h.get('date')) for h in hunts]
-    dates = [d for d in dates if d]
+    parsed_dates = [_parse_date_field(h.get('date')) for h in hunts]
+    # Type narrow: filter out None values to get List[date]
+    dates: List[date] = [d for d in parsed_dates if d is not None]
 
     if not dates:
         return None
 
-    earliest = min(dates)
-    latest = max(dates)
+    earliest: date = min(dates)
+    latest: date = max(dates)
 
     # Suggest most recent quarter
     quarter = (latest.month - 1) // 3 + 1
     suggested_period = f"{latest.year}-Q{quarter}"
 
-    return suggested_period, earliest, latest
+    return (suggested_period, earliest, latest)
 
 
 def analyze_hunt_statuses(hunts: List[Dict]) -> Dict[str, int]:
@@ -147,7 +148,7 @@ def analyze_hunt_statuses(hunts: List[Dict]) -> Dict[str, int]:
     Returns:
         Dictionary of {status: count}
     """
-    statuses = defaultdict(int)
+    statuses: Dict[str, int] = defaultdict(int)
     for h in hunts:
         status = h.get('status', 'unknown')
         statuses[status] += 1

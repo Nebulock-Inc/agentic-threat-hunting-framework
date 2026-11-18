@@ -38,7 +38,7 @@ class HuntLoader:
         """
         with self._lock:
             # Check if cache is valid
-            if not force_refresh and self._is_cache_valid():
+            if not force_refresh and self._is_cache_valid() and self._cache is not None:
                 return self._cache.copy()
 
             # Scan filesystem
@@ -62,7 +62,7 @@ class HuntLoader:
         age = time.time() - self._cache_time
         return age < self.cache_ttl
 
-    def clear_cache(self):
+    def clear_cache(self) -> None:
         """Clear the cache to force next load from disk."""
         self._cache = None
         self._cache_time = None

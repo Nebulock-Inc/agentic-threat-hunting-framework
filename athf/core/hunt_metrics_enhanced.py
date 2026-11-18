@@ -4,7 +4,7 @@ import csv
 import io
 from datetime import date
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from rich import box
 from rich.table import Table

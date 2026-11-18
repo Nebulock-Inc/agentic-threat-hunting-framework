@@ -928,43 +928,48 @@ def metrics(
         return
 
     # REGULAR PERIOD VIEW (Quarter or date range)
+    start_str: str
+    end_str: str
+
     if period:
         if '-Q' in period:
-            year_val, quarter = period.split('-Q')
-            year_val = int(year_val)
-            quarter = int(quarter)
+            year_str, quarter_str = period.split('-Q')
+            year_int = int(year_str)
+            quarter_int = int(quarter_str)
 
-            quarter_dates = {
-                1: (f"{year_val}-01-01", f"{year_val}-03-31"),
-                2: (f"{year_val}-04-01", f"{year_val}-06-30"),
-                3: (f"{year_val}-07-01", f"{year_val}-09-30"),
-                4: (f"{year_val}-10-01", f"{year_val}-12-31"),
+            quarter_dates: Dict[int, Tuple[str, str]] = {
+                1: (f"{year_int}-01-01", f"{year_int}-03-31"),
+                2: (f"{year_int}-04-01", f"{year_int}-06-30"),
+                3: (f"{year_int}-07-01", f"{year_int}-09-30"),
+                4: (f"{year_int}-10-01", f"{year_int}-12-31"),
             }
-            start, end = quarter_dates[quarter]
+            start_str, end_str = quarter_dates[quarter_int]
             period_label = period
         else:
             # Year only
-            year_val = int(period)
-            start = f"{year_val}-01-01"
-            end = f"{year_val}-12-31"
-            period_label = str(year_val)
+            year_int = int(period)
+            start_str = f"{year_int}-01-01"
+            end_str = f"{year_int}-12-31"
+            period_label = str(year_int)
     elif start and end:
+        start_str = start
+        end_str = end
         period_label = f"{start} to {end}"
     else:
         console.print("❌ Error: Specify --period, --year, or --start/--end", style="bold red")
         return
 
     # Parse and validate dates
-    start_date = parse_user_date(start)
-    end_date = parse_user_date(end)
+    start_date = parse_user_date(start_str)
+    end_date = parse_user_date(end_str)
 
     if not start_date:
-        console.print(f"[bold red]Error:[/bold red] Invalid start date: {start}")
+        console.print(f"[bold red]Error:[/bold red] Invalid start date: {start_str}")
         console.print("\n💡 Use ISO format: YYYY-MM-DD (e.g., 2024-01-15)")
         return
 
     if not end_date:
-        console.print(f"[bold red]Error:[/bold red] Invalid end date: {end}")
+        console.print(f"[bold red]Error:[/bold red] Invalid end date: {end_str}")
         console.print("\n💡 Use ISO format: YYYY-MM-DD (e.g., 2024-12-31)")
         return
 
@@ -1012,9 +1017,11 @@ def metrics(
         from athf.core.hunt_loader import HuntLoader
         from athf.core.hunt_metrics import _parse_date_field
         loader = HuntLoader(hunt_dir)
-        hunts_in_range = [h for h in loader.load_all()
-                          if _parse_date_field(h.get('date')) and
-                          start_date <= _parse_date_field(h.get('date')) <= end_date]
+        hunts_in_range = []
+        for h in loader.load_all():
+            hunt_date = _parse_date_field(h.get('date'))
+            if hunt_date and start_date <= hunt_date <= end_date:
+                hunts_in_range.append(h)
 
         statuses = analyze_hunt_statuses(hunts_in_range)
         console.print("\nStatus breakdown:")
@@ -1026,7 +1033,10 @@ def metrics(
     # Calculate comparison period if requested
     previous_metrics = None
     if compare:
-        # Check compatibility
+        # Check compatibility (period must be set if compare is used, checked earlier)
+        if not period:
+            console.print("[bold red]Error:[/bold red] --compare requires --period")
+            return
         is_compatible, error_msg = check_period_compatibility(period, compare)
         if not is_compatible:
             console.print(f"[bold red]Error:[/bold red] {error_msg}")
@@ -1036,17 +1046,17 @@ def metrics(
             return
 
         if '-Q' in compare:
-            comp_year, comp_quarter = compare.split('-Q')
-            comp_year = int(comp_year)
-            comp_quarter = int(comp_quarter)
+            comp_year_str, comp_quarter_str = compare.split('-Q')
+            comp_year_int = int(comp_year_str)
+            comp_quarter_int = int(comp_quarter_str)
 
-            quarter_dates = {
-                1: (f"{comp_year}-01-01", f"{comp_year}-03-31"),
-                2: (f"{comp_year}-04-01", f"{comp_year}-06-30"),
-                3: (f"{comp_year}-07-01", f"{comp_year}-09-30"),
-                4: (f"{comp_year}-10-01", f"{comp_year}-12-31"),
+            comp_quarter_dates: Dict[int, Tuple[str, str]] = {
+                1: (f"{comp_year_int}-01-01", f"{comp_year_int}-03-31"),
+                2: (f"{comp_year_int}-04-01", f"{comp_year_int}-06-30"),
+                3: (f"{comp_year_int}-07-01", f"{comp_year_int}-09-30"),
+                4: (f"{comp_year_int}-10-01", f"{comp_year_int}-12-31"),
             }
-            comp_start, comp_end = quarter_dates[comp_quarter]
+            comp_start, comp_end = comp_quarter_dates[comp_quarter_int]
             comp_start_date = datetime.strptime(comp_start, "%Y-%m-%d").date()
             comp_end_date = datetime.strptime(comp_end, "%Y-%m-%d").date()
 
@@ -1055,14 +1065,14 @@ def metrics(
     # DRILL-DOWN VIEW
     if drill_down:
         if drill_down == 'detections':
-            results = drill_down_detections(hunt_dir, start_date, end_date, limit=20)
-            console.print(format_drill_down('detections', results, start_date, end_date))
+            detection_results = drill_down_detections(hunt_dir, start_date, end_date, limit=20)
+            console.print(format_drill_down('detections', detection_results, start_date, end_date))
         elif drill_down == 'high_impact':
-            results = drill_down_high_impact(hunt_dir, start_date, end_date, threshold=5, limit=20)
-            console.print(format_drill_down('high_impact', results, start_date, end_date))
+            impact_results = drill_down_high_impact(hunt_dir, start_date, end_date, threshold=5, limit=20)
+            console.print(format_drill_down('high_impact', impact_results, start_date, end_date))
         elif drill_down == 'control_gaps':
-            results = drill_down_control_gaps(hunt_dir, start_date, end_date, limit=20)
-            console.print(format_drill_down('control_gaps', results, start_date, end_date))
+            gap_results = drill_down_control_gaps(hunt_dir, start_date, end_date, limit=20)
+            console.print(format_drill_down('control_gaps', gap_results, start_date, end_date))
         return
 
     # TOP PERFORMERS VIEW

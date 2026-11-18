@@ -66,7 +66,7 @@ class HuntMetrics:
     success_rate_pct: float  # Hunts with TP > 0
 
 
-def parse_hunt_frontmatter(file_path: Path) -> Optional[Dict]:
+def parse_hunt_frontmatter(file_path: Path) -> Optional[Dict[str, Any]]:
     """Extract YAML frontmatter from hunt markdown file."""
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
@@ -79,7 +79,8 @@ def parse_hunt_frontmatter(file_path: Path) -> Optional[Dict]:
         if len(parts) < 3:
             return None
 
-        return yaml.safe_load(parts[1])
+        result = yaml.safe_load(parts[1])
+        return result if isinstance(result, dict) else None
     except (yaml.YAMLError, OSError, UnicodeDecodeError):
         # Log warning but return None to continue scanning
         return None
@@ -144,13 +145,13 @@ def calculate_metrics(
     )
 
     # By type
-    by_type = {}
+    by_type: Dict[str, int] = {}
     for h in completed:
         otype = h.get('output_type', 'unknown')
         by_type[otype] = by_type.get(otype, 0) + 1
 
     # By criticality
-    by_crit = {}
+    by_crit: Dict[str, int] = {}
     for h in completed:
         crit = h.get('output_criticality', 'unknown')
         by_crit[crit] = by_crit.get(crit, 0) + 1
@@ -163,7 +164,7 @@ def calculate_metrics(
         all_techniques.update(h.get('techniques', []))
 
     # By technology
-    by_tech = {}
+    by_tech: Dict[str, int] = {}
     for h in completed:
         tech = h.get('technology_domain', 'unknown')
         by_tech[tech] = by_tech.get(tech, 0) + 1
@@ -297,7 +298,7 @@ def format_quarterly_scorecard(current: HuntMetrics, previous: Optional[HuntMetr
     Returns a Rich Table object for clean, professional display of the 9 starter metrics.
     """
 
-    def trend_signal(curr_val, prev_val):
+    def trend_signal(curr_val: Any, prev_val: Any) -> str:
         """Calculate trend: up/flat/down."""
         if prev_val is None:
             return "--"
