@@ -107,7 +107,14 @@ def _has_data_available(value: Any) -> bool:
     if isinstance(value, bool):
         return value
     if isinstance(value, str):
-        return value.strip().lower() not in _FALSEY_STRINGS
+        normalized = value.strip().lower()
+        if not normalized or normalized in _FALSEY_STRINGS:
+            return False
+        # Check for negative phrases that indicate data is NOT available
+        negative_words = ["none", "unavailable", "not available", "no data", "no telemetry", "missing"]
+        if any(word in normalized for word in negative_words):
+            return False
+        return True
     if isinstance(value, list):
         return len(value) > 0
     return False
