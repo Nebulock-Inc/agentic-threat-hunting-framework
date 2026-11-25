@@ -157,8 +157,8 @@ def calculate_metrics(
         by_crit[crit] = by_crit.get(crit, 0) + 1
 
     # Coverage
-    all_tactics = set()
-    all_techniques = set()
+    all_tactics: set[str] = set()
+    all_techniques: set[str] = set()
     for h in completed:
         all_tactics.update(h.get('tactics') or [])
         all_techniques.update(h.get('techniques') or [])
