@@ -2,6 +2,7 @@
 
 import json
 import random
+from collections import defaultdict
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -15,6 +16,7 @@ from rich.table import Table
 
 from athf.core.attack_matrix import get_technique
 from athf.core.hunt_manager import HuntManager
+from athf.core.hunt_metrics import parse_hunt_frontmatter
 from athf.core.hunt_parser import hunt_file_warnings, validate_hunt_file
 from athf.core.hunt_types import DEFAULT_HUNT_TYPE, HUNT_TYPE_DESCRIPTIONS, HUNT_TYPES, UNCATEGORIZED_LABEL
 from athf.core.template_engine import render_hunt_template
@@ -22,6 +24,19 @@ from athf.core.verdicts import UNFILLED_HUNTER, VERDICTS
 from athf.utils.validation import validate_hunt_id, validate_research_id
 
 console = Console()
+
+# Required metrics fields for gap tracking
+REQUIRED_METRICS_FIELDS = [
+    "technology_domain",
+    "hunt_type",
+    "data_sources_available",
+    "completed_date",
+    "output_type",
+    "output_criticality",
+]
+
+# Fields that describe a hunt's outcome; only required once status is completed.
+COMPLETION_ONLY_METRICS_FIELDS = frozenset({"completed_date", "output_type", "output_criticality"})
 
 
 def _default_tactics_for_technique(technique_id: str) -> List[str]:
@@ -39,6 +54,25 @@ def _default_tactics_for_technique(technique_id: str) -> List[str]:
     if info:
         return list(info.get("tactic_shortnames") or [])
     return []
+
+
+def _extract_period_from_path(hunt_file: Path) -> str:
+    """Extract period label from hunt file path.
+
+    Args:
+        hunt_file: Path to hunt file
+
+    Returns:
+        Period string like "2026-Q4" or "-" if not found
+    """
+    parts = hunt_file.parts
+    # Look for pattern like /2026/Q4/ in path
+    for i, part in enumerate(parts):
+        if part.isdigit() and len(part) == 4 and i + 1 < len(parts):
+            quarter = parts[i + 1]
+            if quarter.startswith("Q") and len(quarter) == 2:
+                return f"{part}-{quarter}"
+    return "-"
 
 
 def get_hunt_directory(is_test: bool = False) -> Path:
@@ -1329,3 +1363,548 @@ def _build_export_dict(
         export["sessions"] = _load_sessions_for_hunt(hunt_id, sessions_dir)
 
     return export
+@hunt.group(invoke_without_command=True)
+@click.pass_context
+@click.option("--period", help="Quarter (2026-Q4) or year (2026)")
+@click.option("--year", type=int, help="Year for year-at-a-glance view (shows all 4 quarters)")
+@click.option("--start", help="Start date (YYYY-MM-DD)")
+@click.option("--end", help="End date (YYYY-MM-DD)")
+@click.option("--compare", help="Previous period to compare (2026-Q3)")
+@click.option("--format", "output_format", type=click.Choice(["text", "json", "csv"]), default="text")
+@click.option("--drill-down", type=click.Choice(["detections", "high_impact", "control_gaps"]), help="Drill down to individual hunts")
+@click.option("--top-performers", type=int, help="Show N top-performing hunts by incidents")
+def metrics(
+    ctx: click.Context,
+    period: Optional[str],
+    year: Optional[int],
+    start: Optional[str],
+    end: Optional[str],
+    compare: Optional[str],
+    output_format: str,
+    drill_down: Optional[str],
+    top_performers: Optional[int],
+) -> None:
+    """Show hunt metrics for 'Measure the Hunt' framework.
+
+    \b
+    Calculates quarterly metrics with 9 starter metrics:
+    • Outputs: detections created, incidents found, control gaps
+    • Coverage: tactics hunted, data available %, technologies
+    • Operations: duration, hunts repeated, backlog ratio
+
+    \b
+    Examples:
+      # Quarter metrics
+      athf hunt metrics --period 2026-Q4
+
+      # Year-at-a-glance (all 4 quarters)
+      athf hunt metrics --year 2024
+
+      # Quarter-over-quarter comparison
+      athf hunt metrics --period 2026-Q4 --compare 2026-Q3
+
+      # Drill down to detections
+      athf hunt metrics --period 2026-Q4 --drill-down detections
+
+      # Top performers
+      athf hunt metrics --period 2026-Q4 --top-performers 10
+
+      # CSV export
+      athf hunt metrics --year 2024 --format csv > metrics.csv
+
+      # Check for missing metrics fields
+      athf hunt metrics gaps
+    """
+    # If a subcommand is invoked, don't run the metrics logic
+    if ctx.invoked_subcommand is not None:
+        return
+
+    # Validate flag combinations
+    if year and period:
+        raise click.UsageError("Cannot use --year and --period together")
+
+    if year and compare:
+        raise click.UsageError("Cannot use --compare with --year")
+
+    if drill_down and output_format == "csv":
+        raise click.UsageError("CSV export not supported for drill-downs")
+
+    if top_performers and output_format == "csv":
+        raise click.UsageError("CSV export not supported for top-performers")
+
+    if drill_down and top_performers:
+        raise click.UsageError("Cannot use --drill-down and --top-performers together")
+
+    if compare and not period:
+        raise click.UsageError("--compare requires --period")
+
+    from athf.core.hunt_metrics import calculate_metrics, format_metrics, format_quarterly_scorecard
+    from athf.core.hunt_metrics_enhanced import (
+        calculate_year_at_glance,
+        drill_down_control_gaps,
+        drill_down_detections,
+        drill_down_high_impact,
+        format_as_csv,
+        format_drill_down,
+        format_year_as_csv,
+        format_year_at_glance,
+    )
+    from athf.core.hunt_guards import (
+        parse_user_date,
+        validate_date_range,
+        check_period_compatibility,
+        suggest_date_range,
+        analyze_hunt_statuses,
+    )
+    from datetime import datetime
+
+    hunt_dir = _resolve_metrics_hunt_dir()
+
+    # YEAR-AT-A-GLANCE VIEW
+    if year:
+        quarters = calculate_year_at_glance(hunt_dir, year)
+
+        # Machine formats go through click.echo: Rich soft-wraps at the console
+        # width (80 cols when piped) and parses markup, corrupting CSV/JSON.
+        if output_format == "csv":
+            click.echo(format_year_as_csv(quarters), nl=False)
+        elif output_format == "json":
+            import json
+            click.echo(json.dumps({
+                "year": year,
+                "quarters": [
+                    {
+                        "period": q.period_label,
+                        "completed_hunts": q.completed_hunts,
+                        "detections_created": q.detections_created,
+                        "incidents_sourced": q.incidents_sourced,
+                        "control_gaps": q.control_gaps,
+                        "tactics_covered": len(q.tactics_covered),
+                        "data_available_pct": q.data_available_pct,
+                        "avg_duration_days": q.avg_duration_days,
+                    }
+                    for q in quarters
+                ]
+            }, indent=2))
+        else:
+            console.print(format_year_at_glance(quarters))
+        return
+
+    # REGULAR PERIOD VIEW (Quarter or date range)
+    start_str: str
+    end_str: str
+
+    if period:
+        if '-Q' in period:
+            try:
+                year_str, quarter_str = period.split('-Q')
+                year_int = int(year_str)
+                quarter_int = int(quarter_str)
+            except (ValueError, AttributeError):
+                console.print(f"[bold red]Error:[/bold red] Invalid quarter format '{period}'")
+                console.print("Expected format: YYYY-Q# (e.g., 2025-Q4)")
+                raise click.exceptions.Exit(1)
+
+            if quarter_int not in [1, 2, 3, 4]:
+                console.print(f"[bold red]Error:[/bold red] Invalid quarter '{quarter_int}' in '{period}'")
+                console.print("Quarter must be 1, 2, 3, or 4")
+                raise click.exceptions.Exit(1)
+
+            quarter_dates: Dict[int, Tuple[str, str]] = {
+                1: (f"{year_int}-01-01", f"{year_int}-03-31"),
+                2: (f"{year_int}-04-01", f"{year_int}-06-30"),
+                3: (f"{year_int}-07-01", f"{year_int}-09-30"),
+                4: (f"{year_int}-10-01", f"{year_int}-12-31"),
+            }
+            start_str, end_str = quarter_dates[quarter_int]
+            period_label = period
+        else:
+            # Year only
+            try:
+                year_int = int(period)
+            except ValueError:
+                console.print(f"[bold red]Error:[/bold red] Invalid year format '{period}'")
+                console.print("Expected format: YYYY (e.g., 2025) or YYYY-Q# (e.g., 2025-Q4)")
+                raise click.exceptions.Exit(1)
+            start_str = f"{year_int}-01-01"
+            end_str = f"{year_int}-12-31"
+            period_label = str(year_int)
+    elif start and end:
+        start_str = start
+        end_str = end
+        period_label = f"{start} to {end}"
+    else:
+        console.print("❌ Error: Specify --period, --year, or --start/--end", style="bold red")
+        raise click.exceptions.Exit(1)
+
+    # Parse and validate dates
+    start_date = parse_user_date(start_str)
+    end_date = parse_user_date(end_str)
+
+    if not start_date:
+        console.print(f"[bold red]Error:[/bold red] Invalid start date: {start_str}")
+        console.print("\n💡 Use ISO format: YYYY-MM-DD (e.g., 2024-01-15)")
+        raise click.exceptions.Exit(1)
+
+    if not end_date:
+        console.print(f"[bold red]Error:[/bold red] Invalid end date: {end_str}")
+        console.print("\n💡 Use ISO format: YYYY-MM-DD (e.g., 2024-12-31)")
+        raise click.exceptions.Exit(1)
+
+    # Validate range
+    is_valid, msg = validate_date_range(start_date, end_date)
+    if not is_valid:
+        console.print(f"[bold red]Error:[/bold red] {msg}")
+        console.print("\n💡 Tip: Swap your dates")
+        raise click.exceptions.Exit(1)
+
+    if msg:  # Warning
+        console.print(f"[yellow]⚠️  {msg}[/yellow]\n")
+
+    # Calculate current period metrics
+    current_metrics = calculate_metrics(hunt_dir, start_date, end_date, period_label)
+
+    # Check if no hunts found
+    if current_metrics.total_hunts == 0:
+        from athf.core.hunt_loader import HuntLoader
+        loader = HuntLoader(hunt_dir)
+        all_hunts = loader.load_all()
+
+        if len(all_hunts) == 0:
+            console.print("[yellow]⚠️  No hunt files found[/yellow]")
+            console.print(f"\n💡 Tip: Make sure {hunt_dir} contains H-*.md files")
+            return
+
+        # Have hunts, just not in this range
+        suggestion = suggest_date_range(all_hunts)
+        if suggestion:
+            suggested_period, earliest, latest = suggestion
+            console.print(f"[yellow]⚠️  No hunts found between {start_date} and {end_date}[/yellow]")
+            console.print(f"\n💡 Your hunts span {earliest} to {latest}")
+            console.print(f"   Try: athf hunt metrics --period {suggested_period}")
+        else:
+            console.print(f"[yellow]⚠️  No hunts found between {start_date} and {end_date}[/yellow]")
+        return
+
+    # Check if no completed hunts
+    if current_metrics.total_hunts > 0 and current_metrics.completed_hunts == 0:
+        console.print(f"[yellow]⚠️  Found {current_metrics.total_hunts} hunts, but none are completed[/yellow]")
+        console.print("\n💡 Metrics only include hunts with status: completed")
+
+        # Show status breakdown
+        from athf.core.hunt_loader import HuntLoader
+        from athf.core.hunt_metrics import _parse_date_field
+        loader = HuntLoader(hunt_dir)
+        hunts_in_range = []
+        for h in loader.load_all():
+            hunt_date = _parse_date_field(h.get('date'))
+            if hunt_date and start_date <= hunt_date <= end_date:
+                hunts_in_range.append(h)
+
+        statuses = analyze_hunt_statuses(hunts_in_range)
+        console.print("\nStatus breakdown:")
+        for status, count in sorted(statuses.items()):
+            console.print(f"  • {status}: {count}")
+
+        return
+
+    # Calculate comparison period if requested
+    previous_metrics = None
+    if compare:
+        # Check compatibility (period must be set if compare is used, checked earlier)
+        if not period:
+            console.print("[bold red]Error:[/bold red] --compare requires --period")
+            raise click.exceptions.Exit(1)
+        is_compatible, error_msg = check_period_compatibility(period, compare)
+        if not is_compatible:
+            console.print(f"[bold red]Error:[/bold red] {error_msg}")
+            console.print("\n💡 Compare like periods:")
+            console.print("   • Quarter to quarter: --period 2024-Q4 --compare 2024-Q3")
+            console.print("   • Year to year: --period 2024 --compare 2023")
+            raise click.exceptions.Exit(1)
+
+        if '-Q' in compare:
+            try:
+                comp_year_str, comp_quarter_str = compare.split('-Q')
+                comp_year_int = int(comp_year_str)
+                comp_quarter_int = int(comp_quarter_str)
+            except (ValueError, AttributeError):
+                console.print(f"[bold red]Error:[/bold red] Invalid quarter format in --compare '{compare}'")
+                console.print("Expected format: YYYY-Q# (e.g., 2024-Q3)")
+                raise click.exceptions.Exit(1)
+
+            if comp_quarter_int not in [1, 2, 3, 4]:
+                console.print(f"[bold red]Error:[/bold red] Invalid quarter '{comp_quarter_int}' in --compare '{compare}'")
+                console.print("Quarter must be 1, 2, 3, or 4")
+                raise click.exceptions.Exit(1)
+
+            comp_quarter_dates: Dict[int, Tuple[str, str]] = {
+                1: (f"{comp_year_int}-01-01", f"{comp_year_int}-03-31"),
+                2: (f"{comp_year_int}-04-01", f"{comp_year_int}-06-30"),
+                3: (f"{comp_year_int}-07-01", f"{comp_year_int}-09-30"),
+                4: (f"{comp_year_int}-10-01", f"{comp_year_int}-12-31"),
+            }
+            comp_start, comp_end = comp_quarter_dates[comp_quarter_int]
+            comp_start_date = datetime.strptime(comp_start, "%Y-%m-%d").date()
+            comp_end_date = datetime.strptime(comp_end, "%Y-%m-%d").date()
+
+            previous_metrics = calculate_metrics(hunt_dir, comp_start_date, comp_end_date, compare)
+        else:
+            # Year-to-year comparison
+            try:
+                comp_year_int = int(compare)
+            except ValueError:
+                console.print(f"[bold red]Error:[/bold red] Invalid year format in --compare '{compare}'")
+                console.print("Expected format: YYYY (e.g., 2024)")
+                raise click.exceptions.Exit(1)
+            comp_start_date = datetime(comp_year_int, 1, 1).date()
+            comp_end_date = datetime(comp_year_int, 12, 31).date()
+
+            previous_metrics = calculate_metrics(hunt_dir, comp_start_date, comp_end_date, compare)
+
+    # DRILL-DOWN VIEW
+    if drill_down:
+        if drill_down == 'detections':
+            detection_results = drill_down_detections(hunt_dir, start_date, end_date, limit=20)
+            console.print(format_drill_down('detections', detection_results, start_date, end_date))
+        elif drill_down == 'high_impact':
+            impact_results = drill_down_high_impact(hunt_dir, start_date, end_date, threshold=5, limit=20)
+            console.print(format_drill_down('high_impact', impact_results, start_date, end_date))
+        elif drill_down == 'control_gaps':
+            gap_results = drill_down_control_gaps(hunt_dir, start_date, end_date, limit=20)
+            console.print(format_drill_down('control_gaps', gap_results, start_date, end_date))
+        return
+
+    # TOP PERFORMERS VIEW
+    if top_performers is not None:
+        results = drill_down_high_impact(hunt_dir, start_date, end_date, threshold=1, limit=top_performers)
+        console.print(format_drill_down('high_impact', results, start_date, end_date))
+        return
+
+    # FORMAT OUTPUT
+    if output_format == "csv":
+        click.echo(format_as_csv(current_metrics), nl=False)
+    elif output_format == "json":
+        import json
+        output = {
+            "period": period_label,
+            "completed_hunts": current_metrics.completed_hunts,
+            "detections_created": current_metrics.detections_created,
+            "incidents_sourced": current_metrics.incidents_sourced,
+            "control_gaps": current_metrics.control_gaps,
+            "tactics_covered": len(current_metrics.tactics_covered),
+            "techniques_covered": len(current_metrics.techniques_covered),
+            "data_available_pct": current_metrics.data_available_pct,
+            "avg_duration_days": current_metrics.avg_duration_days,
+            "hunts_repeated": current_metrics.hunts_repeated,
+            "backlog_ratio": round(current_metrics.backlog_ratio, 2) if current_metrics.backlog_ratio is not None else None,
+        }
+        if previous_metrics:
+            output["comparison"] = {
+                "period": compare,
+                "completed_hunts": previous_metrics.completed_hunts,
+                "detections_created": previous_metrics.detections_created,
+                "incidents_sourced": previous_metrics.incidents_sourced,
+            }
+        click.echo(json.dumps(output, indent=2))
+    else:
+        # Text output - use quarterly scorecard if comparing, else standard format
+        if previous_metrics:
+            console.print(format_quarterly_scorecard(current_metrics, previous_metrics))
+        else:
+            console.print(format_metrics(current_metrics))
+
+
+@metrics.command()
+@click.option("--format", "output_format", type=click.Choice(["text", "json", "csv"]), default="text", help="Output format")
+@click.option("--strict", is_flag=True, help="Exit 1 on ANY missing field (for CI/CD)")
+def gaps(output_format: str, strict: bool) -> None:
+    """Check for missing metrics fields across all hunts.
+
+    \b
+    Scans hunt files for missing required metrics fields:
+    • technology_domain - Technology stack coverage
+    • hunt_type - Hunt methodology
+    • data_sources_available - Telemetry availability
+    • completed_date - Hunt completion date
+    • output_type - Output classification
+    • output_criticality - Severity assessment
+
+    \b
+    Examples:
+      # Human-readable report (default)
+      athf hunt metrics gaps
+
+      # JSON output (for automation)
+      athf hunt metrics gaps --format json
+
+      # CSV output (for spreadsheets)
+      athf hunt metrics gaps --format csv
+
+      # CI/CD mode (strict validation)
+      athf hunt metrics gaps --strict
+
+    \b
+    Exit codes:
+      • 0 - All hunts complete OR completion ≥80% (non-strict)
+      • 1 - Gaps found AND completion <80% OR --strict mode
+
+    \b
+    Use this to:
+    • Track metrics completeness across hunt portfolio
+    • Identify hunts needing backfill
+    • Enforce metrics standards in CI/CD pipelines
+    • Generate reports for leadership
+    """
+    # Use same hunt directory resolution as metrics command
+    hunt_dir = _resolve_metrics_hunt_dir()
+
+    hunt_files = sorted(hunt_dir.rglob("H-*.md"))
+
+    if not hunt_files:
+        console.print("[yellow]No hunt files found[/yellow]")
+        return
+
+    # Scan hunts for missing fields
+    total_hunts = 0
+    hunts_with_gaps = 0
+    field_gap_counts: Dict[str, int] = defaultdict(int)
+    gap_records: List[Dict[str, Any]] = []
+
+    for hunt_file in hunt_files:
+        # Parse frontmatter using existing utility
+        frontmatter = parse_hunt_frontmatter(hunt_file)
+        if frontmatter is None:
+            continue
+
+        total_hunts += 1
+
+        missing_fields = _missing_metrics_fields(frontmatter)
+
+        if missing_fields:
+            hunts_with_gaps += 1
+
+            # Update gap counts per field
+            for field in missing_fields:
+                field_gap_counts[field] += 1
+
+            # Record hunt with gaps
+            gap_records.append({
+                "period": _extract_period_from_path(hunt_file),
+                "hunt_id": hunt_file.stem,
+                "missing_fields": missing_fields
+            })
+
+    # Calculate completion percentage
+    completion_pct = 0 if total_hunts == 0 else int((total_hunts - hunts_with_gaps) * 100 / total_hunts)
+
+    # Output results based on format
+    _output_gaps_report(output_format, total_hunts, hunts_with_gaps, completion_pct, field_gap_counts, gap_records)
+
+    # Exit code logic
+    if strict and hunts_with_gaps > 0:
+        raise click.exceptions.Exit(1)
+    elif completion_pct < 80:
+        raise click.exceptions.Exit(1)
+
+
+def _resolve_metrics_hunt_dir() -> Path:
+    """Resolve the hunt directory for ``metrics`` / ``metrics gaps`` or exit 1."""
+    from athf.core.hunt_guards import find_hunt_directory
+
+    try:
+        hunt_dir = find_hunt_directory()
+    except ValueError as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise click.exceptions.Exit(1)
+    if hunt_dir is None:
+        console.print("[bold red]Error:[/bold red] Could not find hunt directory")
+        console.print("\n[dim]Searched:[/dim]")
+        console.print("  • ./hunts/production (current directory)")
+        console.print("  • ../hunt-vault/hunts/production (sibling hunt-vault checkout)")
+        console.print("  • ~/athf/hunt-vault/hunts/production (home directory)")
+        console.print("\n💡 Tips:")
+        console.print("  • Run from the repository root")
+        console.print("  • Or set ATHF_HUNT_DIR=/path/to/hunts/production")
+        raise click.exceptions.Exit(1)
+    return hunt_dir
+
+
+def _missing_metrics_fields(frontmatter: Dict[str, Any]) -> List[str]:
+    """Required metrics fields that are absent or blank for this hunt.
+
+    Outcome fields only exist once a hunt finishes, so planning/in-progress
+    hunts aren't penalized for them.
+    """
+    required = REQUIRED_METRICS_FIELDS
+    if frontmatter.get("status") != "completed":
+        required = [f for f in REQUIRED_METRICS_FIELDS if f not in COMPLETION_ONLY_METRICS_FIELDS]
+    return [f for f in required if frontmatter.get(f) is None or frontmatter.get(f) == ""]
+
+
+def _output_gaps_report(
+    output_format: str,
+    total_hunts: int,
+    hunts_with_gaps: int,
+    completion_pct: int,
+    field_gap_counts: Dict[str, int],
+    gap_records: List[Dict[str, Any]]
+) -> None:
+    """Output the gaps report in the specified format.
+
+    Args:
+        output_format: Output format (text, json, csv)
+        total_hunts: Total number of hunts scanned
+        hunts_with_gaps: Number of hunts with missing fields
+        completion_pct: Completion percentage
+        field_gap_counts: Count of gaps per field
+        gap_records: List of hunts with missing fields
+    """
+    if output_format == "json":
+        output = {
+            "total_hunts": total_hunts,
+            "complete_hunts": total_hunts - hunts_with_gaps,
+            "incomplete_hunts": hunts_with_gaps,
+            "completion_percentage": completion_pct,
+            "field_gaps": dict(field_gap_counts),
+            "gaps": [
+                {
+                    "period": record["period"],
+                    "hunt_id": record["hunt_id"],
+                    "missing_fields": record["missing_fields"]  # Keep as list for JSON
+                }
+                for record in gap_records
+            ]
+        }
+        click.echo(json.dumps(output, indent=2, ensure_ascii=False))
+
+    elif output_format == "csv":
+        click.echo("period,hunt_id,missing_fields")
+        for record in gap_records:
+            missing = " ".join(record["missing_fields"])
+            click.echo(f'{record["period"]},{record["hunt_id"]},"{missing}"')
+
+    else:
+        # Text format (human-readable)
+        console.print("\n[bold cyan]🔍 Hunt Metrics Gap Analysis[/bold cyan]")
+        console.print("=" * 60 + "\n")
+
+        console.print("[bold]📊 Summary:[/bold]")
+        console.print(f"   Total hunts:          {total_hunts}")
+        console.print(f"   Complete:             {total_hunts - hunts_with_gaps}")
+        console.print(f"   Incomplete:           {hunts_with_gaps}")
+        console.print(f"   Completion:           {completion_pct}%\n")
+
+        if hunts_with_gaps == 0:
+            console.print("[green]✅ All hunts have complete metrics fields![/green]\n")
+        else:
+            console.print("[bold]📋 Field Gap Counts:[/bold]")
+            for field, count in sorted(field_gap_counts.items()):
+                console.print(f"   {field}: {count} hunts")
+            console.print()
+
+            console.print("[bold]❌ Hunts with Missing Fields:[/bold]")
+            for record in gap_records:
+                console.print(f"   [cyan]{record['period']} {record['hunt_id']}[/cyan]")
+                console.print(f"      Missing: {', '.join(record['missing_fields'])}")
+            console.print()
