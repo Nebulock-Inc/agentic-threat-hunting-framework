@@ -35,6 +35,9 @@ REQUIRED_METRICS_FIELDS = [
     "output_criticality",
 ]
 
+# Fields that describe a hunt's outcome; only required once status is completed.
+COMPLETION_ONLY_METRICS_FIELDS = frozenset({"completed_date", "output_type", "output_criticality"})
+
 
 def _default_tactics_for_technique(technique_id: str) -> List[str]:
     """Best-effort tactic auto-derivation from an ATT&CK technique ID.
@@ -1447,7 +1450,6 @@ def metrics(
         format_year_at_glance,
     )
     from athf.core.hunt_guards import (
-        find_hunt_directory,
         parse_user_date,
         validate_date_range,
         check_period_compatibility,
@@ -1456,28 +1458,19 @@ def metrics(
     )
     from datetime import datetime
 
-    # Find hunt directory
-    hunt_dir = find_hunt_directory()
-    if not hunt_dir:
-        console.print("[bold red]Error:[/bold red] Could not find hunt directory")
-        console.print("\n[dim]Searched:[/dim]")
-        console.print("  • ./hunts/production (current directory)")
-        console.print("  • ../agentic-threat-hunting-framework/hunts/production (sibling repo)")
-        console.print("  • Package installation location")
-        console.print("\n💡 Tips:")
-        console.print("  • Run from the repository root")
-        console.print("  • Or set ATHF_HUNT_DIR=/path/to/hunts/production")
-        return
+    hunt_dir = _resolve_metrics_hunt_dir()
 
     # YEAR-AT-A-GLANCE VIEW
     if year:
         quarters = calculate_year_at_glance(hunt_dir, year)
 
+        # Machine formats go through click.echo: Rich soft-wraps at the console
+        # width (80 cols when piped) and parses markup, corrupting CSV/JSON.
         if output_format == "csv":
-            console.print(format_year_as_csv(quarters))
+            click.echo(format_year_as_csv(quarters), nl=False)
         elif output_format == "json":
             import json
-            console.print(json.dumps({
+            click.echo(json.dumps({
                 "year": year,
                 "quarters": [
                     {
@@ -1510,12 +1503,12 @@ def metrics(
             except (ValueError, AttributeError):
                 console.print(f"[bold red]Error:[/bold red] Invalid quarter format '{period}'")
                 console.print("Expected format: YYYY-Q# (e.g., 2025-Q4)")
-                return
+                raise click.exceptions.Exit(1)
 
             if quarter_int not in [1, 2, 3, 4]:
                 console.print(f"[bold red]Error:[/bold red] Invalid quarter '{quarter_int}' in '{period}'")
                 console.print("Quarter must be 1, 2, 3, or 4")
-                return
+                raise click.exceptions.Exit(1)
 
             quarter_dates: Dict[int, Tuple[str, str]] = {
                 1: (f"{year_int}-01-01", f"{year_int}-03-31"),
@@ -1532,7 +1525,7 @@ def metrics(
             except ValueError:
                 console.print(f"[bold red]Error:[/bold red] Invalid year format '{period}'")
                 console.print("Expected format: YYYY (e.g., 2025) or YYYY-Q# (e.g., 2025-Q4)")
-                return
+                raise click.exceptions.Exit(1)
             start_str = f"{year_int}-01-01"
             end_str = f"{year_int}-12-31"
             period_label = str(year_int)
@@ -1542,7 +1535,7 @@ def metrics(
         period_label = f"{start} to {end}"
     else:
         console.print("❌ Error: Specify --period, --year, or --start/--end", style="bold red")
-        return
+        raise click.exceptions.Exit(1)
 
     # Parse and validate dates
     start_date = parse_user_date(start_str)
@@ -1551,19 +1544,19 @@ def metrics(
     if not start_date:
         console.print(f"[bold red]Error:[/bold red] Invalid start date: {start_str}")
         console.print("\n💡 Use ISO format: YYYY-MM-DD (e.g., 2024-01-15)")
-        return
+        raise click.exceptions.Exit(1)
 
     if not end_date:
         console.print(f"[bold red]Error:[/bold red] Invalid end date: {end_str}")
         console.print("\n💡 Use ISO format: YYYY-MM-DD (e.g., 2024-12-31)")
-        return
+        raise click.exceptions.Exit(1)
 
     # Validate range
     is_valid, msg = validate_date_range(start_date, end_date)
     if not is_valid:
         console.print(f"[bold red]Error:[/bold red] {msg}")
         console.print("\n💡 Tip: Swap your dates")
-        return
+        raise click.exceptions.Exit(1)
 
     if msg:  # Warning
         console.print(f"[yellow]⚠️  {msg}[/yellow]\n")
@@ -1621,14 +1614,14 @@ def metrics(
         # Check compatibility (period must be set if compare is used, checked earlier)
         if not period:
             console.print("[bold red]Error:[/bold red] --compare requires --period")
-            return
+            raise click.exceptions.Exit(1)
         is_compatible, error_msg = check_period_compatibility(period, compare)
         if not is_compatible:
             console.print(f"[bold red]Error:[/bold red] {error_msg}")
             console.print("\n💡 Compare like periods:")
             console.print("   • Quarter to quarter: --period 2024-Q4 --compare 2024-Q3")
             console.print("   • Year to year: --period 2024 --compare 2023")
-            return
+            raise click.exceptions.Exit(1)
 
         if '-Q' in compare:
             try:
@@ -1638,12 +1631,12 @@ def metrics(
             except (ValueError, AttributeError):
                 console.print(f"[bold red]Error:[/bold red] Invalid quarter format in --compare '{compare}'")
                 console.print("Expected format: YYYY-Q# (e.g., 2024-Q3)")
-                return
+                raise click.exceptions.Exit(1)
 
             if comp_quarter_int not in [1, 2, 3, 4]:
                 console.print(f"[bold red]Error:[/bold red] Invalid quarter '{comp_quarter_int}' in --compare '{compare}'")
                 console.print("Quarter must be 1, 2, 3, or 4")
-                return
+                raise click.exceptions.Exit(1)
 
             comp_quarter_dates: Dict[int, Tuple[str, str]] = {
                 1: (f"{comp_year_int}-01-01", f"{comp_year_int}-03-31"),
@@ -1663,7 +1656,7 @@ def metrics(
             except ValueError:
                 console.print(f"[bold red]Error:[/bold red] Invalid year format in --compare '{compare}'")
                 console.print("Expected format: YYYY (e.g., 2024)")
-                return
+                raise click.exceptions.Exit(1)
             comp_start_date = datetime(comp_year_int, 1, 1).date()
             comp_end_date = datetime(comp_year_int, 12, 31).date()
 
@@ -1690,7 +1683,7 @@ def metrics(
 
     # FORMAT OUTPUT
     if output_format == "csv":
-        console.print(format_as_csv(current_metrics))
+        click.echo(format_as_csv(current_metrics), nl=False)
     elif output_format == "json":
         import json
         output = {
@@ -1713,7 +1706,7 @@ def metrics(
                 "detections_created": previous_metrics.detections_created,
                 "incidents_sourced": previous_metrics.incidents_sourced,
             }
-        console.print(json.dumps(output, indent=2))
+        click.echo(json.dumps(output, indent=2))
     else:
         # Text output - use quarterly scorecard if comparing, else standard format
         if previous_metrics:
@@ -1763,19 +1756,8 @@ def gaps(output_format: str, strict: bool) -> None:
     • Enforce metrics standards in CI/CD pipelines
     • Generate reports for leadership
     """
-    # Import hunt directory resolution
-    from athf.core.hunt_guards import find_hunt_directory
-
     # Use same hunt directory resolution as metrics command
-    try:
-        hunt_dir = find_hunt_directory()
-    except ValueError as e:
-        console.print(f"[bold red]Error:[/bold red] {e}")
-        raise click.Abort()
-
-    if hunt_dir is None:
-        console.print("[yellow]No hunt files found[/yellow]")
-        return
+    hunt_dir = _resolve_metrics_hunt_dir()
 
     hunt_files = sorted(hunt_dir.rglob("H-*.md"))
 
@@ -1797,11 +1779,7 @@ def gaps(output_format: str, strict: bool) -> None:
 
         total_hunts += 1
 
-        # Check for missing or empty fields
-        missing_fields = [
-            field for field in REQUIRED_METRICS_FIELDS
-            if field not in frontmatter or frontmatter[field] is None or frontmatter[field] == ""
-        ]
+        missing_fields = _missing_metrics_fields(frontmatter)
 
         if missing_fields:
             hunts_with_gaps += 1
@@ -1828,6 +1806,40 @@ def gaps(output_format: str, strict: bool) -> None:
         raise click.exceptions.Exit(1)
     elif completion_pct < 80:
         raise click.exceptions.Exit(1)
+
+
+def _resolve_metrics_hunt_dir() -> Path:
+    """Resolve the hunt directory for ``metrics`` / ``metrics gaps`` or exit 1."""
+    from athf.core.hunt_guards import find_hunt_directory
+
+    try:
+        hunt_dir = find_hunt_directory()
+    except ValueError as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise click.exceptions.Exit(1)
+    if hunt_dir is None:
+        console.print("[bold red]Error:[/bold red] Could not find hunt directory")
+        console.print("\n[dim]Searched:[/dim]")
+        console.print("  • ./hunts/production (current directory)")
+        console.print("  • ../hunt-vault/hunts/production (sibling hunt-vault checkout)")
+        console.print("  • ~/athf/hunt-vault/hunts/production (home directory)")
+        console.print("\n💡 Tips:")
+        console.print("  • Run from the repository root")
+        console.print("  • Or set ATHF_HUNT_DIR=/path/to/hunts/production")
+        raise click.exceptions.Exit(1)
+    return hunt_dir
+
+
+def _missing_metrics_fields(frontmatter: Dict[str, Any]) -> List[str]:
+    """Required metrics fields that are absent or blank for this hunt.
+
+    Outcome fields only exist once a hunt finishes, so planning/in-progress
+    hunts aren't penalized for them.
+    """
+    required = REQUIRED_METRICS_FIELDS
+    if frontmatter.get("status") != "completed":
+        required = [f for f in REQUIRED_METRICS_FIELDS if f not in COMPLETION_ONLY_METRICS_FIELDS]
+    return [f for f in required if frontmatter.get(f) is None or frontmatter.get(f) == ""]
 
 
 def _output_gaps_report(

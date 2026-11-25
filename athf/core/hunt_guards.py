@@ -14,14 +14,22 @@ def find_hunt_directory() -> Optional[Path]:
 
     Returns:
         Path to hunt directory, or None if not found
+
+    Raises:
+        ValueError: ``ATHF_HUNT_DIR`` is set but is not a directory. An explicit
+            override that silently fell back would score a different hunt tree
+            (e.g. the bundled demo hunts) without telling anyone.
     """
     import os
 
-    candidates = []
+    candidates: List[Path] = []
 
-    # Environment variable override (highest priority)
+    # Environment variable override (highest priority, never falls back)
     if env_dir := os.getenv('ATHF_HUNT_DIR'):
-        candidates.append(Path(env_dir))
+        env_path = Path(env_dir)
+        if not env_path.is_dir():
+            raise ValueError(f"ATHF_HUNT_DIR is set but is not a directory: {env_dir}")
+        return env_path
 
     # Current directory (running from repo root)
     candidates.append(Path("hunts/production"))

@@ -14,8 +14,19 @@ from athf.core.hunt_metrics import (
     HuntMetrics,
     _parse_date_field,
     calculate_metrics,
+    load_metrics_registry,
     parse_hunt_frontmatter,
+    true_positive_count,
 )
+
+
+def _detection_count(meta: Dict) -> int:
+    return len(meta.get('related_detections') or [])
+
+
+def _text(meta: Dict, key: str, default: str) -> str:
+    value = meta.get(key)
+    return default if value is None or value == "" else str(value)
 
 
 def calculate_year_at_glance(hunt_dir: Path, year: int) -> List[HuntMetrics]:
@@ -132,6 +143,17 @@ def format_year_at_glance(quarters: List[HuntMetrics]) -> Table:
     return table
 
 
+def _in_drill_down_scope(meta: Dict, start_date: date, end_date: date) -> bool:
+    """Completed, in-range, and not excluded -- the same population calculate_metrics uses."""
+    hunt_date = _parse_date_field(meta.get('date'))
+    return (
+        hunt_date is not None
+        and start_date <= hunt_date <= end_date
+        and meta.get('status') == 'completed'
+        and not meta.get('exclude_from_metrics', False)
+    )
+
+
 def _drill_down_generic(
     hunt_dir: Path,
     start_date: date,
@@ -155,41 +177,17 @@ def _drill_down_generic(
     Returns:
         List of tuples from extract_fn
     """
-    results: List[Tuple[Any, ...]] = []
-
     # Use loader if provided, otherwise scan directly
     if loader is not None:
-        all_hunts = loader.load_all()
-        for hunt_meta in all_hunts:
-            hunt_date = _parse_date_field(hunt_meta.get('date'))
-
-            if not hunt_date or not (start_date <= hunt_date <= end_date):
-                continue
-
-            if hunt_meta.get('status') != 'completed':
-                continue
-
-            # Apply custom filter
-            if filter_fn(hunt_meta):
-                results.append(extract_fn(hunt_meta))
+        candidates: List[Dict] = loader.load_all()
     else:
-        # Original behavior: direct filesystem scan
-        for hunt_file in hunt_dir.rglob("H-*.md"):
-            parsed_meta = parse_hunt_frontmatter(hunt_file)
-            if not parsed_meta:
-                continue
+        parsed = (parse_hunt_frontmatter(f) for f in hunt_dir.rglob("H-*.md"))
+        candidates = [m for m in parsed if m]
 
-            hunt_date = _parse_date_field(parsed_meta.get('date'))
-
-            if not hunt_date or not (start_date <= hunt_date <= end_date):
-                continue
-
-            if parsed_meta.get('status') != 'completed':
-                continue
-
-            # Apply custom filter
-            if filter_fn(parsed_meta):
-                results.append(extract_fn(parsed_meta))
+    results: List[Tuple[Any, ...]] = [
+        extract_fn(m) for m in candidates
+        if _in_drill_down_scope(m, start_date, end_date) and filter_fn(m)
+    ]
 
     # Sort only if ALL results have numeric third element (not just first)
     if results and all(len(r) >= 3 and isinstance(r[2], (int, float)) for r in results):
@@ -202,25 +200,30 @@ def drill_down_detections(hunt_dir: Path, start_date: date, end_date: date, limi
     """Drill down: which hunts created detections?"""
     return _drill_down_generic(
         hunt_dir, start_date, end_date,
-        filter_fn=lambda m: len(m.get('related_detections', [])) > 0,
+        filter_fn=lambda m: _detection_count(m) > 0,
         extract_fn=lambda m: (
-            m.get('hunt_id', 'Unknown'),
-            m.get('title', 'Unknown'),
-            len(m.get('related_detections', []))
+            _text(m, 'hunt_id', 'Unknown'),
+            _text(m, 'title', 'Unknown'),
+            _detection_count(m)
         ),
         limit=limit
     )
 
 
 def drill_down_high_impact(hunt_dir: Path, start_date: date, end_date: date, threshold: int = 5, limit: int = 20) -> List[Tuple[str, str, int]]:
-    """Drill down: hunts with high incident counts."""
+    """Drill down: hunts with high incident counts.
+
+    Incidents use the same verdict-ladder derivation as ``calculate_metrics``,
+    so a hunt credited in the headline numbers also shows up here.
+    """
+    registry = load_metrics_registry(hunt_dir)
     return _drill_down_generic(
         hunt_dir, start_date, end_date,
-        filter_fn=lambda m: m.get('true_positives', 0) >= threshold,
+        filter_fn=lambda m: true_positive_count(m, registry) >= threshold,
         extract_fn=lambda m: (
-            m.get('hunt_id', 'Unknown'),
-            m.get('title', 'Unknown'),
-            m.get('true_positives', 0)
+            _text(m, 'hunt_id', 'Unknown'),
+            _text(m, 'title', 'Unknown'),
+            true_positive_count(m, registry)
         ),
         limit=limit
     )
@@ -232,9 +235,9 @@ def drill_down_control_gaps(hunt_dir: Path, start_date: date, end_date: date, li
         hunt_dir, start_date, end_date,
         filter_fn=lambda m: m.get('output_type') == 'control_gap',
         extract_fn=lambda m: (
-            m.get('hunt_id', 'Unknown'),
-            m.get('title', 'Unknown'),
-            m.get('output_summary', 'N/A')
+            _text(m, 'hunt_id', 'Unknown'),
+            _text(m, 'title', 'Unknown'),
+            _text(m, 'output_summary', 'N/A')
         ),
         limit=limit
     )
