@@ -87,6 +87,70 @@ def parse_hunt_frontmatter(file_path: Path) -> Optional[Dict[str, Any]]:
         return None
 
 
+_FALSEY_STRINGS = {"", "false", "no", "none", "n/a", "null", "0"}
+
+
+def _label(meta: Dict[str, Any], key: str) -> str:
+    """Bucket label for a categorical field; blank/None collapses to 'unknown'.
+
+    The template ships these keys with empty values, which YAML loads as None,
+    so ``meta.get(key, 'unknown')`` alone would produce a ``None`` bucket.
+    """
+    value = meta.get(key)
+    if value is None or (isinstance(value, str) and not value.strip()):
+        return 'unknown'
+    return str(value)
+
+
+def _has_data_available(value: Any) -> bool:
+    """Interpret ``data_sources_available`` (bool, string, or list of sources)."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() not in _FALSEY_STRINGS
+    if isinstance(value, list):
+        return len(value) > 0
+    return False
+
+
+def true_positive_count(meta: Dict[str, Any], registry: Any = None) -> int:
+    """Incident count for a hunt, matching ``HuntManager`` / ``athf metrics``.
+
+    A hand-entered legacy ``true_positives`` wins; otherwise the count comes
+    from the provenance-gated verdict ladder (``findings`` / ``ruled_out``).
+    """
+    legacy = meta.get('true_positives')
+    if legacy is not None:
+        try:
+            return int(legacy)
+        except (TypeError, ValueError):
+            return 0
+    from athf.core.verdicts import precision_pair, tally_frontmatter_verdicts
+
+    tiers = tally_frontmatter_verdicts(meta, registry)
+    if tiers is None:
+        return 0
+    return precision_pair(tiers)[0]
+
+
+def load_metrics_registry(hunt_dir: Path) -> Any:
+    """Load the producer registry the same way ``HuntManager.registry`` does.
+
+    ``hunt_dir`` is usually ``<workspace>/hunts/production``; the workspace root
+    is the parent of the nearest ``hunts`` directory, falling back to the parent
+    of ``hunt_dir`` for non-standard layouts (e.g. ``ATHF_HUNT_DIR``).
+    """
+    from athf.core.provenance import load_registry
+
+    resolved = hunt_dir.resolve()
+    root = resolved.parent
+    for candidate in (resolved, *resolved.parents):
+        if candidate.name == "hunts":
+            root = candidate.parent
+            break
+    return load_registry(resolved, root=root)
+
+
 def calculate_metrics(
     hunt_dir: Path,
     start_date: date,
@@ -131,13 +195,16 @@ def calculate_metrics(
     # Calculate metrics
     completed = [h for h in hunts if h.get('status') == 'completed']
 
+    registry = load_metrics_registry(hunt_dir)
+    tp_counts = [true_positive_count(h, registry) for h in completed]
+
     # Outputs
     detections = sum(
         len(h.get('related_detections') or [])
         for h in completed
     )
 
-    incidents = sum(h.get('true_positives') or 0 for h in completed)
+    incidents = sum(tp_counts)
 
     control_gaps = sum(
         1 for h in completed
@@ -147,13 +214,13 @@ def calculate_metrics(
     # By type
     by_type: Dict[str, int] = {}
     for h in completed:
-        otype = h.get('output_type', 'unknown')
+        otype = _label(h, 'output_type')
         by_type[otype] = by_type.get(otype, 0) + 1
 
     # By criticality
     by_crit: Dict[str, int] = {}
     for h in completed:
-        crit = h.get('output_criticality', 'unknown')
+        crit = _label(h, 'output_criticality')
         by_crit[crit] = by_crit.get(crit, 0) + 1
 
     # Coverage
@@ -166,16 +233,14 @@ def calculate_metrics(
     # By technology
     by_tech: Dict[str, int] = {}
     for h in completed:
-        tech = h.get('technology_domain', 'unknown')
+        tech = _label(h, 'technology_domain')
         by_tech[tech] = by_tech.get(tech, 0) + 1
 
     # Data sources available (Coverage metric #5)
-    # Accept bool True, non-empty string, or non-empty list
+    # Accept bool True, a non-falsey string, or a non-empty list
     hunts_with_data = sum(
         1 for h in completed
-        if h.get('data_sources_available') in (True, 'true', 'True', 'yes', 'Yes')
-        or (isinstance(h.get('data_sources_available'), (list, str))
-            and len(h.get('data_sources_available') or '') > 0)
+        if _has_data_available(h.get('data_sources_available'))
     )
     data_available_pct = (hunts_with_data / len(completed) * 100) if completed else 0
 
@@ -186,7 +251,7 @@ def calculate_metrics(
         finished = _parse_date_field(h.get('completed_date'))
         if started and finished:
             delta_days = (finished - started).days
-            if delta_days > 0:  # Only count positive durations
+            if delta_days >= 0:  # Same-day hunts count; negatives are data errors
                 durations.append(delta_days)
 
     avg_duration = sum(durations) / len(durations) if durations else 0
@@ -212,7 +277,7 @@ def calculate_metrics(
         backlog_ratio = None
 
     # Success rate
-    success = sum(1 for h in completed if (h.get('true_positives') or 0) > 0)
+    success = sum(1 for tp in tp_counts if tp > 0)
     success_rate = (success / len(completed) * 100) if completed else 0
 
     # Total findings
